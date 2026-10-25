@@ -6,7 +6,7 @@ import { useEffect, useState } from 'preact/hooks';
 import { api, type ListItem, type NewBook, type Notice } from '../api.ts';
 import { app, select, notify, open, detail, feedsById } from '../store.ts';
 import { NoticeRow, usePoll, md, shownName } from './Journals.tsx';
-import { NoticePreview } from './NoticePreview.tsx';
+import { NoticePreview, ownCover } from './NoticePreview.tsx';
 import { dueSoon, DEADLINE_DAYS, EVENT_DAYS } from '../due.ts';
 import { TopFeeds, AiTags, topFeeds, topAiTags } from './Overview.tsx';
 import { Icon } from './Icon.tsx';
@@ -65,7 +65,7 @@ function TodayCards({ items, pick }: { items: Notice[]; pick: Pick }) {
           <button key={`${n.post.id}:${n.name}`} class={cx('today-card', pick.picked === n && 'picked', n.next!.what === '截止' && 'closing')}
             onClick={() => (pick.onPick ? pick.onPick(n) : void select({ kind: 'notices' }))}>
             <span class="today-cover">
-              {n.post.image ? <img src={proxiedCover(n.post.image, 480)} alt="" loading="lazy" onError={(e) => { (e.currentTarget as HTMLElement).remove(); }} />
+              {ownCover(n) ? <img src={proxiedCover(ownCover(n)!, 480)} alt="" loading="lazy" onError={(e) => { (e.currentTarget as HTMLElement).remove(); }} />
                 : <Icon name="calendar" size={22} />}
               <span class="today-when">{label(n)}</span>
             </span>

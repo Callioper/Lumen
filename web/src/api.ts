@@ -169,6 +169,7 @@ export interface Notice {
   kind: NoticeKind; name: string; date: string; end: string; deadline: string; place: string; organizer: string; speakers: string[];
   contact: string; summary: string; online: '' | '线上' | '线上线下'; live: string; replays: Replay[];
   status: 'upcoming' | 'open' | 'recorded' | 'past'; next: { what: '截止' | '举办' | '进行中'; date: string } | null; post: PostRef; posts: number;
+  own?: { id: number; image: string | null } | null;   // the post about it alone, for its pictures; null: only roundups
   access?: { meeting: string; links: { label: string; url: string }[] };   // how to get in, for what is online and still to come
 }
 export interface NoticesPage { items: Notice[]; kinds: Count[]; past: number; online: number; reading: number; stalled: boolean }

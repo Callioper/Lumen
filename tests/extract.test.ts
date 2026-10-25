@@ -122,6 +122,19 @@ test('学术动态 lists what is to come nearest first, merges repeats and keeps
   assert.deepEqual(academicNotices(db, { kind: '讲座', past: true, now: today }).items.map((n) => n.name), ['慢读与快读', '已开过的讲座']);
 });
 
+test('a roundup gives its notices no pictures; a notice of its own post takes that post', () => {
+  const { db, add, put } = setup();
+  add(1, '年会通知', 9);
+  add(2, '会议汇总', 2);
+  put.run(1, 'notice', JSON.stringify([notice({ name: '第八届外语学科发展联盟年会', date: '2026-11-20' })]));
+  put.run(2, 'notice', JSON.stringify([notice({ name: '第八届外语学科发展联盟年会', date: '2026-11-20' }),
+    ...Array.from({ length: 6 }, (_, i) => notice({ name: `汇总里的第${i + 1}个会`, date: '2026-12-01' }))]));
+  const page = academicNotices(db, { kind: '', past: false, now: new Date(2026, 9, 23) });
+  const own = (name: string) => page.items.find((n) => n.name === name)?.own;
+  assert.equal(own('第八届外语学科发展联盟年会')?.id, 1);
+  assert.equal(own('汇总里的第1个会'), null);
+});
+
 test('期刊目录 shows an issue posted twice once, and counts what is left to read', () => {
   const { db, add } = setup();
   add(1, '《外国文学》2026年第4期目录', 30);

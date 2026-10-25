@@ -7,27 +7,35 @@ import { daysUntil } from '../due.ts';
 import { cx, proxied, proxiedCover, safeLink, toneOf } from '../util.ts';
 import { Contact, FromPost, Live, Replays, md, shownName } from './Journals.tsx';
 import { Icon } from './Icon.tsx';
-import { loadHash, hashDistance, SAME_PICTURE_BITS } from '../picturehash.ts';
+import { loadLook, hashDistance, SAME_PICTURE_BITS } from '../picturehash.ts';
 
 const POSTERS = 4;
 
-// The cover again in the body is often a file of its own: told apart by how it looks.
-async function withoutCover(urls: string[], cover: string | null | undefined): Promise<string[]> {
-  if (!cover || !urls.length) return urls;
-  const [own, ...theirs] = await Promise.all([cover, ...urls].map((u) => loadHash(proxiedCover(u, 160))));
-  if (!own) return urls;
-  return urls.filter((_, i) => { const h = theirs[i]; return !h || hashDistance(own, h) > SAME_PICTURE_BITS; });
+// A roundup's cover is no notice's own (server/content/notices.ts own).
+export const ownCover = (n: Notice): string | null => (n.own === undefined ? n.post.image ?? null : n.own?.image ?? null);
+
+// Asked for beyond those shown: some will be the cover again or a QR code.
+const ASKED = 8;
+
+// The cover again in the body is often a file of its own, told apart by how it looks; a QR or 小程序
+// code by its pixels (picturehash.ts), which the server cannot read without an image decoder.
+async function shownOf(urls: string[], cover: string | null | undefined): Promise<string[]> {
+  const [own, ...looks] = await Promise.all([cover ? loadLook(proxiedCover(cover, 520)) : null, ...urls.map((u) => loadLook(proxiedCover(u, 520)))]);
+  return urls.filter((_, i) => {
+    const { hash, code } = looks[i];
+    return !code && !(own?.hash && hash && hashDistance(own.hash, hash) <= SAME_PICTURE_BITS);
+  });
 }
 
 // The pictures in the post apart from its cover; the server leaves out GIFs, dividers, banners and
-// QR codes as the archive does.
+// mastheads as the archive does, and puts posters first.
 function usePostImages(postId: number, cover: string | null | undefined): string[] {
   const [images, setImages] = useState<{ id: number; urls: string[] }>({ id: 0, urls: [] });
   useEffect(() => {
+    if (!postId) return;
     let live = true;
-    // One more than shown, in case the first is the cover.
-    api.pictures(postId, POSTERS + 1).then(async ({ urls }) => {
-      const shown = (await withoutCover(urls, cover)).slice(0, POSTERS);
+    api.pictures(postId, ASKED).then(async ({ urls }) => {
+      const shown = (await shownOf(urls, cover)).slice(0, POSTERS);
       if (live) setImages({ id: postId, urls: shown });
     }).catch(() => { if (live) setImages({ id: postId, urls: [] }); });
     return () => { live = false; };
@@ -59,7 +67,8 @@ export function NoticePreview({ n }: { n: Notice | null }) {
 }
 
 function Preview({ n }: { n: Notice }) {
-  const posters = usePostImages(n.post.id, n.post.image);
+  const cover = ownCover(n);
+  const posters = usePostImages(n.own === undefined ? n.post.id : n.own?.id ?? 0, cover);
   const c = countdown(n);
   const link = safeLink(n.post.link);
   const held = n.date ? `${md(n.date)}${n.end ? ` – ${md(n.end)}` : ''}` : '';
@@ -67,9 +76,9 @@ function Preview({ n }: { n: Notice }) {
     ['主讲', n.speakers.join('、')]] as [string, string][]).filter(([, v]) => !!v);
   return (
     <article class="np">
-      {n.post.image && (
+      {cover && (
         <figure class="np-hero">
-          <img src={proxiedCover(n.post.image, 1080)} alt="" onError={(e) => { (e.currentTarget.parentElement as HTMLElement).remove(); }} />
+          <img src={proxiedCover(cover, 1080)} alt="" onError={(e) => { (e.currentTarget.parentElement as HTMLElement).remove(); }} />
         </figure>
       )}
       <div class="np-body">

@@ -121,6 +121,9 @@ export interface NoticeView extends Notice {
   next: { what: '截止' | '举办' | '进行中'; date: string } | null;     // 进行中: date is when it ends
   post: { id: number; title: string; feedId: number; feed: string; published: number; link: string | null; image?: string | null };
   posts: number;
+  // The post that is about this notice alone, for its cover and pictures; null when every post it was
+  // read from is a roundup, whose pictures belong to none of the notices in it.
+  own: { id: number; image: string | null } | null;
 }
 export interface Count { label: string; n: number }
 
@@ -184,6 +187,9 @@ const merged = (x: Notice, y: Notice): Notice => {
 // An event is looked for on B站 by its name and day (replays.ts keeps what was found under this).
 export const replayKey = (n: Notice): string => `${noticeKey(n)}|${n.date}`;
 const RECORDED_FOR_DAYS = 30;
+// A post with this many notices is a roundup (「会议汇总」, 「盘点」: 10–16 measured 10-26); fewer are
+// a lecture series or one event in parts (2–5), whose pictures are its own.
+const ROUNDUP = 6;
 
 function storedReplays(db: DB): Map<string, Replay[]> {
   const rows = db.prepare('SELECT key, found FROM replay WHERE found IS NOT NULL').all() as { key: string; found: string }[];
@@ -204,7 +210,9 @@ export function academicNotices(db: DB, opts: { kind: string; past: boolean; onl
   const byKey = new Map<string, NoticeView>();
   // Every post an event was read from: the way in is looked for in all of them.
   const postsOf = new Map<NoticeView, number[]>();
+  const posts = new Map<number, { image: string | null; notices: number }>();
   for (const { data, post } of extracted<Notice[]>(db, 'notice', NOTICE_VERSION)) {
+    posts.set(post.id, { image: post.image ?? null, notices: data.length });
     for (const read of data) {
       const n: Notice = { ...read, online: read.online ?? '', live: read.live ?? '' };     // read by version 1
       const k = [...byKey.keys()].find((key) => sameEvent(byKey.get(key)!, n)) ?? `${post.id}:${byKey.size}`;
@@ -218,7 +226,7 @@ export function academicNotices(db: DB, opts: { kind: string; past: boolean; onl
         byKey.set(k, v);
         continue;
       }
-      const v: NoticeView = { ...n, status: 'open', next: null, replays: [], post, posts: 1 };
+      const v: NoticeView = { ...n, status: 'open', next: null, replays: [], post, posts: 1, own: null };
       postsOf.set(v, [post.id]);
       byKey.set(k, v);
     }
@@ -230,7 +238,9 @@ export function academicNotices(db: DB, opts: { kind: string; past: boolean; onl
     const dated = !!(v.date || v.deadline) || v.post.published < staleBefore;
     const found = replays.get(replayKey(v)) ?? [];
     const recorded = !next && found.length > 0 && (v.end || v.date) >= recordedSince;
-    const out: NoticeView = { ...v, next, replays: found, status: (next ? 'upcoming' : recorded ? 'recorded' : dated ? 'past' : 'open') as NoticeStatus };
+    const ownId = ids.find((id) => (posts.get(id)?.notices ?? 0) < ROUNDUP);
+    const own = ownId === undefined ? null : { id: ownId, image: posts.get(ownId)!.image };
+    const out: NoticeView = { ...v, own, next, replays: found, status: (next ? 'upcoming' : recorded ? 'recorded' : dated ? 'past' : 'open') as NoticeStatus };
     postsOf.set(out, ids);
     return out;
   });
