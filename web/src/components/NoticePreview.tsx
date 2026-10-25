@@ -4,7 +4,7 @@ import { useEffect, useState } from 'preact/hooks';
 import { api, type Notice } from '../api.ts';
 import { open, notify } from '../store.ts';
 import { daysUntil } from '../due.ts';
-import { cx, proxied, proxiedCover, toneOf } from '../util.ts';
+import { cx, proxied, proxiedCover, safeLink, toneOf } from '../util.ts';
 import { Contact, FromPost, Live, Replays, md, shownName } from './Journals.tsx';
 import { Icon } from './Icon.tsx';
 import { loadHash, hashDistance, SAME_PICTURE_BITS } from '../picturehash.ts';
@@ -78,6 +78,7 @@ export function NoticePreview({ n }: { n: Notice | null }) {
 function Preview({ n }: { n: Notice }) {
   const posters = usePostImages(n.post.id, n.post.image);
   const c = countdown(n);
+  const link = safeLink(n.post.link);
   const held = n.date ? `${md(n.date)}${n.end ? ` – ${md(n.end)}` : ''}` : '';
   const facts: [string, string][] = ([['举办', held],['截止', n.deadline ? md(n.deadline) : ''], ['地点', n.place], ['主办', n.organizer],
     ['主讲', n.speakers.join('、')]] as [string, string][]).filter(([, v]) => !!v);
@@ -116,7 +117,7 @@ function Preview({ n }: { n: Notice }) {
           <FromPost post={n.post} scope="notices" extra={n.posts > 1 ? `${n.posts} 篇推文` : undefined} />
           <span class="np-actions">
             <button class="np-read" onClick={() => void readPost(n.post.id)}><Icon name="doc" size={14} />读推文</button>
-            {n.post.link && <a class="np-out" href={n.post.link} target="_blank" rel="noopener noreferrer">原文 ↗</a>}
+            {link && <a class="np-out" href={link} target="_blank" rel="noopener noreferrer">原文 ↗</a>}
           </span>
         </footer>
       </div>

@@ -6,7 +6,7 @@ import { open, notify, detail, prefs } from '../store.ts';
 import { FeedIcon } from './Icon.tsx';
 import { NeedsAi } from './NeedsAi.tsx';
 import { daysUntil } from '../due.ts';
-import { cx, toneOf } from '../util.ts';
+import { cx, safeLink, toneOf } from '../util.ts';
 
 const READING_POLL_MS = 20_000;
 const ARTICLES_FOLDED = 8;
@@ -97,13 +97,14 @@ const onCnki = (link?: string): boolean => !!link && /kcms2?\//.test(link);
 
 function Article({ a }: { a: TocArticle }) {
   const [shown, setShown] = useState(false);
+  const link = safeLink(a.link);
   const people = [a.authors.join('　'), a.translators.length ? `${a.translators.join('　')} 译` : ''].filter(Boolean).join(' · ');
   const title = <>{a.title}{a.subtitle && <span class="toc-subtitle">——{a.subtitle}</span>}</>;
   return (
     <li class="toc-article">
       <div class="toc-line">
-        {a.link
-          ? <a class="toc-title" href={a.link} {...external} title={onCnki(a.link) ? '在知网打开' : '在知网按篇名检索'}>{title}</a>
+        {link
+          ? <a class="toc-title" href={link} {...external} title={onCnki(link) ? '在知网打开' : '在知网按篇名检索'}>{title}</a>
           : <span class="toc-title">{title}</span>}
         {a.reprint && <span class="toc-reprint" title={`${a.reprint}全文转载`}>人大复印</span>}
         {a.page && <span class="toc-page">{a.page}</span>}
@@ -112,7 +113,7 @@ function Article({ a }: { a: TocArticle }) {
         {people && <span class="toc-authors">{people}</span>}
         {a.reprintOf && <span class="toc-reprint-of">原载{a.reprintOf}</span>}
         {a.abstract && <button class={cx('linkish toc-abstract-toggle', shown && 'on')} aria-expanded={shown} onClick={() => setShown(!shown)}>{a.lead ? '开头' : '摘要'}</button>}
-        {a.link && <a class="toc-cnki" href={a.link} {...external}>{onCnki(a.link) ? '知网' : '知网检索'}</a>}
+        {link && <a class="toc-cnki" href={link} {...external}>{onCnki(link) ? '知网' : '知网检索'}</a>}
       </div>
       {shown && (
         <div class="toc-abstract">
@@ -133,7 +134,8 @@ function Issue({ t }: { t: TocIssue }) {
     left -= articles.length;
     return { ...s, articles };
   }).filter((s) => s.articles.length);
-  const onJournalPage = t.link.includes('/knavi/journals/');
+  const link = safeLink(t.link);
+  const onJournalPage = !!link?.includes('/knavi/journals/');
   return (
     <article class={cx('toc-issue', t.source !== 'post' && `from-${t.source}`)}>
       <header class="toc-head">
@@ -141,9 +143,9 @@ function Issue({ t }: { t: TocIssue }) {
           <span class="toc-journal">{t.journal}</span>
           <span class="toc-number" title={t.inferred ? '知网 RSS 不写期号，按出刊间隔推算' : undefined}>{t.issue}{t.inferred && <small>推算</small>}</span>
         </h3>
-        <a class="btn small toc-issue-cnki" href={t.link} {...external} title={onJournalPage ? '知网刊物页，刊期浏览里选这一期' : '在知网按刊名检索'}>
+        {link && <a class="btn small toc-issue-cnki" href={link} {...external} title={onJournalPage ? '知网刊物页，刊期浏览里选这一期' : '在知网按刊名检索'}>
           {onJournalPage ? '知网刊物页' : '知网检索本刊'}
-        </a>
+        </a>}
       </header>
       <div class="toc-source">
         {t.post ? <FromPost post={t.post} scope="tocs" extra={`${t.articles} 篇`} />
