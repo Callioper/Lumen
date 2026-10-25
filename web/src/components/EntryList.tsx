@@ -9,6 +9,7 @@ import { BooksView } from './Books.tsx';
 import { HotView } from './Hot.tsx';
 import { TocsView, NoticesView } from './Journals.tsx';
 import { api, type ListItem, type Layout } from '../api.ts';
+import { PageTags } from './PageTags.tsx';
 import { Icon, FeedIcon } from './Icon.tsx';
 import { ago, proxiedCover, cx, safeLink } from '../util.ts';
 
@@ -123,6 +124,7 @@ function Row({ it }: { it: ListItem }) {
         <span class="row-feed">{f?.title}</span>
         <span class="row-time">{ago(it.published)}</span>
         <RecTag it={it} />
+        <PageTags pages={it.pages} />
         {it.is_starred ? <Icon name="star" size={12} fill class="star-on" /> : null}
       </div>
       <div class="row-body">
@@ -197,7 +199,7 @@ function Tile({ it }: { it: ListItem }) {
       </div>
       <figcaption>
         <span class="tile-title"><Marked text={it.title_zh || it.title} /><OrigTitle it={it} /></span>
-        <span class="tile-meta">{f?.title} · {ago(it.published)} <RecTag it={it} /></span>
+        <span class="tile-meta">{f?.title} · {ago(it.published)} <RecTag it={it} /> <PageTags pages={it.pages} /></span>
       </figcaption>
     </figure>
   );
@@ -217,6 +219,7 @@ function Card({ it }: { it: ListItem }) {
           <span class="row-feed">{f?.title}</span>
           <span class="row-time">{ago(it.published)}</span>
           <RecTag it={it} />
+          <PageTags pages={it.pages} />
           <button class={cx('card-star', it.is_starred && 'on')} onClick={(e) => { e.stopPropagation(); void toggleStar(it); }} aria-label="收藏">
             <Icon name="star" size={13} fill={!!it.is_starred} />
           </button>
@@ -241,6 +244,7 @@ function Line({ it, oneFeed }: { it: ListItem; oneFeed: boolean }) {
     <div data-id={it.id} data-read-ids={readIds([it])} onClick={() => void open(it)}
       class={cx('line', it.id === selectedId.value && 'selected', it.is_read ? 'read' : 'unread')}>
       <span class="line-title" title={it.title_zh && it.title_zh !== it.title ? it.title : undefined}><Marked text={it.title_zh || it.title} /></span>
+      <PageTags pages={it.pages} />
       {!oneFeed && <span class="line-feed">{f?.title}</span>}
       {it.is_starred ? <Icon name="star" size={11} fill class="star-on" /> : null}
       <span class="line-time">{clock(it.published)}</span>

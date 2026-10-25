@@ -104,8 +104,10 @@ export interface ListItem {
   published: number; is_read: number; is_starred: number; thumbnail: string | null; enclosures: string | null;
   snippet: string; has_summary: number; is_mark: number; images?: string[];
   rec?: RecInfo;                     // only in the 推荐 order
+  pages?: PageOf[];                  // the pages built out of it (server/content/destinations.ts)
   hit?: boolean;                     // a search result: the snippet is the text around a term
 }
+export type PageOf = 'notices' | 'tocs' | 'books';
 export interface RecInfo { reasons: string[]; explore?: boolean }
 export interface RecMeta { coldStart: boolean; signals: number; needed: number }
 export interface RecCluster {

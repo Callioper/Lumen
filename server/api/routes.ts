@@ -6,6 +6,7 @@ import type { DB } from '../db.ts';
 import { tx, VIEWS, LAYOUTS } from '../db.ts';
 import { mergeSettings, type Settings, type Secrets } from '../config.ts';
 import { appState, listEntries, searchEntries, getEntry, scopeWhere, parseCursor, type Scope } from './queries.ts';
+import { withDestinations, destinationsOf } from '../content/destinations.ts';
 import { exportOpml, importOpml } from './opml.ts';
 import { listMarks, markMarksRead, friendsMarks } from './marks.ts';
 import { keptIntros, fillIntros } from '../content/hotintros.ts';
@@ -140,22 +141,23 @@ export function apiApp(d: Deps): Hono {
     const limit = Math.max(1, Math.min(Math.trunc(Number(q.limit)) || PAGE, 200));
     if (q.sort === 'rec') {
       const offset = Math.max(0, Math.trunc(Number(q.offset)) || 0);
-      return c.json(recommendPage(db, d.embedder.index, d.getSettings().embedding.model, scopeFrom(q), offset, limit));
+      const page = recommendPage(db, d.embedder.index, d.getSettings().embedding.model, scopeFrom(q), offset, limit);
+      return c.json({ ...page, items: withDestinations(db, page.items) });
     }
     if (q.sort === 'relevance' && q.q?.trim()) {
       const offset = Math.max(0, Math.trunc(Number(q.offset)) || 0);
-      return c.json({ items: searchEntries(db, scopeFrom(q), offset, limit) });
+      return c.json({ items: withDestinations(db, searchEntries(db, scopeFrom(q), offset, limit)) });
     }
     if (q.sort === 'semantic' && q.q?.trim()) {
       const offset = Math.max(0, Math.trunc(Number(q.offset)) || 0);
       try {
-        return c.json({ items: await semanticSearch(db, d.embedder.index, d.getSettings().embedding.model, embedQuery, scopeFrom(q), offset, limit) });
+        return c.json({ items: withDestinations(db, await semanticSearch(db, d.embedder.index, d.getSettings().embedding.model, embedQuery, scopeFrom(q), offset, limit)) });
       } catch (e) {
         return c.json({ error: `「意思相近」没搜成：${(e as Error).message}` }, 502);
       }
     }
     const before = parseCursor(q.before);
-    return c.json({ items: listEntries(db, scopeFrom(q), before, limit) });
+    return c.json({ items: withDestinations(db, listEntries(db, scopeFrom(q), before, limit)) });
   });
 
   // Why the 推荐 order placed an entry where it did; shown under the article.
@@ -283,7 +285,9 @@ export function apiApp(d: Deps): Hono {
 
   app.get('/entries/:id', (c) => {
     const e = getEntry(db, Number(c.req.param('id')));
-    return e ? c.json(e) : c.json({ error: '文章不存在' }, 404);
+    if (!e) return c.json({ error: '文章不存在' }, 404);
+    const pages = destinationsOf(db, [{ id: e.id as number, feed_id: e.feed_id as number }]).get(e.id as number);
+    return c.json(pages ? { ...e, pages } : e);
   });
 
   // On request from the reader: any entry, or the other body of one already translated.

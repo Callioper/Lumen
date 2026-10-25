@@ -6,6 +6,7 @@ import { MarkDetail, actionLine } from './Marks.tsx';
 import { reportKind } from '../reports.ts';
 import { cnkiTitleUrl } from '../cnki.ts';
 import { api, type ListItem, type EntryDetail, type Reaction, type RelatedItem, type SubjectMarks, type Comment, type Comments } from '../api.ts';
+import { PageTags } from './PageTags.tsx';
 import { BookList } from './Books.tsx';
 import { noteProgress } from '../reading.ts';
 import { Icon, FeedIcon } from './Icon.tsx';
@@ -403,6 +404,7 @@ function EntryReader() {
 
       <div class="reader-scroll" ref={scroller} onScroll={(e) => noteProgress(d.id, e.currentTarget)}>
         <article class={cx('prose', prefs.value.serif && 'serif')} style={{ '--prose-size': `${prefs.value.fontSize}px` }}>
+          {d.pages?.length ? <p class="reader-pages"><PageTags pages={d.pages} lead="已收进" /></p> : null}
           <h1 class="title">{link ? <a href={link} target="_blank" rel="noopener noreferrer">{title}</a> : title}</h1>
           {d.title_zh && d.title_zh !== d.title && <p class="title-orig">{d.title}</p>}
           <p class="byline">
