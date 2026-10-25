@@ -219,7 +219,7 @@ test('account name, odd bold markers, glued images and sign-offs are cleaned', (
   const md = ['远方文学研究', '**【作者简介】', '林舟，**北城大学教授', '![](https://a.b/x.jpg)**林舟 教授', body,
     '[旧文一](https://mp.weixin.qq.com/s/1)', '[旧文二](https://mp.weixin.qq.com/s/2)', '欢迎关注**'].join('\n\n');
   const r = cleanMarkdown(md, '乡野心灵', '远方文学研究');
-  assert.ok(r.markdown.startsWith('【作者简介】\n\n林舟，北城大学教授\n\n![](https://a.b/x.jpg)\n\n林舟 教授'), r.markdown.slice(0, 80));
+  assert.ok(r.markdown.startsWith('【作者简介】\n\n林舟，北城大学教授\n\n![](https://a.b/x.jpg)\n\n*林舟 教授*'), r.markdown.slice(0, 80));
   assert.ok(r.markdown.endsWith('正文第7段，篇幅足够长的一段文字。'), r.markdown.slice(-40));
 });
 
@@ -244,4 +244,13 @@ test('a numbered title ending on a colon takes the next line; a bold question ma
   const out = cleanMarkdown(md, 't').markdown;
   assert.match(out, /^## 02 算力过剩、框架松动和无尽回溯：“离身心智”面对的困境$/m);
   assert.match(out, /^## 3 能否解释“统一token假说”具体指什么？/m);
+});
+
+test('swipe prompts go, bold titles become headings, bold paragraphs lose their bold, captions are set apart', () => {
+  const long = '周四，我们发布了三篇同题评论，邀请大家玩了一场“找卧底”的游戏，截止今天中午共有两百多位读者参与了投票，结果相当出人意料，大家几乎一致认为第一篇最像机器写的。';
+  const md = ['开头一段，讲了很多事情。', `**${long}**`, '![](https://a.b/v.png)', '投票结果', '***究竟哪一篇评论是由AI生成的？***',
+    '左滑', '查看答案👈', '**AI书评生成交互过程**', '**张三**', '**——评行烟烟《非赢游戏》**', '![](https://a.b/w.png)', '1、首先，这部小说更新在公众号上。'].join('\n\n');
+  const out = cleanMarkdown(md, 't').markdown.split('\n\n');
+  assert.deepEqual(out, ['开头一段，讲了很多事情。', long, '![](https://a.b/v.png)', '*投票结果*', '## 究竟哪一篇评论是由AI生成的？',
+    '## AI书评生成交互过程', '**张三**', '**——评行烟烟《非赢游戏》**', '![](https://a.b/w.png)', '1、首先，这部小说更新在公众号上。']);
 });

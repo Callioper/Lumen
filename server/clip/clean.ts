@@ -71,8 +71,8 @@ function unescapeMarkdown(s: string): string {
 function tidyEmphasis(s: string): string {
   return s
     .replace(/\*\*\*\*/g, '')                       // **a****b** → **ab**
-    .replace(/\*\*(\s*)\*\*/g, '$1')                // empty bold
-    .replace(/\*\*([\s：:，,。.、；;！!？?]+)\*\*/g, '$1')  // bold around punctuation only
+    .replace(/\*\*([ \t]*)\*\*/g, '$1')             // empty bold (on one line: two bold paragraphs in a row stay apart)
+    .replace(/\*\*([ \t：:，,。.、；;！!？?]+)\*\*/g, '$1')  // bold around punctuation only
     .replace(/^(#{1,6})\s+\*\*(.+?)\*\*\s*$/gm, '$1 $2');  // ## **标题** → ## 标题
 }
 
@@ -130,6 +130,53 @@ export function fixEmphasisSpacing(md: string): string {
     if (line.includes('***')) return line;               // combined bold-italic: leave as written
     return line.split(/(`[^`\n]*`)/).map((seg, j) => (j % 2 ? seg : spaceRuns(spaceRuns(seg, STRONG), EM))).join('');
   }).join('\n'))).join('');
+}
+
+// Carousel prompts left once the swipe widget is gone: 「左滑」, 「查看答案👈」.
+const SWIPE = /^[👈👉👆👇⬅➡←→↑↓\s]*(?:向?[左右上下]滑(?:动)?|滑动|(?:点击)?查看(?:答案|大图|更多))[^\n]{0,6}?[👈👉👆👇⬅➡←→↑↓\s]*$/u;
+const SWIPE_CHARS = 12;
+// A line wholly in bold (or bold italic) standing alone is a title when it is short and does not
+// end a sentence; set across a whole paragraph, the bold was only the editor's colour and goes.
+const WHOLE_BOLD = /^(\*{2,3})([^*\n]+)\1$/;
+const BOLD_HEADING_CHARS = 30;
+const MIN_HEADING_CHARS = 6;          // speaker names ("**张三**") stay as they are
+const SENTENCE_END = /[。；;，,、：:]$/;
+const NOT_A_TITLE = /^[—\-–（(【\[「“"《0-9\\]/;
+// Notices that editors also set in bold: where to send work, reprint terms, sign-offs.
+const NOTICE = /投稿|邮箱|转载|版权|授权|阅读原文|关注|点击|扫码|编辑|来源|END/i;
+// 「霍根：你在…」: an interview turn keeps the bold that marks the speaker; 「文 / 王侃瑜」 is a byline.
+const SPEAKER = /^[^：:\s]{1,12}\s*[：:]/;
+const BYLINE_MARK = /^文\s*[/／|｜]|[/／|｜]\s*文$/;
+const LETTERS = /[\p{L}\p{N}]/gu;
+const hasWords = (s: string, n: number): boolean => (s.match(LETTERS)?.length ?? 0) >= n;
+// A short line right under a picture is its caption ("投票结果").
+const CAPTION_CHARS = 20;
+const IMAGE_BLOCK = /^(?:!\[[^\]]*\]\([^)]*\)|!\[\[[^\]]+\]\])$/;
+const NOT_A_CAPTION = /^[#>!|\-*【\[\\—]|^\d+[、.]|[。！？!?，,；;：:]$/;
+
+const isBoldTitle = (text: string, marks: string): boolean =>
+  text.length >= MIN_HEADING_CHARS && text.length <= (marks === '***' ? BOLD_TITLE_CHARS : BOLD_HEADING_CHARS)
+  && hasWords(text, MIN_HEADING_CHARS - 2) && !SENTENCE_END.test(text) && !NOT_A_TITLE.test(text) && !NOTICE.test(text) && !SPEAKER.test(text) && !BYLINE_MARK.test(text);
+
+const isCaption = (block: string, text: string): boolean =>
+  text.length <= CAPTION_CHARS && hasWords(text, 2) && !block.includes('\n') && !NOT_A_CAPTION.test(block) && !NOT_A_CAPTION.test(text) && !NOTICE.test(text);
+
+export function tidyBlocks(blocks: string[]): string[] {
+  const out: string[] = [];
+  for (const b of blocks) {
+    const p = plain(b);
+    if (p.length <= SWIPE_CHARS && SWIPE.test(p)) continue;
+    const bold = WHOLE_BOLD.exec(b.replace(/\s+/g, ' ').trim());
+    if (bold) {
+      const text = bold[2].trim();
+      if (isBoldTitle(text, bold[1])) { out.push(`## ${text}`); continue; }
+      if (!SPEAKER.test(text) && (text.length > BOLD_TITLE_CHARS || /[。!！]$/.test(text))) { out.push(text); continue; }
+    }
+    const prev = out.at(-1);
+    if (prev && IMAGE_BLOCK.test(prev) && isCaption(b, p)) { out.push(`*${p}*`); continue; }
+    out.push(b);
+  }
+  return out;
 }
 
 function splitBlocks(md: string): string[] {
@@ -232,10 +279,10 @@ export function cleanMarkdown(markdown: string, title: string, feed = ''): Clean
   blocks = takeFacts(blocks, facts);
   const tail = cutTail(blocks);
   const imgs = dropImages(tail.blocks);
-  const out = fixEmphasisSpacing(joinNumberedTitles(imgs.blocks).map((b) => {
+  const out = fixEmphasisSpacing(tidyBlocks(joinNumberedTitles(imgs.blocks).map((b) => {
     const m = SECTION_TITLE.exec(b);
     return m ? `## ${m[1].trim()}` : b;
-  }).join('\n\n'));
+  })).join('\n\n'));
   return {
     markdown: out,
     facts,

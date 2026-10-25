@@ -2,6 +2,7 @@
 // wechat2rss tunnel or on WeChat's hotlink rules, and drop the ones that are page furniture.
 import { mkdirSync, writeFileSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
+import { createHash } from 'node:crypto';
 import type { Settings } from '../config.ts';
 import { httpGet } from '../fetch/http.ts';
 import { refererFor } from '../api/media.ts';
@@ -89,24 +90,39 @@ async function mapLimit<T, R>(items: T[], limit: number, fn: (t: T, i: number) =
 }
 
 type Outcome = { kind: 'saved'; embed: string } | { kind: 'dropped' } | { kind: 'failed' };
+type Fetched = { kind: 'image'; body: Buffer; ext: ImageSize['ext'] } | { kind: 'dropped' } | { kind: 'failed' };
 
 export async function localizeImages(markdown: string, opts: LocalizeOptions): Promise<LocalizeResult> {
   const urls = [...new Set([...markdown.matchAll(IMAGE)].map((m) => m[2]).filter((u) => /^https?:\/\//.test(u)))].slice(0, MAX_IMAGES);
-  const outcomes = await mapLimit(urls, CONCURRENCY, async (url, i): Promise<Outcome> => {
+  const fetched = await mapLimit(urls, CONCURRENCY, async (url): Promise<Fetched> => {
     try {
       const body = await download(url, opts.settings);
       const size = imageSize(body);
       if (!size) return { kind: 'failed' };
       if (isFurniture(size) || (size.ext === 'png' && isFlatCutout(body))) return { kind: 'dropped' };
-      const rel = `${opts.folder}/${opts.baseName}-${String(i + 1).padStart(2, '0')}.${size.ext}`;
-      const abs = join(opts.vaultPath, rel);
-      mkdirSync(dirname(abs), { recursive: true });
-      if (!existsSync(abs)) writeFileSync(abs, body);
-      return { kind: 'saved', embed: `![[${rel}]]` };
+      return { kind: 'image', body, ext: size.ext };
     } catch (e) {
       log.warn(`[clip] image ${url.slice(0, 80)} not saved: ${(e as Error).message}`);
       return { kind: 'failed' };
     }
+  });
+  // The same picture under two addresses (a repeated divider, the cover again at the end) is kept once.
+  const seen = new Set<string>();
+  const outcomes = fetched.map((f, i): Outcome => {
+    if (f.kind !== 'image') return f;
+    const hash = createHash('sha1').update(f.body).digest('hex');
+    if (seen.has(hash)) return { kind: 'dropped' };
+    seen.add(hash);
+    const rel = `${opts.folder}/${opts.baseName}-${String(i + 1).padStart(2, '0')}.${f.ext}`;
+    const abs = join(opts.vaultPath, rel);
+    try {
+      mkdirSync(dirname(abs), { recursive: true });
+      if (!existsSync(abs)) writeFileSync(abs, f.body);
+    } catch (e) {
+      log.warn(`[clip] image ${rel} not written: ${(e as Error).message}`);
+      return { kind: 'failed' };
+    }
+    return { kind: 'saved', embed: `![[${rel}]]` };
   });
   const byUrl = new Map(urls.map((u, i) => [u, outcomes[i]]));
   const md = markdown.replace(IMAGE, (m, _alt: string, url: string) => {
