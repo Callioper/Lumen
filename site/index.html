@@ -56,7 +56,7 @@
     </dl>
   </div>
   <figure class="frame stage">
-    <video src="media/tour.mp4" poster="media/tour-poster.webp" width="2560" height="1600" autoplay muted loop playsinline preload="metadata" aria-label="演示站的「三分钟看特色」导览：学术动态、新书分组、人大复印标记、书影榜、日报里的破茧、外文默认翻译"></video>
+    <video src="media/tour.mp4" poster="media/tour-poster.webp" data-dark-src="media/tour-dark.mp4" data-dark-poster="media/tour-poster-dark.webp" width="2560" height="1600" autoplay muted loop playsinline preload="metadata" aria-label="演示站的「三分钟看特色」导览：学术动态、新书分组、人大复印标记、书影榜、日报里的破茧、外文默认翻译"></video>
     <figcaption><span>演示站 · 三分钟看特色</span><a href="demo/">自己点一遍 →</a></figcaption>
   </figure>
 </section>
@@ -88,27 +88,27 @@
     <a class="frame tile wide" href="demo/#see=notices">
       <header><span>01 · 学术动态</span><i>看演示 →</i></header>
       <p class="desc">会议、征稿和讲座从推文里读出来，按截止日期排。几个号发了同一场，只留一条。</p>
-      <img src="images/f-notices.webp" width="1600" height="901" loading="lazy" alt="学术动态：左栏倒计时，同一场活动合成一条">
+      <picture><source media="(prefers-color-scheme: dark)" srcset="images/f-notices-dark.webp"><img src="images/f-notices.webp" width="1600" height="901" loading="lazy" alt="学术动态：左栏倒计时，同一场活动合成一条"></picture>
     </a>
     <a class="frame tile" href="demo/#see=books">
       <header><span>02 · 新书</span><i>看演示 →</i></header>
       <p class="desc">书单推文拆成一本本书，按月份和主题分组。Zotero 里已经有的会标出来。</p>
-      <img src="images/f-books.webp" width="1000" height="727" loading="lazy" alt="新书：按月、按主题分架的封面墙">
+      <picture><source media="(prefers-color-scheme: dark)" srcset="images/f-books-dark.webp"><img src="images/f-books.webp" width="1000" height="727" loading="lazy" alt="新书：按月、按主题分架的封面墙"></picture>
     </a>
     <a class="frame tile" href="demo/#see=tocs">
       <header><span>03 · 期刊目录</span><i>看演示 →</i></header>
       <p class="desc">公众号推的目录和知网 RSS 都拼成整期。被人大复印转载的文章，在原刊目录里标出来。</p>
-      <img src="images/f-tocs.webp" width="1000" height="750" loading="lazy" alt="期刊目录：人大复印转载的文章，标出原刊出处">
+      <picture><source media="(prefers-color-scheme: dark)" srcset="images/f-tocs-dark.webp"><img src="images/f-tocs.webp" width="1000" height="750" loading="lazy" alt="期刊目录：人大复印转载的文章，标出原刊出处"></picture>
     </a>
     <a class="frame tile wide" href="demo/#see=daily">
       <header><span>04 · 日报</span><i>看演示 →</i></header>
       <p class="desc">每天从新文章里挑出值得看的，分组写导语。最后一篇叫「破茧」，是你平时不会点开的。</p>
-      <img src="images/f-daily.webp" width="1600" height="900" loading="lazy" alt="日报：今日导语与你可能错过的文章">
+      <picture><source media="(prefers-color-scheme: dark)" srcset="images/f-daily-dark.webp"><img src="images/f-daily.webp" width="1600" height="900" loading="lazy" alt="日报：今日导语与你可能错过的文章"></picture>
     </a>
     <a class="frame tile" href="demo/#see=hot">
       <header><span>05 · 书影榜</span><i>看演示 →</i></header>
       <p class="desc">豆瓣友邻近 30 天标得最多的书和电影，旁边是豆瓣的公共榜单。</p>
-      <img src="images/f-hot.webp" width="1000" height="634" loading="lazy" alt="书影榜：友邻近 30 天标得最多的书">
+      <picture><source media="(prefers-color-scheme: dark)" srcset="images/f-hot-dark.webp"><img src="images/f-hot.webp" width="1000" height="634" loading="lazy" alt="书影榜：友邻近 30 天标得最多的书"></picture>
     </a>
     <div class="frame tile">
       <header><span>06 · 外文</span></header>
@@ -141,7 +141,7 @@
     <p>演示站里的订阅、文章和书都是编的，可以随便点。按 <kbd>?</kbd> 能看到每个按钮是做什么的。</p>
     <a class="btn" href="demo/">打开演示站 →</a>
   </div>
-  <a class="demo-shot" href="demo/" aria-label="打开演示站"><img src="images/demo.webp" width="2000" height="1250" loading="lazy" alt="演示站首页"></a>
+  <a class="demo-shot" href="demo/" aria-label="打开演示站"><picture><source media="(prefers-color-scheme: dark)" srcset="images/demo-dark.webp"><img src="images/demo.webp" width="2000" height="1250" loading="lazy" alt="演示站首页"></picture></a>
 </section>
 </main>
 
@@ -167,6 +167,17 @@
     for (const btn of document.querySelectorAll('[data-auto]')) btn.href = link.href;
     document.querySelector('[data-sub]').textContent = `${link.dataset.name} · v{{VERSION}}`;
   }
+  // The video plays in the visitor's colour scheme, like the pictures (<picture> sources) and the page around it.
+  const video = document.querySelector('video[data-dark-src]');
+  const light = { src: video.getAttribute('src'), poster: video.getAttribute('poster') };
+  const dark = matchMedia('(prefers-color-scheme: dark)');
+  const pick = () => {
+    const want = dark.matches ? { src: video.dataset.darkSrc, poster: video.dataset.darkPoster } : light;
+    if (video.getAttribute('src') === want.src) return;
+    video.poster = want.poster; video.src = want.src; video.play().catch(() => {});
+  };
+  pick();
+  dark.addEventListener('change', pick);
   // The platform menu closes on a click anywhere else.
   const more = document.querySelector('.dl-more');
   document.addEventListener('click', (e) => { if (more.open && !more.contains(e.target)) more.open = false; });

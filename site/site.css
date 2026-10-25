@@ -50,6 +50,8 @@
 html { scroll-behavior: smooth; scroll-padding-top: 64px; }
 body { margin: 0; background: var(--paper); color: var(--ink); font: 15px/1.8 var(--sans); -webkit-font-smoothing: antialiased; }
 img, video { display: block; max-width: 100%; height: auto; }
+/* A picture only picks the light or dark file; the img inside keeps its place in the layout. */
+picture { display: contents; }
 a { color: var(--blue); text-decoration: none; }
 a:hover { color: var(--blue-deep); }
 p, h1, h2, h3, ul, dl, dd { margin: 0; }
