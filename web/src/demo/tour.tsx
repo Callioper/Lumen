@@ -231,9 +231,14 @@ const SEE = /^#see=(\w+)$/;
 
 export function TourOverlay() {
   useEffect(() => {
-    const key = SEE.exec(location.hash)?.[1];
-    const feature = FEATURES.find((f) => f.key === key);
-    if (feature) void feature.go();
+    const open = (): void => {
+      const key = SEE.exec(location.hash)?.[1];
+      const feature = FEATURES.find((f) => f.key === key);
+      if (feature) void feature.go();
+    };
+    open();
+    window.addEventListener('hashchange', open);
+    return () => window.removeEventListener('hashchange', open);
   }, []);
   useEffect(() => {
     // During the tour the arrows turn its pages and are kept from the reader's own keys.
