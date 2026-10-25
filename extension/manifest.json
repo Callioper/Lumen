@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Lumen 存档",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "把当前网页按 Lumen 的存档流程存进 Obsidian（整理正文、著录作者与标签、保存图片、AI 分析），或生成一张带二维码的分享图。",
   "permissions": [
     "activeTab",

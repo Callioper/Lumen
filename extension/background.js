@@ -11,17 +11,37 @@ async function collectPage() {
   // Pressed right after the page opened: wait (at most ~3 s) until it has rendered. WeChat fills
   // its body, account name and date by script after the load event.
   const ready = () => document.readyState === 'complete'
-    && (!/(^|\.)mp\.weixin\.qq\.com$/.test(location.hostname) || (document.querySelector('#js_content')?.textContent.trim() && document.querySelector('#js_name')));
+    && (!/(^|\.)mp\.weixin\.qq\.com$/.test(location.hostname) || document.querySelector('#js_image_desc')
+      || (document.querySelector('#js_content')?.textContent.trim() && document.querySelector('#js_name')));
   for (let i = 0; i < 20 && !ready(); i++) await new Promise((r) => setTimeout(r, 150));
   const q = (s) => document.querySelector(s);
   const meta = (s) => q(s)?.getAttribute('content')?.trim() || '';
   const text = (s) => q(s)?.textContent?.trim() || '';
+  // A WeChat image post (贴图) keeps its words in #js_image_desc and its pictures in the carousel at
+  // the top; #js_content there holds only the tip panel. Words first, then the pictures. Only the
+  // carousel under #page_top_area: a hidden copy above it repeats the first picture.
+  const imagePost = () => {
+    const desc = q('#js_image_desc');
+    if (!/(^|\.)mp\.weixin\.qq\.com$/.test(location.hostname) || !desc) return '';
+    const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+    const srcOf = (el) => {
+      const img = el.matches('img') ? el : el.querySelector('img');
+      const src = img?.getAttribute('data-src') || img?.currentSrc || img?.src
+        || /url\(["']?([^"')]+)["']?\)/.exec(getComputedStyle(el).backgroundImage || '')?.[1] || '';
+      return /^https?:/.test(src) ? src : '';
+    };
+    const pics = [...new Set([...document.querySelectorAll('#page_top_area .swiper_item_img')].map(srcOf).filter(Boolean))];
+    const words = desc.innerText.split(/\n+/).map((s) => s.trim()).filter(Boolean);
+    return `<html><head><title>${esc(document.title)}</title></head><body><article>${words.map((s) => `<p>${esc(s)}</p>`).join('')}`
+      + `${pics.map((s) => `<p><img src="${esc(s)}"></p>`).join('')}</article></body></html>`;
+  };
   return {
     url: location.href.replace(/#.*$/, ''),
     title: meta('meta[property="og:title"]') || document.title,
-    html: document.documentElement.outerHTML,
+    html: imagePost() || document.documentElement.outerHTML,
     selectedText: String(window.getSelection() ?? '').trim(),
-    siteName: text('#js_name') || meta('meta[property="og:site_name"]'),
+    // Shared posts have no #js_name; the account name is only on the follow bar.
+    siteName: text('#js_name') || text('#js_wx_follow_nickname') || meta('meta[property="og:site_name"]'),
     author: text('#js_author_name') || meta('meta[name="author"]') || meta('meta[property="article:author"]'),
     published: text('#publish_time') || meta('meta[property="article:published_time"]') || q('time[datetime]')?.getAttribute('datetime') || '',
   };
@@ -44,7 +64,7 @@ async function collectShare() {
     title: meta('meta[property="og:title"]') || document.title,
     html: document.documentElement.outerHTML,
     selectedText: String(window.getSelection() ?? '').trim(),
-    siteName: text('#js_name') || meta('meta[property="og:site_name"]'),
+    siteName: text('#js_name') || text('#js_wx_follow_nickname') || meta('meta[property="og:site_name"]'),
     author: text('#js_author_name') || meta('meta[name="author"]') || meta('meta[property="article:author"]'),
     published: text('#publish_time') || meta('meta[property="article:published_time"]') || q('time[datetime]')?.getAttribute('datetime') || '',
     image: meta('meta[property="og:image"]') || meta('meta[name="twitter:image"]') || bigImage,
