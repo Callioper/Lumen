@@ -111,9 +111,16 @@ export async function httpGet(rawUrl: string, settings: Settings, opts: FetchOpt
     const location = res.headers.get('location');
     if (!opts.publicOnly || res.status < 300 || res.status >= 400 || !location) return res;
     if (hop >= MAX_REDIRECTS) throw new Error('重定向次数过多');
-    url = new URL(location, url);
+    const next = new URL(location, url);
+    // A login sent for one site must not follow a redirect to another.
+    if (next.origin !== url.origin && opts.headers) opts = { ...opts, headers: withoutCredentials(opts.headers) };
+    url = next;
   }
 }
+
+const CREDENTIAL_HEADERS = new Set(['cookie', 'authorization']);
+export const withoutCredentials = (headers: Record<string, string>): Record<string, string> =>
+  Object.fromEntries(Object.entries(headers).filter(([k]) => !CREDENTIAL_HEADERS.has(k.toLowerCase())));
 
 // Decode bytes honouring HTTP charset, then XML/HTML declarations (CNKI and some
 // Chinese sites still serve GBK).
