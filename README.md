@@ -154,7 +154,7 @@ Lumen 是一个装在自己电脑上的 RSS 阅读器。除了读文章，它把
 | Windows 10/11 | `Lumen-<版本>-win-x64-setup.exe` | 安装包没有代码签名，Windows 可能提示「已保护你的电脑」：点「更多信息」→「仍要运行」。 |
 | macOS（Apple 芯片） | `Lumen-<版本>-mac-arm64.dmg` | 没有经过 Apple 公证：第一次打开被拦下后，到 系统设置 → 隐私与安全性，点「仍要打开」。 |
 | macOS（Intel） | `Lumen-<版本>-mac-x64.dmg` | 同上。 |
-| Linux | `Lumen-<版本>-linux-x64.AppImage` | `chmod +x` 之后直接运行；也有 `.tar.gz`。 |
+| Linux | `Lumen-<版本>-linux-x86_64.AppImage` | `chmod +x` 之后直接运行；也有 `.tar.gz`。 |
 
 打开后是一个窗口，第一次是空的：在 设置 → 添加订阅 里粘贴 RSS 地址或网站首页，或在 设置 → 数据与接口 里导入 OPML。
 
