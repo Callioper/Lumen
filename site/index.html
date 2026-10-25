@@ -6,185 +6,219 @@
 <title>Lumen · 给人文学者的 RSS</title>
 <meta name="description" content="Lumen 是装在自己电脑上的 RSS 阅读器：把学术公众号、期刊、书单里的会议、新刊、新书读出来、理成页。开源，MIT 许可。">
 <meta property="og:title" content="Lumen · 给人文学者的 RSS">
-<meta property="og:description" content="会议、新刊、新书自己找上门。装在自己电脑上，开源。">
+<meta property="og:description" content="会议、新刊、新书，自己找上门。装在自己电脑上，开源。">
 <meta property="og:image" content="https://callioper.github.io/Lumen/images/notices.webp">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="site.css">
 </head>
 <body>
 <header class="top">
-  <a class="brand" href="./"><img src="favicon.svg" width="26" height="26" alt="">Lumen</a>
+  <a class="brand" href="./" aria-label="Lumen 主页"><svg class="logo" viewBox="4 4 24 24" width="22" height="22" aria-hidden="true"><path d="M16 5.5c.9 5.6 4.9 9.6 10.5 10.5-5.6.9-9.6 4.9-10.5 10.5C15.1 20.9 11.1 16.9 5.5 16 11.1 15.1 15.1 11.1 16 5.5z" fill="currentColor"/><circle cx="24.2" cy="7.8" r="1.9" fill="#C9962B"/></svg></a>
   <nav aria-label="主页导航">
     <a href="#features">特色</a>
+    <a href="demo/">演示</a>
     <a href="#data">数据</a>
-    <a href="#install">安装</a>
-    <a href="demo/">在线试用</a>
-    <a class="gh" href="https://github.com/Callioper/Lumen">GitHub</a>
+    <a href="https://github.com/Callioper/Lumen">源码</a>
+    <a class="btn small" href="#download">下载</a>
   </nav>
 </header>
 
 <main>
 <section class="hero" aria-labelledby="hero-h">
-  <div class="hero-text">
-    <p class="kicker">给人文学者的 RSS 阅读器 · 开源 · v{{VERSION}}</p>
-    <h1 id="hero-h"><span class="line">会议、新刊、新书，</span><span class="line"><span class="hl">自己找上门</span>。</span></h1>
-    <p class="lead">会议征稿散在几十个公众号里，期刊目录各有各的格式，书单翻过就忘。Lumen 把它们读出来、理成页：哪场会快截止了，哪本刊出了新一期，这个月出了哪些书。</p>
-    <div class="cta" data-downloads>
-      <a class="btn primary" data-auto href="https://github.com/Callioper/Lumen/releases/latest">下载 Lumen</a>
-      <a class="btn" href="demo/">在线试用</a>
-    </div>
-    <p class="platforms">
-      <a data-os="win" data-name="Windows" href="https://github.com/Callioper/Lumen/releases/download/v{{VERSION}}/Lumen-{{VERSION}}-win-x64-setup.exe">Windows</a>
-      <a data-os="mac-arm" data-name="Mac，Apple 芯片" href="https://github.com/Callioper/Lumen/releases/download/v{{VERSION}}/Lumen-{{VERSION}}-mac-arm64.dmg">Mac（Apple 芯片）</a>
-      <a data-os="mac-intel" data-name="Mac，Intel" href="https://github.com/Callioper/Lumen/releases/download/v{{VERSION}}/Lumen-{{VERSION}}-mac-x64.dmg">Mac（Intel）</a>
-      <a data-os="linux" data-name="Linux" href="https://github.com/Callioper/Lumen/releases/download/v{{VERSION}}/Lumen-{{VERSION}}-linux-x86_64.AppImage">Linux</a>
-      <a href="https://github.com/Callioper/Lumen/releases">所有版本</a>
-    </p>
+  <svg class="mark" viewBox="4 4 24 24" width="112" height="112" aria-hidden="true"><path d="M16 5.5c.9 5.6 4.9 9.6 10.5 10.5-5.6.9-9.6 4.9-10.5 10.5C15.1 20.9 11.1 16.9 5.5 16 11.1 15.1 15.1 11.1 16 5.5z" fill="currentColor"/><circle cx="24.2" cy="7.8" r="1.9" fill="#C9962B"/></svg>
+  <h1 id="hero-h">Lumen</h1>
+  <p class="motto">会议、新刊、新书，自己找上门。</p>
+  <p class="sub">给人文学者的 RSS 阅读器 · 装在自己电脑上 · 开源</p>
+</section>
+
+<figure class="frame shot">
+  <img src="images/tour.webp" width="1280" height="800" fetchpriority="high" alt="演示站的「三分钟看特色」：学术动态、新书分组、人大复印标记、书影榜、日报里的破茧、外文默认翻译">
+  <figcaption><span>演示站 · 三分钟看特色</span><a href="demo/">自己点一遍 →</a></figcaption>
+</figure>
+
+<section id="features" class="features" aria-label="特色">
+  <p class="range">01 — 06</p>
+  <div class="grid">
+
+    <article class="frame cell">
+      <header><span>01 · 学术动态</span><a href="demo/#see=notices">按截止日期</a></header>
+      <div class="vignette notices">
+        <div class="nt"><b class="due">还有 6 天</b><span>「数字时代的文学阅读」学术研讨会 · 征稿</span><i>3 个号发过</i></div>
+        <div class="nt"><b>明晚 19:00</b><span>讲座：档案里的城市 · <u>可线上</u></span></div>
+        <div class="nt past"><b>已散场</b><span>工作坊：翻译与世界文学 · 录像在 B 站</span></div>
+      </div>
+      <p>会议、征稿、讲座由 AI 从推文里读出来，只有海报的先做 OCR。几个号发的同一场只出现一次；讲座散场后，Lumen 去 B 站找录像。</p>
+    </article>
+
+    <article class="frame cell">
+      <header><span>02 · 新书</span><a href="demo/#see=books">书单拆成书</a></header>
+      <div class="vignette books">
+        <div class="cv c1"><em>灯塔之夜</em><i>3 份书单</i></div>
+        <div class="cv c2"><em>夜航</em></div>
+        <div class="cv c3"><em>第七个房间</em></div>
+        <div class="cv c4"><em>河边的书店</em></div>
+        <p class="shelf">2026 年 10 月 · 小说 / 诗歌 · 18 本</p>
+      </div>
+      <p>出版社、书店、学者的书单拆成一本本书，几份书单都推荐的标出来。按月、再按主题分架；可以只看 Zotero 里还没有的。</p>
+    </article>
+
+    <article class="frame cell">
+      <header><span>03 · 期刊目录</span><a href="demo/#see=tocs">拼成一期</a></header>
+      <div class="vignette toc">
+        <p class="jn">《文艺理论动态》2026 年第 5 期</p>
+        <ol>
+          <li><span>屏幕之后的阅读</span><b>人大复印</b></li>
+          <li><span>写作者与平台：一份田野笔记</span></li>
+          <li><span>翻译史中的「误读」</span></li>
+        </ol>
+      </div>
+      <p>格式各异的目录推文统一成一种目录，知网 RSS 按期号拼回一期。被人大复印转载的文章，标在原刊的目录里。</p>
+    </article>
+
+    <article class="frame cell">
+      <header><span>04 · 日报</span><a href="demo/#see=daily">留一篇破茧</a></header>
+      <div class="vignette daily">
+        <p class="sec">你可能错过</p>
+        <p class="it">开放评审为何在慢慢赢得支持</p>
+        <p class="it">北城举办社区读书周</p>
+        <p class="sec cocoon">破茧</p>
+        <p class="it">和骑手一起跑完一天的单<i>你从没点开过「劳动」</i></p>
+      </div>
+      <p>从当天进来的文章里按你的阅读挑，AI 分组写导语。最后一篇是故意放进来的例外。推荐只看你明确做过的事，点开不算。</p>
+    </article>
+
+    <article class="frame cell">
+      <header><span>05 · 书影榜</span><a href="demo/#see=hot">近 30 天</a></header>
+      <div class="vignette hot">
+        <ol>
+          <li><span>灯塔之夜</span><i>友邻 12 人标过</i></li>
+          <li><span>夜航</span><i>9 人</i></li>
+          <li><span>第七个房间</span><i>7 人 · 也在豆瓣榜</i></li>
+        </ol>
+      </div>
+      <p>豆瓣友邻对同一本书的想读、在读、读过并成一张卡；书影榜把友邻标得最多的，和豆瓣公共榜单并排。</p>
+    </article>
+
+    <article class="frame cell">
+      <header><span>06 · 外文与检索</span><a href="demo/">意思相近</a></header>
+      <div class="vignette bi">
+        <p class="zh">开放评审为何在慢慢赢得支持</p>
+        <p class="en">Why open peer review is slowly winning</p>
+        <p class="q"><span>骑手</span><b>按词 3 篇</b><b class="on">意思相近 7 篇</b></p>
+      </div>
+      <p>外文标题直接显示中文，正文双语对照。检索换成「意思相近」，找出没出现这个词、但在说同一件事的文章。</p>
+    </article>
+
   </div>
-  <figure class="hero-shot">
-    <img src="images/tour.webp" width="1280" height="800" fetchpriority="high" alt="演示站的「三分钟看特色」：学术动态、新书分组、人大复印标记、书影榜、日报里的破茧、外文默认翻译">
-  </figure>
 </section>
 
-<section class="facts" aria-label="三件事">
-  <div><b>信源</b><span>你订阅的公众号、期刊、出版社、网站，没有平台替你塞的东西</span></div>
-  <div><b>AI</b><span>用你自己配的模型接口读推文、写导语、翻外文；不配也能当 RSS 用</span></div>
-  <div><b>数据</b><span>一个文件夹，在你自己的电脑上；没有云端账号</span></div>
-</section>
-
-<section class="compare" aria-labelledby="compare-h">
-  <h2 id="compare-h">同样是读订阅，差在哪</h2>
-  <div class="cols">
-    <article>
-      <p class="tag">公众号与信息流</p>
-      <h3>什么都推给你，但不替你整理。</h3>
-      <ul class="pro"><li>更新快，打开就有</li></ul>
-      <ul class="con"><li>同一场会几个号都发，截止日期还是要自己记</li><li>推什么由平台定，越推越窄</li><li>读过的东西留不下来</li></ul>
-    </article>
-    <article>
-      <p class="tag">传统 RSS 阅读器</p>
-      <h3>干净、可控，但只是一篇一篇的文章。</h3>
-      <ul class="pro"><li>信源由你决定</li><li>没有广告位</li></ul>
-      <ul class="con"><li>目录推文、书单推文原样摆着，要自己拆</li><li>订阅一多就成了未读债务</li></ul>
-    </article>
-    <article class="ours">
-      <p class="tag">Lumen</p>
-      <h3>信源归你，内容按「学术的用法」理好。</h3>
-      <ul class="pro"><li>会议按截止日期排，同一场只出现一次</li><li>目录拼成一期，书单拆成封面墙</li><li>日报按你的阅读挑，留一篇「破茧」</li><li>存档写进你的 Obsidian</li></ul>
-    </article>
+<section class="frame band" aria-labelledby="band-h">
+  <div class="figure">
+    <p class="label">演示数据里的一天</p>
+    <p class="big" id="band-h">132 <small>→ 9</small></p>
+    <p class="note">篇进来，日报替你挑出 9 篇，其中 1 篇破茧</p>
   </div>
-</section>
-
-<section id="features" class="features" aria-labelledby="features-h">
-  <h2 id="features-h">打开它，你会看到这几页</h2>
-
-  <article class="feat">
-    <div class="feat-text">
-      <p class="num">01</p>
-      <h3>学术动态</h3>
-      <p>会议、征稿、讲座、招聘、申报，由 AI 从推文里读出来，只有海报的先做 OCR，按截止日期排。几个号发的同一场只出现一次，展开能看到每一篇原文；讲座散场后，Lumen 会去 B 站找录像。</p>
-      <a class="see" href="demo/#see=notices">在演示里看 →</a>
-    </div>
-    <figure><img src="images/notices-anim.webp" width="1280" height="800" loading="lazy" alt="学术动态：展开一条看原文出处，再只看会议"></figure>
-  </article>
-
-  <article class="feat flip">
-    <div class="feat-text">
-      <p class="num">02</p>
-      <h3>新书</h3>
-      <p>出版社、书店、学者的书单拆成一本本书，几份书单都推荐的标出来。按出版月份分组，书多的月份再按主题分架；可以只看 Zotero 里还没有的。</p>
-      <a class="see" href="demo/#see=books">在演示里看 →</a>
-    </div>
-    <figure><img src="images/books-anim.webp" width="1280" height="800" loading="lazy" alt="新书：往下翻，再只看虚构类、只看小说"></figure>
-  </article>
-
-  <article class="feat">
-    <div class="feat-text">
-      <p class="num">03</p>
-      <h3>期刊目录</h3>
-      <p>格式各异的目录推文统一成一种目录，知网 RSS 按刊名和期号拼回一期。被人大复印转载的文章，标在<em>原刊</em>的目录里，因为人们是在原刊里找文章的。</p>
-      <a class="see" href="demo/#see=tocs">在演示里看 →</a>
-    </div>
-    <figure><img src="images/tocs.webp" width="2880" height="1800" loading="lazy" alt="期刊目录：栏目和篇目，转载的文章标出"></figure>
-  </article>
-
-  <article class="feat flip">
-    <div class="feat-text">
-      <p class="num">04</p>
-      <h3>日报与论文周报</h3>
-      <p>日报从当天进来的文章里按你的阅读挑，AI 分组写导语。最后的「破茧」是故意放进来的例外：一篇你从没点开过、但值得一看的。推荐只看你明确做过的事，点开不算。</p>
-      <a class="see" href="demo/#see=daily">在演示里看 →</a>
-    </div>
-    <figure><img src="images/daily.webp" width="2880" height="1800" loading="lazy" alt="日报：你可能错过、破茧和按议题分组"></figure>
-  </article>
-
-  <article class="feat">
-    <div class="feat-text">
-      <p class="num">05</p>
-      <h3>友邻标记与书影榜</h3>
-      <p>豆瓣友邻对同一本书的想读、在读、读过并成一张卡；书影榜把友邻近 30 天标得最多的，和豆瓣公共榜单并排。</p>
-      <a class="see" href="demo/#see=hot">在演示里看 →</a>
-    </div>
-    <figure><img src="images/hot.webp" width="2880" height="1800" loading="lazy" alt="书影榜：友邻榜和豆瓣公共榜单并排"></figure>
-  </article>
-
-  <article class="feat flip">
-    <div class="feat-text">
-      <p class="num">06</p>
-      <h3>外文与检索</h3>
-      <p>外文标题直接显示中文，正文双语对照。检索除了按词找，还能「意思相近」：找出没出现这个词、但在说同一件事的文章。</p>
-      <a class="see" href="demo/">在演示里看 →</a>
-    </div>
-    <figure><img src="images/search-anim.webp" width="1280" height="800" loading="lazy" alt="检索：按词找「骑手」，再换成意思相近"></figure>
-  </article>
-
-  <div class="more">
-    <figure><img src="images/masonry.webp" width="2880" height="1800" loading="lazy" alt="瀑布流"><figcaption>五种显示方式，按源的类型自动选</figcaption></figure>
-    <figure><img src="images/themes.webp" width="2880" height="1800" loading="lazy" alt="七套配色"><figcaption>七套配色，各有浅色和深色</figcaption></figure>
-    <figure class="phone"><img src="images/mobile.webp" width="390" height="844" loading="lazy" alt="手机上的文章列表"><figcaption>手机浏览器、GReader 客户端都能连</figcaption></figure>
+  <div class="chart" role="img" aria-label="一天里每小时进来的文章数，有日报选中文章的时段用蓝色标出">
+    <div class="bars" data-bars="3,1,0,0,1,2,6,11,14,9,8,12,10,7,9,8,6,5,4,6,4,3,2,1" data-picked="7,8,11,12,15,19,20"></div>
+    <div class="axis"><span>0 时</span><span>每小时进来的篇数</span><span>23 时</span></div>
+    <p class="legend"><i class="sw in"></i>进来的文章<i class="sw on"></i>有日报选中的时段</p>
   </div>
 </section>
 
 <section id="data" class="data" aria-labelledby="data-h">
-  <h2 id="data-h">你的阅读，留在你自己手里</h2>
-  <dl>
-    <div><dt>本机运行</dt><dd>默认只监听本机。数据是一个文件夹，拷走就是备份。</dd></div>
-    <div><dt>没有云端账号</dt><dd>不注册、不同步、不上传。给手机用时可以打开登录。</dd></div>
-    <div><dt>AI 你来配</dt><dd>接口和密钥自己填，只存在本机；不配也能用。</dd></div>
-    <div><dt>开源</dt><dd>MIT 许可，代码都在 GitHub 上。</dd></div>
-  </dl>
+  <h2 id="data-h" class="sr">数据</h2>
+  <div class="frame dc"><span>01</span><b>本机运行</b><p>默认只监听本机。数据是一个文件夹，拷走就是备份。</p></div>
+  <div class="frame dc"><span>02</span><b>没有云端账号</b><p>不注册、不同步、不上传。给手机用时可以打开登录。</p></div>
+  <div class="frame dc"><span>03</span><b>AI 你来配</b><p>接口和密钥自己填，只存在本机；不配也能当 RSS 用。</p></div>
+  <div class="frame dc"><span>04</span><b>开源</b><p>MIT 许可，代码都在 GitHub 上。</p></div>
 </section>
 
-<section id="install" class="install" aria-labelledby="install-h">
-  <h2 id="install-h">装上试试</h2>
-  <p>桌面版装好就能用。第一次打开时 macOS 和 Windows 会提示来源未验证，放行一次即可，详见 <a href="https://github.com/Callioper/Lumen#快速安装">安装说明</a>。也可以从源码运行，或者装在家里的电脑上给手机用。</p>
-  <div class="cta">
-    <a class="btn primary" data-auto href="https://github.com/Callioper/Lumen/releases/latest">下载 Lumen</a>
-    <a class="btn" href="demo/">先在线试用</a>
-    <a class="btn" href="https://github.com/Callioper/Lumen">GitHub</a>
+<section id="download" class="download" aria-labelledby="dl-h">
+  <h2 id="dl-h" class="sr">下载</h2>
+  <div class="tabs" role="tablist">
+    <button role="tab" data-tab="win">Windows</button>
+    <button role="tab" data-tab="mac">macOS</button>
+    <button role="tab" data-tab="linux">Linux</button>
+    <button role="tab" data-tab="src">源码</button>
   </div>
+
+  <div class="pane" data-pane="win">
+    <div class="frame file">
+      <header><b>Lumen-{{VERSION}}-win-x64-setup.exe</b><i>{{SIZE:win-x64-setup.exe}}</i></header>
+      <p>x64 · Windows 10 及以上。第一次打开若提示「已保护你的电脑」，点「更多信息 → 仍要运行」。</p>
+      <a class="btn" href="https://github.com/Callioper/Lumen/releases/download/v{{VERSION}}/Lumen-{{VERSION}}-win-x64-setup.exe">下载 .exe</a>
+    </div>
+  </div>
+  <div class="pane" data-pane="mac" hidden>
+    <div class="frame file">
+      <header><b>Lumen-{{VERSION}}-mac-arm64.dmg</b><i>{{SIZE:mac-arm64.dmg}}</i></header>
+      <p>Apple 芯片（M1 及以后）。第一次打开若被拦，到「系统设置 → 隐私与安全性」点「仍要打开」。</p>
+      <a class="btn" href="https://github.com/Callioper/Lumen/releases/download/v{{VERSION}}/Lumen-{{VERSION}}-mac-arm64.dmg">下载 .dmg</a>
+    </div>
+    <div class="frame file">
+      <header><b>Lumen-{{VERSION}}-mac-x64.dmg</b><i>{{SIZE:mac-x64.dmg}}</i></header>
+      <p>Intel 芯片的 Mac。打开方法同上。</p>
+      <a class="btn" href="https://github.com/Callioper/Lumen/releases/download/v{{VERSION}}/Lumen-{{VERSION}}-mac-x64.dmg">下载 .dmg</a>
+    </div>
+  </div>
+  <div class="pane" data-pane="linux" hidden>
+    <div class="frame file">
+      <header><b>Lumen-{{VERSION}}-linux-x86_64.AppImage</b><i>{{SIZE:linux-x86_64.AppImage}}</i></header>
+      <p>x86_64。下载后加上可执行权限直接运行。</p>
+      <a class="btn" href="https://github.com/Callioper/Lumen/releases/download/v{{VERSION}}/Lumen-{{VERSION}}-linux-x86_64.AppImage">下载 .AppImage</a>
+    </div>
+    <div class="frame file">
+      <header><b>Lumen-{{VERSION}}-linux-x64.tar.gz</b><i>{{SIZE:linux-x64.tar.gz}}</i></header>
+      <p>解压即用，适合不用 AppImage 的发行版。</p>
+      <a class="btn" href="https://github.com/Callioper/Lumen/releases/download/v{{VERSION}}/Lumen-{{VERSION}}-linux-x64.tar.gz">下载 .tar.gz</a>
+    </div>
+  </div>
+  <div class="pane" data-pane="src" hidden>
+    <div class="frame file">
+      <header><b>git clone https://github.com/Callioper/Lumen.git</b><i>Node.js ≥ 24</i></header>
+      <p>从源码运行，或者装在家里一直开着的电脑上，给手机和别的设备用。</p>
+      <a class="btn" href="https://github.com/Callioper/Lumen#从源码运行">安装说明</a>
+    </div>
+  </div>
+  <p class="all"><a href="https://github.com/Callioper/Lumen/releases">所有版本与更新说明 →</a></p>
 </section>
 </main>
 
 <footer class="foot">
-  <span>Lumen v{{VERSION}} · MIT</span>
-  <a href="https://github.com/Callioper/Lumen">GitHub</a>
-  <a href="https://github.com/Callioper/Lumen/issues">反馈问题</a>
-  <a href="https://github.com/Callioper/Lumen/blob/main/docs/tour.md">设计导览</a>
+  <a class="brand" href="./"><svg class="logo" viewBox="4 4 24 24" width="16" height="16" aria-hidden="true"><path d="M16 5.5c.9 5.6 4.9 9.6 10.5 10.5-5.6.9-9.6 4.9-10.5 10.5C15.1 20.9 11.1 16.9 5.5 16 11.1 15.1 15.1 11.1 16 5.5z" fill="currentColor"/><circle cx="24.2" cy="7.8" r="1.9" fill="#C9962B"/></svg>Lumen v{{VERSION}}</a>
+  <nav aria-label="页尾链接">
+    <a href="demo/">演示站</a>
+    <a href="https://github.com/Callioper/Lumen">源码</a>
+    <a href="https://github.com/Callioper/Lumen/blob/main/docs/tour.md">设计导览</a>
+    <a href="https://github.com/Callioper/Lumen/issues">反馈问题</a>
+    <a href="https://github.com/Callioper/Lumen/blob/main/LICENSE">MIT</a>
+  </nav>
 </footer>
 
 <script>
-// Point the main download buttons at this system's package; Macs whose chip can't be told get the Apple-chip build.
+// The download tabs open on this system's; the hourly bars are drawn from their data attributes.
 (() => {
   const ua = navigator.userAgent;
-  const os = /iPhone|iPad|Android/.test(ua) ? null : /Windows/.test(ua) ? 'win' : /Mac/.test(ua) ? 'mac-arm' : /Linux/.test(ua) ? 'linux' : null;
-  if (!os) return;
-  const link = document.querySelector(`[data-os="${os}"]`);
-  if (!link) return;
-  for (const btn of document.querySelectorAll('[data-auto]')) {
-    btn.href = link.href;
-    btn.textContent = `下载 Lumen（${link.dataset.name}）`;
-  }
+  const os = /iPhone|iPad|Android/.test(ua) ? 'win' : /Windows/.test(ua) ? 'win' : /Mac/.test(ua) ? 'mac' : /Linux/.test(ua) ? 'linux' : 'win';
+  const tabs = [...document.querySelectorAll('[data-tab]')];
+  const show = (key) => {
+    for (const t of tabs) t.setAttribute('aria-selected', String(t.dataset.tab === key));
+    for (const p of document.querySelectorAll('[data-pane]')) p.hidden = p.dataset.pane !== key;
+  };
+  for (const t of tabs) t.addEventListener('click', () => show(t.dataset.tab));
+  show(os);
+
+  const bars = document.querySelector('[data-bars]');
+  const counts = bars.dataset.bars.split(',').map(Number);
+  const picked = new Set(bars.dataset.picked.split(',').map(Number));
+  const top = Math.max(...counts);
+  counts.forEach((n, h) => {
+    const b = document.createElement('i');
+    b.className = picked.has(h) ? 'on' : '';
+    b.style.height = `${Math.max(2, (n / top) * 100)}%`;
+    b.title = `${h} 时：进来 ${n} 篇${picked.has(h) ? '，有日报选中的' : ''}`;
+    bars.append(b);
+  });
 })();
 </script>
 </body>
