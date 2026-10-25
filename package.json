@@ -1,0 +1,55 @@
+{
+  "name": "lumen",
+  "version": "0.1.0",
+  "description": "本机轻量 RSS 阅读器",
+  "license": "MIT",
+  "author": "Callioper",
+  "homepage": "https://github.com/Callioper/Lumen",
+  "main": "desktop/main.js",
+  "scripts": {
+    "start": "node server/main.ts",
+    "dev:web": "vite web",
+    "build": "vite build web",
+    "demo": "node scripts/demo/seed.ts && node scripts/demo/snapshot.ts && vite build web --mode demo",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p web/tsconfig.json --noEmit",
+    "test": "node --import ./tests/setup.ts --test \"tests/**/*.test.ts\"",
+    "check": "npm run typecheck && npm test && npm run build",
+    "health": "node scripts/smoke.mjs && node scripts/bench.mjs",
+    "migrate": "node server/migrate-freshrss.ts --src migrate-source --user",
+    "desktop": "npm run build && electron .",
+    "dist": "npm run build && electron-builder --config desktop/electron-builder.yml --publish never"
+  },
+  "type": "module",
+  "dependencies": {
+    "@hono/node-server": "^2.1.5",
+    "@mozilla/readability": "^0.6.0",
+    "handlebars": "^4.7.10",
+    "hono": "^4.13.13",
+    "iconv-lite": "^0.7.3",
+    "linkedom": "^0.18.13",
+    "marked": "^18.1.1",
+    "rss-parser": "^3.13.0",
+    "sanitize-html": "^2.18.1",
+    "turndown": "^7.2.0",
+    "turndown-plugin-gfm": "^1.0.2",
+    "undici": "^8.12.3"
+  },
+  "private": true,
+  "engines": {
+    "node": ">=24"
+  },
+  "devDependencies": {
+    "@preact/preset-vite": "^2.10.6",
+    "@preact/signals": "^2.11.3",
+    "@types/node": "^26.6.5",
+    "@types/sanitize-html": "^2.16.2",
+    "@types/turndown": "^5.0.5",
+    "electron": "^45.0.0",
+    "electron-builder": "^26.18.0",
+    "html-to-image": "^1.11.13",
+    "preact": "^11.0.1",
+    "qrcode-generator": "^2.0.4",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.4"
+  }
+}

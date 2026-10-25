@@ -1,0 +1,51 @@
+# Desktop packages: npm run dist (builds for the platform it runs on; CI builds all three, .github/workflows/release.yml).
+appId: io.github.callioper.lumen
+productName: Lumen
+copyright: MIT License
+directories:
+  output: dist-desktop
+  buildResources: desktop/build
+# The server runs .ts files on Electron's Node in a child process; kept as plain files, not packed into asar.
+asar: false
+# Chromium UI strings: only the languages a Lumen user will see (the rest is ~40 MB).
+electronLanguages: [zh-CN, zh-TW, en-US]
+files:
+  - package.json
+  - LICENSE
+  - server/**
+  - web/dist/**
+  - desktop/main.js
+  - desktop/build/icon.png
+  - scripts/ocr_images.py
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  artifactName: Lumen-${version}-win-x64-setup.${ext}
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  deleteAppDataOnUninstall: false
+  shortcutName: Lumen
+mac:
+  target:
+    - target: dmg
+      arch: [arm64, x64]
+    - target: zip
+      arch: [arm64, x64]
+  category: public.app-category.news
+  # Not signed with an Apple Developer ID: ad-hoc only, so Apple-silicon Macs will run it after "Open Anyway".
+  identity: "-"
+  artifactName: Lumen-${version}-mac-${arch}.${ext}
+dmg:
+  artifactName: Lumen-${version}-mac-${arch}.${ext}
+linux:
+  target:
+    - target: AppImage
+      arch: [x64]
+    - target: tar.gz
+      arch: [x64]
+  category: Network
+  artifactName: Lumen-${version}-linux-${arch}.${ext}
+publish: null

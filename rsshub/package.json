@@ -1,0 +1,8 @@
+{
+  "name": "lumen-rsshub",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "rsshub": "1.0.0-master.980db92"
+  }
+}

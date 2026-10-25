@@ -1,0 +1,12 @@
+{
+  "_note": "Made-up hot short comments in the shape of rexxar's interests answer.",
+  "total": 2140,
+  "interests": [
+    { "user": { "name": "潮间带" }, "rating": { "value": 4, "max": 5 }, "create_time": "2026-09-19 22:41:07", "comment": "雾拍得好，最后十分钟有点仓促。", "vote_count": 412 },
+    { "user": { "name": "北城旧书" }, "rating": { "value": 3, "max": 5 }, "create_time": "2026-09-20 10:02:11", "comment": "七个人的故事讲得太平均了。", "vote_count": 260 },
+    { "user": { "name": "夜航船" }, "rating": { "value": 5, "max": 5 }, "create_time": "2026-09-21 01:15:30", "comment": "看完想去坐一次夜里的渡船。", "vote_count": 98 },
+    { "user": { "name": "松溪影迷" }, "rating": null, "create_time": "2026-09-22 19:30:00", "comment": "配乐比电影好。", "vote_count": 40 },
+    { "user": { "name": "空白" }, "rating": { "value": 2, "max": 5 }, "create_time": "2026-09-23 08:00:00", "comment": "  ", "vote_count": 0 },
+    { "user": { "name": "林间" }, "rating": { "value": 4, "max": 5 }, "create_time": "2026-09-24 21:12:45", "comment": "演渡船船长的那位演员很好。", "vote_count": 12 }
+  ]
+}

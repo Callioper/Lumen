@@ -1,0 +1,35 @@
+{
+  "manifest_version": 3,
+  "name": "Lumen 存档",
+  "version": "0.3.2",
+  "description": "把当前网页按 Lumen 的存档流程存进 Obsidian（整理正文、著录作者与标签、保存图片、AI 分析），或生成一张带二维码的分享图。",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "contextMenus"
+  ],
+  "host_permissions": [
+    "http://127.0.0.1:8780/*"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "存档到 Obsidian (Alt+Shift+S)"
+  },
+  "commands": {
+    "archive-page": {
+      "suggested_key": {
+        "default": "Alt+Shift+S"
+      },
+      "description": "存档当前网页到 Obsidian（有选中文字时作为摘录）"
+    },
+    "share-page": {
+      "suggested_key": {
+        "default": "Alt+Shift+P"
+      },
+      "description": "把当前网页做成分享图并复制（有选中文字时做成摘录卡）"
+    }
+  }
+}

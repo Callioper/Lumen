@@ -1,0 +1,172 @@
+/* The static demo's styles: imported by web/src/demo/mock.ts, so only the demo build (vite --mode demo) has them. */
+
+/* The static demo's notice (web/src/demo/mock.ts). */
+.demo-banner {
+  position: fixed; right: 12px; bottom: 12px; z-index: 50; white-space: nowrap;
+  padding: 4px 12px; border-radius: 999px; font-size: 11px; pointer-events: none;
+  background: var(--indigo); color: var(--paper); box-shadow: var(--shadow-2); opacity: 0.92;
+}
+
+/* The demo's welcome is taller than the pane: start at its top and scroll, instead of centring it off the top. */
+.reader.blank:has(.demo-welcome) { justify-content: flex-start; overflow-y: auto; padding-block: 40px; }
+
+/* 演示站的导览（web/src/demo/tour.tsx，只在演示构建里出现）。 */
+.demo-feat {
+  margin-left: 6px; padding: 0 6px; border-radius: 999px; font-size: 10px; line-height: 16px; font-weight: 600;
+  color: var(--indigo); background: var(--indigo-soft); box-shadow: inset 0 0 0 1px var(--indigo-line); white-space: nowrap;
+}
+.nav-item .demo-feat { margin-left: auto; }
+.demo-welcome { margin: 0 0 36px; padding-bottom: 28px; border-bottom: 1px solid var(--line); }
+.demo-welcome h1 { margin: 2px 0 10px; font-family: var(--serif); font-size: 30px; letter-spacing: 0.01em; color: var(--ink); }
+.demo-welcome-lead { max-width: 38em; margin: 0 0 16px; color: var(--ink-2); line-height: 1.7; }
+.demo-welcome-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin-bottom: 22px; }
+.demo-welcome-hint { font-size: 12px; color: var(--ink-3); }
+.demo-features { list-style: none; counter-reset: feat; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin: 0; padding: 0; }
+.demo-features li {
+  counter-increment: feat; position: relative; display: flex; flex-direction: column; gap: 6px; padding: 16px 16px 14px;
+  border-radius: var(--r); background: var(--raised); box-shadow: var(--shadow-1); transition: box-shadow var(--fast) var(--ease), transform var(--fast) var(--ease);
+}
+.demo-features li:hover { box-shadow: var(--shadow-2); transform: translateY(-1px); }
+.demo-features li::before { content: counter(feat, decimal-leading-zero); font-family: var(--mono); font-size: 11px; color: var(--indigo); }
+.demo-features li:first-child { grid-column: 1 / -1; background: linear-gradient(135deg, var(--indigo-soft), transparent 70%), var(--raised); }
+.demo-features h3 { margin: 0; font-family: var(--serif); font-size: 17px; color: var(--ink); }
+.demo-features p { flex: 1; margin: 0; font-size: 13px; line-height: 1.65; color: var(--ink-2); }
+.demo-features .btn { align-self: flex-start; }
+
+.demo-tour { position: fixed; inset: 0; z-index: 80; pointer-events: none; }
+/* The spotlight: a dim with a rounded hole, and a ring around the hole that breathes once a second
+   or so. The hole and the ring move together when the target scrolls. */
+.demo-tour { --spot-move: 260ms var(--ease); }
+.demo-tour-dim { position: fixed; inset: 0; width: 100%; height: 100%; animation: demo-fade 220ms var(--ease); }
+/* On the shade only: the mask's own rects would inherit an opacity set on the svg and halve the dim. */
+.demo-tour-shade { fill: #0b0b14; fill-opacity: 0.5; }
+:root[data-theme="dark"] .demo-tour-shade { fill: #000; fill-opacity: 0.62; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .demo-tour-shade { fill: #000; fill-opacity: 0.62; } }
+.demo-tour-hole { transition: x var(--spot-move), y var(--spot-move), width var(--spot-move), height var(--spot-move); }
+.demo-tour-frame {
+  position: fixed; border-radius: 12px;
+  box-shadow: 0 0 0 2.5px var(--indigo), 0 0 0 7px var(--indigo-line), 0 10px 40px -6px var(--indigo);
+  transition: left var(--spot-move), top var(--spot-move), width var(--spot-move), height var(--spot-move);
+}
+.demo-tour-frame::after {
+  content: ''; position: absolute; inset: -2.5px; border-radius: inherit; box-shadow: 0 0 0 2.5px var(--indigo);
+  animation: demo-breathe 1.8s ease-out infinite;
+}
+@keyframes demo-breathe { from { transform: scale(1); opacity: 0.7; } to { transform: scale(1.035); opacity: 0; } }
+@keyframes demo-fade { from { opacity: 0; } }
+@keyframes demo-rise { from { opacity: 0; transform: translateY(6px); } }
+
+.demo-tour-bubble {
+  position: fixed; pointer-events: auto; padding: 14px 18px 12px; border-radius: var(--r-lg); background: var(--raised);
+  box-shadow: var(--shadow-2), 0 0 0 1px var(--line-2); color: var(--ink-2); font-size: 13.5px; line-height: 1.75;
+  animation: demo-rise 240ms var(--ease);
+  transition: left var(--spot-move), top var(--spot-move);
+}
+/* The arrow: a square turned 45°, on the edge facing the target, at --arrow from the left. */
+.demo-tour-bubble.side-below::before, .demo-tour-bubble.side-above::before {
+  content: ''; position: absolute; left: calc(var(--arrow) - 7px); width: 14px; height: 14px; background: var(--raised);
+  transform: rotate(45deg); border-radius: 3px;
+}
+.demo-tour-bubble.side-below::before { top: -7px; box-shadow: -1px -1px 0 var(--line-2); }
+.demo-tour-bubble.side-above::before { bottom: -7px; box-shadow: 1px 1px 0 var(--line-2); }
+.demo-tour-head { display: flex; align-items: baseline; gap: 8px; }
+.demo-tour-chapter { flex: 1; font-size: 12px; font-weight: 600; letter-spacing: 0.02em; color: var(--indigo); }
+.demo-tour-count { font-family: var(--mono); font-size: 11px; color: var(--ink-3); }
+.demo-tour-dots { display: flex; gap: 4px; margin: 6px 0 10px; padding: 0; list-style: none; }
+.demo-tour-dots li { flex: 1; max-width: 28px; height: 3px; border-radius: 2px; background: var(--line-2); transition: background var(--fast); }
+.demo-tour-dots li.done { background: var(--indigo-line); }
+.demo-tour-dots li.on { background: var(--indigo); }
+.demo-tour-bubble h3 { margin: 0 0 4px; font-family: var(--serif); font-size: 18px; line-height: 1.4; color: var(--ink); }
+.demo-tour-bubble p { margin: 0; }
+.demo-tour-lost { margin-top: 8px !important; padding: 6px 10px; border-radius: var(--r-sm); background: var(--paper-2); font-size: 12px; color: var(--ink-3); }
+.demo-tour-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+.demo-tour-actions .ghost { margin-right: auto; }
+.demo-tour-foot { display: flex; align-items: center; gap: 8px; margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--line); font-size: 11px; color: var(--ink-3); }
+.demo-tour-keys { flex: 1; }
+.demo-tour-keys kbd { margin-right: 2px; font-size: 10px; }
+.demo-tour-foot .link { font-size: 12px; }
+@media (max-width: 640px) {
+  .demo-tour-bubble { padding: 12px 14px 10px; }
+  .demo-tour-keys { display: none; }
+  .demo-tour-foot:not(:has(.link)) { display: none; }
+}
+
+/* 右下角：这一页的说明，和两个入口。Above the settings dialog (z 40), below the tour (z 80). */
+.demo-dock {
+  position: fixed; right: 12px; bottom: 44px; z-index: 55; display: flex; flex-direction: column; align-items: flex-end; gap: 8px;
+  width: min(340px, calc(100vw - 24px)); pointer-events: none;
+}
+.demo-dock > * { pointer-events: auto; }
+.demo-dock-buttons { display: flex; gap: 6px; }
+.demo-dock-btn {
+  padding: 6px 14px; border: 0; border-radius: 999px; cursor: pointer; font: 600 12px var(--sans);
+  color: var(--ink-2); background: var(--raised); box-shadow: var(--shadow-2), inset 0 0 0 1px var(--line-2);
+}
+.demo-dock-btn kbd { margin-left: 2px; font-size: 10px; }
+.demo-dock-btn.primary { color: var(--indigo); box-shadow: var(--shadow-2), inset 0 0 0 1px var(--indigo-line); }
+.demo-dock-btn:hover, .demo-dock-btn.on { background: var(--indigo-soft); color: var(--indigo); }
+.demo-page-note {
+  width: 100%; padding: 12px 14px 12px; border-radius: var(--r-lg); background: var(--raised);
+  box-shadow: var(--shadow-2), inset 3px 0 0 var(--indigo), 0 0 0 1px var(--line-2); font-size: 13px; line-height: 1.7; color: var(--ink-2);
+}
+.demo-page-note header { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.demo-page-note header .demo-feat { margin: 0; }
+.demo-page-note strong { flex: 1; font-family: var(--serif); font-size: 15px; color: var(--ink); }
+.demo-page-note .icon-btn { font-size: 16px; line-height: 1; color: var(--ink-3); }
+.demo-page-note p { margin: 0; }
+.demo-page-chip {
+  padding: 4px 12px; border: 0; border-radius: 999px; cursor: pointer; font: 12px var(--sans);
+  color: var(--ink-2); background: var(--raised); box-shadow: var(--shadow-1), inset 0 0 0 1px var(--line-2);
+}
+.demo-page-chip:hover { color: var(--indigo); }
+.demo-dock-btn:focus-visible, .demo-page-chip:focus-visible, .demo-picker button:focus-visible, .demo-features .btn:focus-visible { outline: 2px solid var(--indigo); outline-offset: 2px; }
+
+/* 选章 */
+.demo-picker-back { z-index: 70; }
+.demo-picker {
+  width: min(560px, 100%); max-height: calc(100vh - 48px); overflow-y: auto; padding: 20px 22px 18px; border-radius: var(--r-lg);
+  background: var(--raised); box-shadow: var(--shadow-2), 0 0 0 1px var(--line-2);
+}
+.demo-picker header { display: flex; align-items: center; }
+.demo-picker h2 { flex: 1; margin: 0; font-family: var(--serif); font-size: 22px; color: var(--ink); }
+.demo-picker-lead { margin: 6px 0 14px; font-size: 13px; color: var(--ink-3); }
+.demo-picker ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.demo-picker li button {
+  display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px 12px; border: 0; border-radius: var(--r); cursor: pointer;
+  text-align: left; background: transparent; color: var(--ink-2); font: inherit;
+}
+.demo-picker li button:hover { background: var(--indigo-soft); }
+.demo-picker li:first-child button { background: linear-gradient(135deg, var(--indigo-soft), transparent 80%); }
+.demo-picker-n { flex: none; width: 24px; font-family: var(--mono); font-size: 12px; color: var(--indigo); }
+.demo-picker-body { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.demo-picker-body strong { font-family: var(--serif); font-size: 15px; color: var(--ink); }
+.demo-picker-body small { font-size: 12px; line-height: 1.5; color: var(--ink-3); }
+.demo-picker-steps { flex: none; font-size: 12px; color: var(--ink-3); }
+
+/* 按钮说明（?） */
+.demo-labels { position: fixed; inset: 0; z-index: 75; pointer-events: none; }
+.demo-label {
+  position: fixed; max-width: 180px; padding: 1px 6px; border-radius: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font: 500 11px/16px var(--sans); color: var(--paper); background: var(--indigo); box-shadow: var(--shadow-1); opacity: 0.94;
+}
+.demo-keys {
+  position: fixed; left: 50%; bottom: 44px; z-index: 76; transform: translateX(-50%); width: min(520px, calc(100vw - 24px));
+  padding: 12px 16px 10px; border-radius: var(--r-lg); background: var(--raised); box-shadow: var(--shadow-2), 0 0 0 1px var(--line-2);
+  font-size: 12px; color: var(--ink-2);
+}
+.demo-keys header { display: flex; align-items: center; }
+.demo-keys h3 { flex: 1; margin: 0 0 6px; font-family: var(--serif); font-size: 15px; color: var(--ink); }
+.demo-keys dl { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 3px 16px; margin: 0; }
+.demo-keys dl div { display: flex; gap: 8px; }
+.demo-keys dt { flex: none; width: 82px; }
+.demo-keys dd { margin: 0; }
+.demo-keys p { margin: 8px 0 0; color: var(--ink-3); }
+
+@media (prefers-reduced-motion: reduce) {
+  .demo-tour-frame, .demo-tour-hole, .demo-tour-bubble, .demo-features li { transition: none; }
+  .demo-tour-frame::after, .demo-tour-dim, .demo-tour-bubble { animation: none; }
+}
+@media (max-width: 640px) { .demo-welcome h1 { font-size: 24px; } .demo-features li:first-child { grid-column: auto; } }
+
+/* The phone's sidebar drawer is the page while it is open; the dock would sit on top of its lower rows. */
+body:has(.sidebar.open) .demo-dock { display: none; }

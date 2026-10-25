@@ -1,0 +1,11 @@
+node_modules/
+data/
+reports/
+web/dist/
+web/dist-demo/
+dist-desktop/
+/demo/
+rsshub/node_modules/
+rsshub/rsshub.env
+rsshub/logs/
+.lumen-release

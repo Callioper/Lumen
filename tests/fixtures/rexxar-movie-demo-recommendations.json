@@ -1,0 +1,12 @@
+[
+  { "id": "90000102", "title": "灯塔看守人", "pic": { "normal": "https://img.invalid/p0090102.jpg" }, "rating": { "value": 7.9 } },
+  { "id": "90000103", "title": "潮汐表", "pic": { "normal": "https://img.invalid/p0090103.jpg" }, "rating": { "value": 8.2 } },
+  { "id": "90000104", "title": "第七个房间", "pic": { "normal": "https://img.invalid/p0090104.jpg" }, "rating": null },
+  { "id": "90000105", "title": "旧港", "pic": { "normal": "https://img.invalid/p0090105.jpg" }, "rating": { "value": 6.8 } },
+  { "id": "90000106", "title": "北城冬夜", "pic": { "normal": "https://img.invalid/p0090106.jpg" }, "rating": { "value": 7.1 } },
+  { "id": "90000107", "title": "沉默的岛", "pic": { "normal": "https://img.invalid/p0090107.jpg" }, "rating": { "value": 8.0 } },
+  { "id": "90000108", "title": "盐", "pic": { "normal": "https://img.invalid/p0090108.jpg" }, "rating": { "value": 7.4 } },
+  { "id": "90000109", "title": "渡口", "pic": { "normal": "https://img.invalid/p0090109.jpg" }, "rating": { "value": 7.7 } },
+  { "id": "ad-1", "title": "（不是条目的推荐位）", "pic": null, "rating": null },
+  { "id": "90000110", "title": "雾中行人", "pic": { "normal": "https://img.invalid/p0090110.jpg" }, "rating": { "value": 6.5 } }
+]

@@ -1,0 +1,64 @@
+# Desktop packages for a version tag (git tag v0.1.0 && git push --tags): build on each system, check that
+# the packaged runtime really starts Lumen (desktop/smoke.mjs), then attach everything to the GitHub release.
+name: desktop release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            binary: dist-desktop/win-unpacked/Lumen.exe
+            app: dist-desktop/win-unpacked/resources/app
+          - os: macos-latest
+            binary: dist-desktop/mac-arm64/Lumen.app/Contents/MacOS/Lumen
+            app: dist-desktop/mac-arm64/Lumen.app/Contents/Resources/app
+          - os: ubuntu-latest
+            binary: dist-desktop/linux-unpacked/lumen
+            app: dist-desktop/linux-unpacked/resources/app
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run dist
+      - run: node desktop/smoke.mjs "${{ matrix.binary }}" "${{ matrix.app }}"
+        shell: bash
+      - if: runner.os == 'macOS'
+        run: codesign --verify --deep --verbose=2 dist-desktop/mac-arm64/Lumen.app
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lumen-${{ matrix.os }}
+          path: |
+            dist-desktop/*.exe
+            dist-desktop/*.dmg
+            dist-desktop/*.zip
+            dist-desktop/*.AppImage
+            dist-desktop/*.tar.gz
+          if-no-files-found: error
+
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: packages
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: packages/*
+          generate_release_notes: true

@@ -1,0 +1,23 @@
+{
+  "_note": "A made-up film in the shape of 豆瓣's mobile API (rexxar) subject answer; every value is invented.",
+  "id": "90000101",
+  "type": "movie",
+  "title": "雾港夜航",
+  "original_title": "Night Ferry",
+  "aka": ["夜渡\u200e", "Night Ferry\u200e"],
+  "year": "2026",
+  "pic": { "large": "https://img.invalid/view/photo/m_ratio_poster/public/p0090101.jpg", "normal": "https://img.invalid/view/photo/s_ratio_poster/public/p0090101.jpg" },
+  "pubdate": ["2026-09-12(中国大陆)"],
+  "durations": ["102分钟"],
+  "countries": ["英国"],
+  "languages": ["英语"],
+  "genres": ["剧情", "悬疑"],
+  "directors": [{ "name": "玛拉·温特斯", "id": "0000101" }],
+  "actors": [{ "name": "托马斯·瑞德", "id": "0000102" }, { "name": "艾达·林", "id": "0000103" }],
+  "is_tv": false,
+  "episodes_count": 0,
+  "rating": { "value": 7.6, "count": 12840, "max": 10 },
+  "intro": "最后一班渡船在大雾里偏离了航线。\n船上七个陌生人，各自带着一个不肯说的理由。",
+  "comment_count": 2140,
+  "review_count": 96
+}
