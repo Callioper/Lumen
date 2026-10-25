@@ -47,6 +47,7 @@ import { sharePage, keepShare, getShare, wantsAi, enhanceShare } from './share.t
 import { logEvent, logView, setReaction, profileStats, REACTIONS, type Reaction, type ListContext } from '../rec/signals.ts';
 import { loopHealth } from '../stall.ts';
 import { hasLibrary } from '../content/library.ts';
+import { postPictures } from '../content/pictures.ts';
 
 export interface Deps {
   db: DB;
@@ -70,6 +71,8 @@ const isScrollRead = (v: unknown): boolean => v === null || v === 0 || v === 1 |
 
 const FEED_FIELDS = ['title', 'url', 'site_url', 'category_id', 'view', 'ttl', 'dedupe', 'ai_summary', 'ai_translate_title', 'ai_classify', 'fulltext', 'paused', 'layout', 'scroll_read', 'noisy', 'quiet'] as const;
 const PAGE = 40;
+const PICTURES_DEFAULT = 5;
+const PICTURES_MAX = 8;
 
 // A non-numeric id must not silently widen the scope (mark-all would mark everything read).
 function idParam(v: string | number | undefined): number | undefined {
@@ -199,6 +202,16 @@ export function apiApp(d: Deps): Hono {
     const id = idParam(c.req.param('id'));
     if (id === undefined) return bad('id 无效');
     return c.json({ subjects: friendsMarks(db, id) });
+  });
+
+  // The post's own pictures for 首页's preview, page furniture left out the way the archive leaves it.
+  app.get('/entries/:id/pictures', async (c) => {
+    const id = idParam(c.req.param('id'));
+    if (id === undefined) return bad('id 无效');
+    const limit = Math.min(Math.max(Number(c.req.query('limit')) || PICTURES_DEFAULT, 1), PICTURES_MAX);
+    const e = db.prepare('SELECT COALESCE(content_full, content) AS html FROM entry WHERE id = ?').get(id) as { html: string | null } | undefined;
+    if (!e) return c.json({ error: '文章不存在' }, 404);
+    return c.json({ urls: await postPictures(id, e.html ?? '', d.getSettings(), limit) });
   });
 
   app.get('/entries/:id/books', async (c) => {

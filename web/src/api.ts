@@ -248,6 +248,7 @@ export const api = {
   share: (id: string) => call<import('./share/data.ts').ShareData>('GET', `/api/share/${encodeURIComponent(id)}`),
   related: (id: number) => call<{ ready: boolean; items: RelatedItem[] }>('GET', `/api/entries/${id}/related`),
   books: (id: number) => call<{ books: ListedBook[]; pending: boolean; error?: string }>('GET', `/api/entries/${id}/books`),
+  pictures: (id: number, limit: number) => call<{ urls: string[] }>('GET', `/api/entries/${id}/pictures?limit=${limit}`),
   newBooks: (q: { offset: number; limit?: number; byDate: boolean; recentMonths: number; notOwned: boolean; topic: string; kind: string; shelves: boolean; reprintsAll?: boolean }) =>
     call<{ books: NewBook[]; total: number; posts: number; months?: MonthCount[]; topics: Count[]; kinds: Count[]; sorting: number; dating: number }>('GET',
       `/api/books?offset=${q.offset}${q.limit ? `&limit=${q.limit}` : ''}&sort=${q.byDate ? 'date' : 'post'}&recent=${q.recentMonths}&notOwned=${q.notOwned ? 1 : 0}&topic=${encodeURIComponent(q.topic)}&kind=${encodeURIComponent(q.kind)}${q.reprintsAll ? '&reprints=all' : ''}${q.shelves ? '&shelves=1' : ''}`),

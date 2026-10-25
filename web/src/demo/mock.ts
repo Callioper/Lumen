@@ -164,6 +164,14 @@ const JOBS = (() => {
   ];
 })();
 
+// The server judges a post's pictures by their bytes (server/content/pictures.ts); here, the GIF rule alone.
+function postPictures(id: string, limit: number): string[] {
+  const e = data.details[id];
+  const html = e?.content_full || e?.content || '';
+  const urls = [...html.matchAll(/<img\b[^>]*?\bsrc="([^"]+)"/g)].map((m) => m[1].replace(/&amp;/g, '&'));
+  return [...new Set(urls)].filter((u) => !/mmbiz_gif|wx_fmt(=|%3D)gif/i.test(u)).slice(0, limit);
+}
+
 async function route(method: string, url: URL, body: unknown): Promise<Response> {
   const path = url.pathname.replace(/^.*?\/api\//, '/');
   const q = url.searchParams;
@@ -176,6 +184,7 @@ async function route(method: string, url: URL, body: unknown): Promise<Response>
     if (entry?.[2] === 'related') return json(data.related[entry[1]] ?? { ready: true, items: [] });
     if (entry?.[2] === 'books') return json(data.books[entry[1]] ?? { books: [], pending: false });
     if (entry?.[2] === 'friends') return json(data.friends[entry[1]] ?? { subjects: [] });
+    if (entry?.[2] === 'pictures') return json({ urls: postPictures(entry[1], Number(q.get('limit')) || 5) });
     if (entry?.[2] === 'rec') return json({ rec: data.rec.order.find((r) => r.id === Number(entry[1]))?.rec ?? null });
     if (entry?.[2] === 'comments') return data.comments[entry[1]] ? json(data.comments[entry[1]]) : json({ error: '演示版没有这篇的评论区' }, 404);
     if (path === '/books') return newBooks(q);

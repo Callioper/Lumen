@@ -4,7 +4,7 @@ import { mkdtempSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { cleanMarkdown, unproxy } from '../server/clip/clean.ts';
-import { imageSize, isFurniture } from '../server/clip/images.ts';
+import { imageSize, isFurniture, isDecoration } from '../server/clip/images.ts';
 import { Libraries, parsePeople, parseTags, findPerson, nameKey, aliasesOf } from '../server/clip/library.ts';
 import {
   validateMetadata, ruleMetadata, cleanTitle, extractJson, resolveName, displayTitle, originalAlias, wordCount, type MetaInput,
@@ -74,6 +74,14 @@ test('icons, dividers and banners count as furniture; photos do not', () => {
   assert.equal(isFurniture({ width: 64, height: 64, ext: 'png' }), true);
   assert.equal(isFurniture({ width: 1080, height: 60, ext: 'png' }), true);
   assert.equal(isFurniture({ width: 1080, height: 720, ext: 'jpg' }), false);
+});
+
+test('a small PNG that squeezes to almost nothing is an ornament; a screenshot that size is not', () => {
+  const arc = { width: 218, height: 233, ext: 'png' as const };
+  assert.equal(isDecoration(Buffer.alloc(1_200), arc), true);
+  assert.equal(isDecoration(Buffer.alloc(24_000), arc), false);
+  assert.equal(isDecoration(Buffer.alloc(1_200), { ...arc, ext: 'jpg' }), false);
+  assert.equal(isDecoration(Buffer.alloc(30_000), { width: 1080, height: 1440, ext: 'png' }), false);
 });
 
 // ---- libraries ----

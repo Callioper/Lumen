@@ -39,7 +39,8 @@ const TAIL_JUNK_CHARS = 30;
 
 const LINK_LIST =/^(?:\s*(?:[-*■•▶►▪◆●]\s*)?\[[^\]]+\]\([^)]+\)\s*)+$/;
 
-const isDecorativeImage =(url: string): boolean => /mmbiz_gif|wx_fmt=gif/.test(url);
+// Also inside a relay's encoded address (wechat2rss …/img-proxy/?u=…wx_fmt%3Dgif).
+export const isDecorativeImage = (url: string): boolean => /mmbiz_gif|wx_fmt(=|%3D)gif/i.test(url);
 
 const proseLength = (s: string): number =>
   s.replace(/!\[[^\]]*\]\([^)]*\)/g, '').replace(/\]\([^)]*\)/g, ']').replace(/[\s*#>|_\-[\]]/g, '').length;

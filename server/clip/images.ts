@@ -17,6 +17,10 @@ const CONCURRENCY = 4;
 const MIN_SIDE = 120;
 const MIN_AREA = 200 * 200;
 const MAX_ASPECT = 5;
+// An ornament drawn flat on a plain ground (a dashed arc, a bracket) squeezes to almost nothing: a
+// 218×233 arc measured 1 KB (10-26). A screenshot or poster of that size runs to tens of KB.
+const ORNAMENT_SIDE = 480;
+const ORNAMENT_BYTES_PER_PIXEL = 0.06;
 
 export interface ImageSize { width: number; height: number; ext: 'png' | 'jpg' | 'gif' | 'webp' }
 
@@ -53,6 +57,15 @@ export function imageSize(b: Buffer): ImageSize | null {
 export function isFurniture(s: ImageSize): boolean {
   const { width: w, height: h } = s;
   return Math.min(w, h) < MIN_SIDE || w * h < MIN_AREA || w / h > MAX_ASPECT || h / w > MAX_ASPECT;
+}
+
+// Page furniture by size, or a flat cut-out by its pixels; shared with 首页's preview (content/pictures.ts).
+export function isDecoration(body: Buffer, size: ImageSize): boolean {
+  if (isFurniture(size)) return true;
+  if (size.ext !== 'png') return false;
+  const { width: w, height: h } = size;
+  const ornament = Math.max(w, h) < ORNAMENT_SIDE && body.length < w * h * ORNAMENT_BYTES_PER_PIXEL;
+  return ornament || isFlatCutout(body);
 }
 
 export interface LocalizeOptions {
@@ -99,7 +112,7 @@ export async function localizeImages(markdown: string, opts: LocalizeOptions): P
       const body = await download(url, opts.settings);
       const size = imageSize(body);
       if (!size) return { kind: 'failed' };
-      if (isFurniture(size) || (size.ext === 'png' && isFlatCutout(body))) return { kind: 'dropped' };
+      if (isDecoration(body, size)) return { kind: 'dropped' };
       return { kind: 'image', body, ext: size.ext };
     } catch (e) {
       log.warn(`[clip] image ${url.slice(0, 80)} not saved: ${(e as Error).message}`);

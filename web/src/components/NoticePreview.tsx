@@ -10,20 +10,6 @@ import { Icon } from './Icon.tsx';
 import { loadHash, hashDistance, SAME_PICTURE_BITS } from '../picturehash.ts';
 
 const POSTERS = 4;
-const IMG = /<img\b[^>]*?\bsrc="([^"]+)"/g;
-// One picture under several addresses: WeChat serves it at …/<id>/0 and …/<id>/640, with different queries.
-// A relayed address (/img?u=…, wechat2rss's img-proxy inside it) is compared by the address it relays.
-const RELAYS = 3;
-function pictureKey(url: string): string {
-  let target = url;
-  for (let i = 0; i < RELAYS; i++) {
-    let inner: string | null = null;
-    try { inner = new URL(target, location.href).searchParams.get('u'); } catch { /* keep it as written */ }
-    if (!inner) break;
-    target = inner;
-  }
-  return target.replace(/[?#].*$/, '').replace(/\/\d+$/, '');
-}
 
 // The cover again in the body is often a file of its own: told apart by how it looks.
 async function withoutCover(urls: string[], cover: string | null | undefined): Promise<string[]> {
@@ -33,18 +19,15 @@ async function withoutCover(urls: string[], cover: string | null | undefined): P
   return urls.filter((_, i) => { const h = theirs[i]; return !h || hashDistance(own, h) > SAME_PICTURE_BITS; });
 }
 
-// The pictures in the post, apart from its cover.
+// The pictures in the post apart from its cover; the server leaves out GIFs, dividers, banners and
+// QR codes as the archive does.
 function usePostImages(postId: number, cover: string | null | undefined): string[] {
   const [images, setImages] = useState<{ id: number; urls: string[] }>({ id: 0, urls: [] });
   useEffect(() => {
     let live = true;
-    api.entry(postId).then(async (e) => {
-      const html = e.content_full || e.content || '';
-      const seen = new Set(cover ? [pictureKey(cover)] : []);
-      const urls = [...html.matchAll(IMG)].map((m) => m[1].replace(/&amp;/g, '&'))
-        .filter((u) => !seen.has(pictureKey(u)) && !!seen.add(pictureKey(u)));
-      // One more than shown, in case the first is the cover.
-      const shown = (await withoutCover(urls.slice(0, POSTERS + 1), cover)).slice(0, POSTERS);
+    // One more than shown, in case the first is the cover.
+    api.pictures(postId, POSTERS + 1).then(async ({ urls }) => {
+      const shown = (await withoutCover(urls, cover)).slice(0, POSTERS);
       if (live) setImages({ id: postId, urls: shown });
     }).catch(() => { if (live) setImages({ id: postId, urls: [] }); });
     return () => { live = false; };
