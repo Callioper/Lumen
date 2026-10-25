@@ -2,6 +2,33 @@
 
 每个版本的安装包都在 [GitHub Releases](https://github.com/Callioper/Lumen/releases)。升级时下载新版本覆盖安装即可，订阅、文章和设置都在数据文件夹里，不受影响。
 
+## v0.2.1
+
+<!-- news: 新版本会自己提示了：每天检查一次，首页和桌面通知告诉你 -->
+
+发布日期：2026-10-26
+
+GitHub Release：[Lumen v0.2.1](https://github.com/Callioper/Lumen/releases/tag/v0.2.1)
+
+v0.2.1 让 Lumen 自己知道有没有新版本。以前只能到「关于」里手动检查；现在它每天向 GitHub 问一次，有新版本就在首页顶上提示，桌面版另外弹一次系统通知。
+
+### 新增功能
+
+- **自动检查更新。** 每天一次，只向 GitHub 问最新的版本号，不带别的信息。默认打开，在 设置 → 关于 里可以关掉。电脑连着几天不关也照样每天查一次，重启不会重复查。
+- **首页的新版本提示。** 有新版本时，首页顶上显示版本号和「看更新了什么」「下载」两个链接；点「忽略这个版本」，这一版就不再提示，下一版出来时照常提示。
+- **桌面通知。** 桌面版发现新版本时弹一次系统通知，点开是更新日志。同一个版本只通知一次。
+
+### 升级影响
+
+不需要手动迁移。Lumen 仍然不会自己下载安装：看到提示后，下载新的安装包覆盖安装即可，订阅和文章都在数据文件夹里，不受影响。v0.2.0 及更早的版本不会收到提示，这一次需要手动下载。
+
+### 下载
+
+- [Windows 安装包](https://github.com/Callioper/Lumen/releases/download/v0.2.1/Lumen-0.2.1-win-x64-setup.exe)
+- [Mac · Apple 芯片](https://github.com/Callioper/Lumen/releases/download/v0.2.1/Lumen-0.2.1-mac-arm64.dmg)
+- [Mac · Intel](https://github.com/Callioper/Lumen/releases/download/v0.2.1/Lumen-0.2.1-mac-x64.dmg)
+- [Linux AppImage](https://github.com/Callioper/Lumen/releases/download/v0.2.1/Lumen-0.2.1-linux-x86_64.AppImage)
+
 ## v0.2.0
 
 <!-- news: 新增首页：快截止、快开始和海报，打开就看到 -->
