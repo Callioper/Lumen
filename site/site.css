@@ -187,10 +187,33 @@ a.tile:hover img { transform: translateY(-4px); }
   width: var(--col); margin: var(--section) auto 0; display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 7fr);
   align-items: center; gap: clamp(24px, 4vw, 56px); padding: clamp(24px, 4vw, 48px);
 }
+/* What the newest version brought, above the headline: a link to its release notes. */
+.news { display: inline-flex; align-items: center; gap: 10px; margin-top: 26px; padding: 5px 12px 5px 6px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--ink-2); font-size: 13px; max-width: 100%; }
+.news b { flex: none; padding: 1px 8px; border-radius: 999px; background: var(--blue); color: var(--on-accent); font: 600 11.5px var(--mono); }
+.news span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.news:hover { color: var(--ink); border-color: var(--blue); }
 .demo h2 { margin-bottom: 16px; }
 .demo-text > p:not(.eyebrow) { color: var(--ink-2); font-size: 14px; line-height: 1.9; margin-bottom: 26px; }
 .demo-shot img { border: 1px solid var(--line); border-radius: var(--r-sm); transition: transform 0.25s ease; }
 .demo-shot:hover img { transform: translateY(-4px); }
+
+/* ── 更新日志（releases.html，由 scripts/site/build.mjs 从 CHANGELOG.md 生成）── */
+.notes-page { width: var(--col); margin: 0 auto; display: grid; grid-template-columns: 180px minmax(0, 1fr); gap: clamp(24px, 4vw, 56px); padding-top: clamp(40px, 6vw, 72px); }
+.notes-toc { position: sticky; top: 80px; align-self: start; font: 12.5px var(--mono); }
+.notes-toc p { color: var(--ink-3); letter-spacing: 0.08em; margin-bottom: 10px; }
+.notes-toc ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.notes-toc a { color: var(--ink-2); }
+.notes-toc a:hover { color: var(--blue); }
+.notes { max-width: 760px; }
+.notes h1 { font: 600 clamp(28px, 3vw, 38px)/1.3 var(--serif); margin-bottom: 14px; }
+.notes h1 + p { color: var(--ink-2); }
+.notes h2 { font: 600 24px var(--serif); margin: 56px 0 6px; padding-top: 28px; border-top: 1px solid var(--line); }
+.notes h3 { font: 600 16px var(--serif); margin: 30px 0 10px; }
+.notes p { margin: 10px 0; }
+.notes h2 + p, .notes h2 + p + p { font: 12px var(--mono); color: var(--ink-3); margin: 4px 0; }
+.notes ul { margin: 8px 0; padding-left: 1.3em; display: grid; gap: 8px; }
+.notes strong { color: var(--ink); }
+.notes code { font: 12.5px var(--mono); background: var(--sunk); padding: 1px 5px; border-radius: 4px; }
 
 /* ── 页尾 ── */
 .foot {
@@ -204,13 +227,15 @@ a.tile:hover img { transform: translateY(-4px); }
 
 @media (max-width: 900px) {
   .hero { grid-template-columns: minmax(0, 1fr); }
+  .notes-page { grid-template-columns: minmax(0, 1fr); }
+  .notes-toc { position: static; }
   .trio { grid-template-columns: minmax(0, 1fr); }
   .bento { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .tile.wide { grid-column: span 2; }
   .demo { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 600px) {
-  .top nav a:not(.btn):not([href="demo/"]) { display: none; }
+  .top nav a:not(.btn):not([href="demo/"]):not([href="releases.html"]) { display: none; }
   .bento { grid-template-columns: minmax(0, 1fr); }
   .bento { grid-auto-rows: auto; }
   .facts { grid-template-columns: minmax(0, 1fr); }

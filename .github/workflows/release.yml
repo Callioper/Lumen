@@ -54,6 +54,11 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+      # The release's notes: this version's section of CHANGELOG.md, up to the next version's heading.
+      - run: |
+          awk -v tag="## ${GITHUB_REF_NAME}" '$0 == tag { on = 1; next } on && /^## / { exit } on' CHANGELOG.md > notes.md
+          test -s notes.md || { echo "CHANGELOG.md 里没有 ${GITHUB_REF_NAME} 这一节"; exit 1; }
       - uses: actions/download-artifact@v4
         with:
           path: packages
@@ -61,4 +66,5 @@ jobs:
       - uses: softprops/action-gh-release@v2
         with:
           files: packages/*
+          body_path: notes.md
           generate_release_notes: true
