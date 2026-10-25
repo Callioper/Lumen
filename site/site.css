@@ -75,11 +75,7 @@ section > h2, .demo h2 { font: 600 clamp(24px, 2.8vw, 34px)/1.35 var(--serif); l
 .pick { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 18px; margin-top: 16px; font: 11.5px var(--mono); }
 .pick a { color: var(--ink-3); }
 .pick a:hover, .pick a.mine { color: var(--blue); }
-.facts { display: flex; justify-content: center; margin-top: clamp(40px, 6vw, 64px); border-top: 1px solid var(--line); width: min(640px, 100%); margin-inline: auto; }
-.facts div { flex: 1; padding: 14px 8px 0; }
-.facts div + div { border-left: 1px solid var(--line); }
-.facts dt { font: 11px var(--mono); color: var(--ink-3); letter-spacing: 0.08em; }
-.facts dd { font: 15px/1.6 var(--serif); margin-top: 4px; }
+.facts { width: min(640px, 100%); margin: clamp(40px, 6vw, 64px) auto 0; padding-top: 14px; border-top: 1px solid var(--line); font-size: 13.5px; color: var(--ink-2); }
 
 .stage { width: var(--col); margin: 0 auto; }
 .stage video { width: 100%; aspect-ratio: 16 / 10; background: var(--sunk); }
@@ -165,7 +161,6 @@ a.tile:hover img { transform: translateY(-4px); }
   .bento { grid-auto-rows: auto; }
   .tile.wide { grid-column: auto; }
   .tile img, .tile .vig { flex: none; aspect-ratio: 16 / 11; }
-  .facts dd { font-size: 13px; }
 }
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }

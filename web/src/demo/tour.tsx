@@ -152,7 +152,7 @@ function TourStep({ c, s }: { c: number; s: number }) {
           <p>{step.text}</p>
           {lost && <p class="demo-tour-lost">这一步要看的东西没出现在这个窗口里，可以直接看下一步。</p>}
           {last && !next && (
-            <p class="demo-tour-get">看完了。想用自己的订阅：<a href={DOWNLOADS} target="_blank" data-demo-out>下载 Lumen</a>，或者 <a href={REPO} target="_blank" data-demo-out>看源码</a>。</p>
+            <p class="demo-tour-get">就这些。想换成自己的订阅，<a href={DOWNLOADS} target="_blank" data-demo-out>下载 Lumen</a>，或者<a href={REPO} target="_blank" data-demo-out>看源码</a>。</p>
           )}
           <div class="demo-tour-actions">
             <button class="btn ghost" onClick={() => go(null)}>结束</button>
@@ -277,19 +277,19 @@ export function TourOverlay() {
 const goReport = (k: 'daily' | 'weekly' | 'papers'): Promise<void> => { reportKind.value = k; return select({ kind: 'reports' }); };
 interface Feature { key: string; title: string; line: string; go: () => Promise<void> }
 const FEATURES: Feature[] = [
-  { key: 'notices', title: '学术动态', line: '会议、征稿、讲座从推文里自动读出来，按截止日期排；几个号发的同一场合成一条，散场后去 B 站找录像。', go: () => select({ kind: 'notices' }) },
-  { key: 'books', title: '新书', line: '书单推文拆成封面墙，按月再按主题分组；几份书单都推荐的标出来，可以只看 Zotero 里还没有的。', go: () => select({ kind: 'books' }) },
-  { key: 'tocs', title: '期刊目录', line: '格式不一的目录推文统一成一份目录，知网 RSS 按期拼好，人大复印转载过的文章标在原刊里。', go: () => select({ kind: 'tocs' }) },
-  { key: 'hot', title: '书影榜', line: '友邻近 30 天标得最多的书和影排成榜，和豆瓣的公共榜单对照。', go: () => select({ kind: 'hot' }) },
-  { key: 'daily', title: '日报里的「破茧」', line: 'AI 每天挑出值得看的文章分组写导语，最后留一篇你平常不点、但值得一看的。', go: () => goReport('daily') },
+  { key: 'notices', title: '学术动态', line: '从公众号推文里读出来的会议和征稿，按截止日期排。', go: () => select({ kind: 'notices' }) },
+  { key: 'books', title: '新书', line: '书单推文拆成封面墙，可以只看 Zotero 里还没有的。', go: () => select({ kind: 'books' }) },
+  { key: 'tocs', title: '期刊目录', line: '公众号推的目录和知网 RSS，都拼成整期来看。', go: () => select({ kind: 'tocs' }) },
+  { key: 'hot', title: '书影榜', line: '豆瓣友邻这个月标得最多的书和电影。', go: () => select({ kind: 'hot' }) },
+  { key: 'daily', title: '日报', line: '每天挑出值得看的文章，最后放一篇你平时不会点开的。', go: () => goReport('daily') },
 ];
 
 export function DemoWelcome() {
   return (
     <section class="demo-welcome">
       <p class="scope-ov-kicker">演示站</p>
-      <h1>Lumen 有什么不一样</h1>
-      <p class="demo-welcome-lead">给人文学者的 RSS：会议、新刊、新书自己找上门。这里的源、文章、书和人都是虚构的，改动不会保存。</p>
+      <h1>从这五页看起</h1>
+      <p class="demo-welcome-lead">Lumen 是一个学术向的 RSS 阅读器。这里的订阅、文章、书和人都是编的，改了也不会保存。</p>
       <div class="demo-welcome-actions">
         <button class="btn primary" onClick={() => startChapter(0)}>三分钟看特色（{CHAPTERS[0].steps.length} 步）</button>
         <button class="btn" onClick={startTour}>按章看全部功能</button>

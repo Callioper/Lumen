@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Lumen · 给人文学者的 RSS</title>
-<meta name="description" content="Lumen 是装在自己电脑上的 RSS 阅读器：把学术公众号、期刊、书单里的会议、新刊、新书读出来、理成页。开源，MIT 许可。">
-<meta property="og:title" content="Lumen · 给人文学者的 RSS">
-<meta property="og:description" content="会议、新刊、新书，自己找上门。装在自己电脑上，开源。">
+<title>Lumen · 学术 RSS 阅读器</title>
+<meta name="description" content="Lumen 是装在自己电脑上的 RSS 阅读器，专门对付学术公众号：会议按截止日期排好，书单拆成一本本书，期刊目录拼成整期。开源，MIT 许可。">
+<meta property="og:title" content="Lumen · 学术 RSS 阅读器">
+<meta property="og:description" content="订了几十个学术公众号，会议和新书还是会漏。Lumen 把推文读一遍，理成能直接用的样子。">
 <meta property="og:image" content="https://callioper.github.io/Lumen/images/demo.webp">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="site.css">
@@ -25,9 +25,9 @@
 
 <main>
 <section class="hero" aria-labelledby="hero-h">
-  <p class="kicker">给人文学者的 RSS 阅读器 / 装在自己电脑上 / 开源</p>
-  <h1 id="hero-h">会议、新刊、新书，<br>自己找上门。</h1>
-  <p class="lead">学术公众号、期刊、书单里的东西，读出来、理成页。</p>
+  <p class="kicker">开源的 RSS 阅读器，装在自己电脑上</p>
+  <h1 id="hero-h">订了几十个学术公众号，<br>会议和新书还是会漏。</h1>
+  <p class="lead">Lumen 把这些推文读一遍：会议按截止日期排，书单拆成一本本书，期刊目录拼成整期。</p>
   <div class="get">
     <a class="btn" data-auto data-label href="https://github.com/Callioper/Lumen/releases/latest">下载 Lumen</a>
     <a class="btn ghost" href="demo/">在线试用</a>
@@ -39,11 +39,7 @@
     <a data-os="linux" data-name="Linux" href="https://github.com/Callioper/Lumen/releases/download/v{{VERSION}}/Lumen-{{VERSION}}-linux-x86_64.AppImage">Linux</a>
     <a href="https://github.com/Callioper/Lumen/releases">v{{VERSION}} · 所有版本</a>
   </p>
-  <dl class="facts">
-    <div><dt>信源</dt><dd>只来自你的订阅</dd></div>
-    <div><dt>AI</dt><dd>自己配，不配也能用</dd></div>
-    <div><dt>数据</dt><dd>留在你的电脑上</dd></div>
-  </dl>
+  <p class="facts">只读你订阅的源。AI 接口自己填，不填也能用。数据都在本机，不用注册账号。</p>
 </section>
 
 <figure class="frame stage">
@@ -53,45 +49,45 @@
 
 <section id="why" class="why" aria-labelledby="why-h">
   <p class="eyebrow">为什么</p>
-  <h2 id="why-h">订阅越多，越难找到要的那条。</h2>
+  <h2 id="why-h">订阅一多，要的那条就找不到了。</h2>
   <div class="trio">
     <article class="frame">
       <header><span>01</span><b>公众号与信息流</b></header>
-      <ul><li class="minus">同一场会，五个号各发一遍</li><li class="minus">截止日期要自己记</li><li class="minus">推什么由平台定</li></ul>
+      <ul><li class="minus">同一场会，好几个号各发一遍</li><li class="minus">截止日期得自己另外记</li></ul>
     </article>
     <article class="frame">
       <header><span>02</span><b>传统 RSS 阅读器</b></header>
-      <ul><li class="plus">信源由你决定</li><li class="minus">目录、书单原样摆着</li><li class="minus">一多就成了未读债</li></ul>
+      <ul><li class="plus">订什么自己定</li><li class="minus">目录和书单还是一整篇推文，要自己一条条翻</li></ul>
     </article>
     <article class="frame ours">
       <header><span>03</span><b>Lumen</b></header>
-      <ul><li class="plus">会议按截止日期排，同一场只一条</li><li class="plus">目录拼成一期，书单拆成书</li><li class="plus">日报替你挑，留一篇破茧</li></ul>
+      <ul><li class="plus">会议按截止日期排，几个号发的同一场只留一条</li><li class="plus">书单拆成一本本书，看得到 Zotero 里有没有</li><li class="plus">期刊目录拼成整期，人大复印转载的标回原刊</li><li class="plus">每天一份日报，挑出值得看的</li></ul>
     </article>
   </div>
 </section>
 
 <section id="features" class="features" aria-labelledby="features-h">
-  <p class="eyebrow">特色<span>01 — 07</span></p>
+  <p class="eyebrow">特色<span>7 项</span></p>
   <h2 id="features-h">打开它，先看这几页。</h2>
   <div class="bento">
     <a class="frame tile wide" href="demo/#see=notices">
       <header><span>01 · 学术动态</span><i>看演示 →</i></header>
-      <h3>会议征稿，按截止日期排好</h3>
+      <h3>会议、征稿和讲座，按还剩几天排</h3>
       <img src="images/f-notices.webp" width="1600" height="901" loading="lazy" alt="学术动态：左栏倒计时，同一场活动合成一条">
     </a>
     <a class="frame tile" href="demo/#see=books">
       <header><span>02 · 新书</span><i>看演示 →</i></header>
-      <h3>书单拆成一面封面墙</h3>
+      <h3>书单里的书，一本本摆出来</h3>
       <img src="images/f-books.webp" width="1000" height="727" loading="lazy" alt="新书：按月、按主题分架的封面墙">
     </a>
     <a class="frame tile" href="demo/#see=tocs">
       <header><span>03 · 期刊目录</span><i>看演示 →</i></header>
-      <h3>一期一份目录，转载标回原刊</h3>
+      <h3>被人大复印转载的，在原刊目录里标出来</h3>
       <img src="images/f-tocs.webp" width="1000" height="750" loading="lazy" alt="期刊目录：人大复印转载的文章，标出原刊出处">
     </a>
     <a class="frame tile wide" href="demo/#see=daily">
       <header><span>04 · 日报</span><i>看演示 →</i></header>
-      <h3>每天十分钟，留一篇破茧</h3>
+      <h3>每天一份日报，最后一篇是你平时不会点开的</h3>
       <img src="images/f-daily.webp" width="1600" height="900" loading="lazy" alt="日报：今日导语与你可能错过的文章">
     </a>
     <a class="frame tile" href="demo/#see=hot">
@@ -101,7 +97,7 @@
     </a>
     <div class="frame tile">
       <header><span>06 · 外文</span></header>
-      <h3>外文标题直接显示中文</h3>
+      <h3>外文文章，标题先给中文</h3>
       <div class="vig bi">
         <p class="zh">开放评审为何在慢慢赢得支持</p>
         <p class="en">Why open peer review is slowly winning</p>
@@ -112,7 +108,7 @@
     </div>
     <div class="frame tile">
       <header><span>07 · 检索</span></header>
-      <h3>记得意思，就找得到</h3>
+      <h3>搜「骑手」，没写这两个字的也能找到</h3>
       <div class="vig q">
         <p class="box"><span>骑手</span></p>
         <p class="sw"><b>按词 · 3 篇</b><b class="on">意思相近 · 7 篇</b></p>
@@ -127,10 +123,10 @@
   <div class="demo-text">
     <p class="eyebrow">演示站</p>
     <h2 id="demo-h">不用装，先点一遍。</h2>
-    <p>源、文章、书和人都是虚构的，随便点。<br>「带我看一遍」分章导览，任何一页按 <kbd>?</kbd> 看按钮说明。</p>
+    <p>里面的订阅、文章、书和人都是编的，随便点。<br>点「带我看一遍」会一章章带你看；在任何一页按 <kbd>?</kbd>，能看到每个按钮是做什么的。</p>
     <a class="btn" href="demo/">打开演示站 →</a>
   </div>
-  <a class="demo-shot" href="demo/" aria-label="打开演示站"><img src="images/demo.webp" width="2000" height="1250" loading="lazy" alt="演示站首页：Lumen 有什么不一样"></a>
+  <a class="demo-shot" href="demo/" aria-label="打开演示站"><img src="images/demo.webp" width="2000" height="1250" loading="lazy" alt="演示站首页"></a>
 </section>
 </main>
 

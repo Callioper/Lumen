@@ -78,6 +78,21 @@ const coverOf = (title: string, kind: 'book' | 'movie' | 'music' = 'book'): stri
 const PLACES = ['北城', '南湾', '东江', '西岭', '河口', '旧港', '湖滨', '山前', '古镇', '新区'];
 const EVENTS = ['举办社区读书周', '公布年度阅读报告', '启动旧书循环计划', '开放一座新的城市书房', '举行青年写作工作坊',
   '发布公共文化服务清单', '推出夜间博物馆活动', '开展街区影像征集', '举办独立出版市集', '上线地方文献数字库', '开设周末公开课', '评选年度社区图书馆'];
+// What each piece of news says, in its own words, so the list doesn't open on one sentence repeated.
+const EVENT_TEXT: ((place: string) => string)[] = [
+  (p) => `${p}图书馆这周每天晚上七点有一场读书会，周六下午换成亲子共读。书目贴在一楼借阅台旁边。`,
+  () => '报告里借得最多的是推理小说，其次是育儿书。借阅量比去年少了一些，电子书的下载量涨了。',
+  () => '家里不看的书可以送到街道服务中心，换一张兑书券。缺页的书和教辅暂时不收。',
+  (p) => `新书房在${p}公交总站旁边，两层，晚上开到十点。刷身份证就能进，书可以和区图书馆通借通还。`,
+  () => '工作坊一共四次，每次两小时，先读一篇短篇，再动手写一页。报名要交一篇两千字以内的习作。',
+  () => '清单列了全区四十多处能免费用的场馆，写明了开放时间和预约方式。下半年还会再更新一次。',
+  (p) => `每月最后一个周五，${p}博物馆开到晚上九点，七点有一场讲解。不用预约，人多时会限流。`,
+  (p) => `征集拍${p}老街区的照片和短视频，十年前的旧照也收。入选的作品年底在街道展厅展出。`,
+  () => '市集办两天，三十多个摊位，大多是小出版社和个人做的刊物。周日下午有一场关于小印量出版的分享。',
+  () => '第一批放上去的是地方志和老报纸，大约两万页，可以全文检索。家谱还在整理，明年上线。',
+  () => '公开课每周六上午，这一季讲本地方言和地名的来历。每场限八十人，提前一天在公众号预约。',
+  (p) => `评选看借阅量、活动次数和读者留言。${p}有三家社区图书馆进了候选名单。`,
+];
 
 // filler: a news item on a subject of its own, so most pairs in the library are unrelated, as in a real one.
 interface Made { id: number; key: string; feed: string; title: string; topic: Topic; story: string | null; published: number; filler?: number }
@@ -142,7 +157,7 @@ function seedLibrary(db: DB): Made[] {
   PLACES.forEach((place, i) => EVENTS.forEach((event, j) => {
     if ((i + j) % 4 === 3) return;
     const title = `${place}${event}`;
-    const html = `<p>据本地消息，${title}。</p><p>活动面向全体市民开放，详情以主办方公布为准。本条为演示用的虚构资讯。</p>`;
+    const html = `<p>${EVENT_TEXT[j](place)}</p>`;
     const m = add(j % 3 === 0 ? 'tech' : 'news', title, { html, topic: 'city', story: null, age: Math.round(rand() * 7 * 86400) + HOUR });
     m.filler = i * EVENTS.length + j;
   }));

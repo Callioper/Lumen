@@ -4,7 +4,7 @@
 
 <h1 align="center">Lumen</h1>
 
-<p align="center"><b>给人文学者的 RSS：会议、新刊、新书自己找上门。</b></p>
+<p align="center"><b>学术向的 RSS 阅读器：会议按截止日期排，书单拆成一本本书，期刊目录拼成整期。</b></p>
 
 <p align="center">
   <img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-24837B">
