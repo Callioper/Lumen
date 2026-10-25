@@ -10,6 +10,7 @@ import { rebuildSearchIndexIfStale } from './search.ts';
 import { ROOT, DATA_DIR, loadSettings, saveSettings, loadSecrets, saveSecrets, type Secrets, type Settings } from './config.ts';
 import { useZoteroDb } from './content/library.ts';
 import { useOcr } from './content/ocr.ts';
+import { warmNoticePictures } from './content/pictures.ts';
 import { Scheduler } from './fetch/scheduler.ts';
 import { Enricher } from './ai/enrich.ts';
 import { Embedder } from './rec/embed.ts';
@@ -169,7 +170,11 @@ function main(): void {
   const firstWarm = setTimeout(warmImages, 90_000);
   // 期刊目录 and 学术动态 (server/content/extract.ts): the posts that came in since, read by the AI.
   const EXTRACT_MS = 10 * 60_000;
-  const extractPosts = (): void => { void runExtract(db, tocExtractor, settings, secrets).then(() => runExtract(db, noticeExtractor, settings, secrets)); };
+  // Then the pictures of the notices still listed, read for 首页's preview (content/pictures.ts).
+  const extractPosts = (): void => {
+    void runExtract(db, tocExtractor, settings, secrets).then(() => runExtract(db, noticeExtractor, settings, secrets))
+      .then(() => warmNoticePictures(db, settings)).catch((e) => log.warn(`[ocr] 首页配图预读：${(e as Error).message}`));
+  };
   const extractTimer = setInterval(extractPosts, EXTRACT_MS);
   const firstExtract = setTimeout(extractPosts, 120_000);
   // 学术动态's talks and conferences once over: whether a recording went up on B站 (content/replays.ts).

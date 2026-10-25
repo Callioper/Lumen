@@ -27,18 +27,27 @@ async function shownOf(urls: string[], cover: string | null | undefined): Promis
   });
 }
 
+// While the server's OCR reads the post's pictures (about 1.6 s each), asked once more after this.
+const READ_AGAIN_MS = 20_000;
+
 // The pictures in the post apart from its cover; the server leaves out GIFs, dividers, banners and
-// mastheads as the archive does, and puts posters first.
+// mastheads as the archive does, and keeps the posters, told by the text read in them.
 function usePostImages(postId: number, cover: string | null | undefined): string[] {
   const [images, setImages] = useState<{ id: number; urls: string[] }>({ id: 0, urls: [] });
   useEffect(() => {
     if (!postId) return;
     let live = true;
-    api.pictures(postId, ASKED).then(async ({ urls }) => {
-      const shown = (await shownOf(urls, cover)).slice(0, POSTERS);
-      if (live) setImages({ id: postId, urls: shown });
-    }).catch(() => { if (live) setImages({ id: postId, urls: [] }); });
-    return () => { live = false; };
+    let again: ReturnType<typeof setTimeout> | undefined;
+    const ask = (retry: boolean): void => {
+      api.pictures(postId, ASKED).then(async ({ urls, reading }) => {
+        const shown = (await shownOf(urls, cover)).slice(0, POSTERS);
+        if (!live) return;
+        setImages({ id: postId, urls: shown });
+        if (reading && retry) again = setTimeout(() => ask(false), READ_AGAIN_MS);
+      }).catch(() => { if (live && retry) setImages({ id: postId, urls: [] }); });     // asked again: what was shown stays
+    };
+    ask(true);
+    return () => { live = false; clearTimeout(again); };
   }, [postId]);
   return images.id === postId ? images.urls : [];
 }

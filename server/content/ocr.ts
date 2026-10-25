@@ -8,8 +8,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { DATA_DIR, type Settings } from '../config.ts';
-import { httpGet } from '../fetch/http.ts';
-import { unwrapRelay } from '../api/media.ts';
+import { proxyImage, unwrapRelay } from '../api/media.ts';
 import { log } from '../log.ts';
 
 // Off until the settings name both (main.ts hands them over).
@@ -102,11 +101,27 @@ export function postImages(html: string): string[] {
 
 const keyOf = (url: string): string => createHash('sha1').update(url).digest('hex').slice(0, 20);
 
+const cached = (u: string): string => join(OCR_DIR, `${keyOf(u)}.json`);
+
+// What a picture read before reads as, without reading it: null when it has not been.
+export function ocrCached(url: string): string[] | null {
+  try { return boxesToLines(JSON.parse(readFileSync(cached(url), 'utf8')) as OcrBox[]); } catch { return null; }
+}
+
+// One engine at a time: 学术动态's reading and 首页's pictures (pictures.ts) each start one, and each
+// loads its model; together they would share the machine for nothing.
+let lane: Promise<unknown> = Promise.resolve();
+
 // The lines each picture reads as, in the post's order; a picture that could not be had reads as none.
 // The pictures not read before are fetched and read at one go, the engine started once.
-export async function ocrImages(urls: readonly string[], settings: Settings): Promise<string[][]> {
+export function ocrImages(urls: readonly string[], settings: Settings): Promise<string[][]> {
+  const run = lane.then(() => readImages(urls, settings));
+  lane = run.catch(() => undefined);
+  return run;
+}
+
+async function readImages(urls: readonly string[], settings: Settings): Promise<string[][]> {
   mkdirSync(OCR_DIR, { recursive: true });
-  const cached = (u: string): string => join(OCR_DIR, `${keyOf(u)}.json`);
   const todo = urls.filter((u) => !existsSync(cached(u)));
   if (todo.length) {
     const dir = join(OCR_DIR, `tmp-${process.pid}-${Date.now()}`);
@@ -115,16 +130,21 @@ export async function ocrImages(urls: readonly string[], settings: Settings): Pr
       const files = new Map<string, string>();
       for (const u of todo) {
         try {
-          const res = await httpGet(u, settings, { headers: { accept: 'image/*' }, maxBytes: MAX_IMAGE_BYTES, timeoutMs: 20_000, publicOnly: true });
+          // Through the image proxy: it sends what each site wants to be asked with (豆瓣 answers a bare
+          // request with 418, which, cached as no text, left posters unread), and the page has often
+          // fetched the picture already.
+          const res = await proxyImage(u, settings);
           const type = res.headers.get('content-type') ?? '';
-          // A 429 or 5xx is the server's bad moment, not the picture's: cached as no text, it was never read.
-          if (res.status === 429 || res.status >= 500) { log.warn(`[ocr] 图片暂时取不到（HTTP ${res.status}），下次再试`); continue; }
-          if (res.status >= 400 || !/^image\/(png|jpeg|webp|bmp)/.test(type) || res.body.length < MIN_IMAGE_BYTES) {
+          // Only a picture that is gone reads as none for good; a refusal or a bad moment is tried again.
+          if (res.status === 404 || res.status === 410) { writeFileSync(cached(u), '[]'); continue; }
+          if (!res.ok) { log.warn(`[ocr] 图片暂时取不到（HTTP ${res.status}），下次再试`); continue; }
+          const body = Buffer.from(await res.arrayBuffer());
+          if (!/^image\/(png|jpeg|webp|bmp)/.test(type) || body.length < MIN_IMAGE_BYTES || body.length > MAX_IMAGE_BYTES) {
             writeFileSync(cached(u), '[]');
             continue;
           }
           const file = join(dir, `${keyOf(u)}.${type.split('/')[1].split(';')[0]}`);
-          writeFileSync(file, res.body);
+          writeFileSync(file, body);
           files.set(file, u);
         } catch (e) {
           log.warn(`[ocr] 图片取不到：${(e as Error).message}`);       // not cached: tried again next time
@@ -140,9 +160,7 @@ export async function ocrImages(urls: readonly string[], settings: Settings): Pr
       rmSync(dir, { recursive: true, force: true });
     }
   }
-  return urls.map((u) => {
-    try { return boxesToLines(JSON.parse(readFileSync(cached(u), 'utf8')) as OcrBox[]); } catch { return []; }
-  });
+  return urls.map((u) => ocrCached(u) ?? []);
 }
 
 interface OcrResult { path: string; boxes?: OcrBox[]; error?: string }
