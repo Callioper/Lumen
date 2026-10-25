@@ -3,6 +3,7 @@ data/
 reports/
 web/dist/
 web/dist-demo/
+_site/
 dist-desktop/
 /demo/
 rsshub/node_modules/

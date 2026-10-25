@@ -13,7 +13,8 @@
 </p>
 
 <p align="center">
-  <a href="https://callioper.github.io/Lumen/">演示站</a> ·
+  <a href="https://callioper.github.io/Lumen/">主页</a> ·
+  <a href="https://callioper.github.io/Lumen/demo/">演示站</a> ·
   <a href="docs/tour.md">设计导览</a> ·
   <a href="#快速安装">快速安装</a> ·
   <a href="#常见问题">常见问题</a>

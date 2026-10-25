@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lumen · 给人文学者的 RSS</title>
+<meta name="description" content="Lumen 是装在自己电脑上的 RSS 阅读器：把学术公众号、期刊、书单里的会议、新刊、新书读出来、理成页。开源，MIT 许可。">
+<meta property="og:title" content="Lumen · 给人文学者的 RSS">
+<meta property="og:description" content="会议、新刊、新书自己找上门。装在自己电脑上，开源。">
+<meta property="og:image" content="https://callioper.github.io/Lumen/images/notices.webp">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="site.css">
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="./"><img src="favicon.svg" width="26" height="26" alt="">Lumen</a>
+  <nav aria-label="主页导航">
+    <a href="#features">特色</a>
+    <a href="#data">数据</a>
+    <a href="#install">安装</a>
+    <a href="demo/">在线试用</a>
+    <a class="gh" href="https://github.com/Callioper/Lumen">GitHub</a>
+  </nav>
+</header>
+
+<main>
+<section class="hero" aria-labelledby="hero-h">
+  <div class="hero-text">
+    <p class="kicker">给人文学者的 RSS 阅读器 · 开源 · v{{VERSION}}</p>
+    <h1 id="hero-h"><span class="line">会议、新刊、新书，</span><span class="line"><span class="hl">自己找上门</span>。</span></h1>
+    <p class="lead">会议征稿散在几十个公众号里，期刊目录各有各的格式，书单翻过就忘。Lumen 把它们读出来、理成页：哪场会快截止了，哪本刊出了新一期，这个月出了哪些书。</p>
+    <div class="cta" data-downloads>
+      <a class="btn primary" data-auto href="https://github.com/Callioper/Lumen/releases/latest">下载 Lumen</a>
+      <a class="btn" href="demo/">在线试用</a>
+    </div>
+    <p class="platforms">
+      <a data-os="win" href="https://github.com/Callioper/Lumen/releases/download/v{{VERSION}}/Lumen-{{VERSION}}-win-x64-setup.exe">Windows</a>
+      <a data-os="mac-arm" href="https://github.com/Callioper/Lumen/releases/download/v{{VERSION}}/Lumen-{{VERSION}}-mac-arm64.dmg">Mac（Apple 芯片）</a>
+      <a data-os="mac-intel" href="https://github.com/Callioper/Lumen/releases/download/v{{VERSION}}/Lumen-{{VERSION}}-mac-x64.dmg">Mac（Intel）</a>
+      <a data-os="linux" href="https://github.com/Callioper/Lumen/releases/download/v{{VERSION}}/Lumen-{{VERSION}}-linux-x86_64.AppImage">Linux</a>
+      <a href="https://github.com/Callioper/Lumen/releases">所有版本</a>
+    </p>
+  </div>
+  <figure class="hero-shot">
+    <img src="images/tour.webp" width="1280" height="800" fetchpriority="high" alt="演示站的「三分钟看特色」：学术动态、新书分组、人大复印标记、书影榜、日报里的破茧、外文默认翻译">
+  </figure>
+</section>
+
+<section class="facts" aria-label="三件事">
+  <div><b>信源</b><span>你订阅的公众号、期刊、出版社、网站，没有平台替你塞的东西</span></div>
+  <div><b>AI</b><span>用你自己配的模型接口读推文、写导语、翻外文；不配也能当 RSS 用</span></div>
+  <div><b>数据</b><span>一个文件夹，在你自己的电脑上；没有云端账号</span></div>
+</section>
+
+<section class="compare" aria-labelledby="compare-h">
+  <h2 id="compare-h">同样是读订阅，差在哪</h2>
+  <div class="cols">
+    <article>
+      <p class="tag">公众号与信息流</p>
+      <h3>什么都推给你，但不替你整理。</h3>
+      <ul class="pro"><li>更新快，打开就有</li></ul>
+      <ul class="con"><li>同一场会几个号都发，截止日期还是要自己记</li><li>推什么由平台定，越推越窄</li><li>读过的东西留不下来</li></ul>
+    </article>
+    <article>
+      <p class="tag">传统 RSS 阅读器</p>
+      <h3>干净、可控，但只是一篇一篇的文章。</h3>
+      <ul class="pro"><li>信源由你决定</li><li>没有广告位</li></ul>
+      <ul class="con"><li>目录推文、书单推文原样摆着，要自己拆</li><li>订阅一多就成了未读债务</li></ul>
+    </article>
+    <article class="ours">
+      <p class="tag">Lumen</p>
+      <h3>信源归你，内容按「学术的用法」理好。</h3>
+      <ul class="pro"><li>会议按截止日期排，同一场只出现一次</li><li>目录拼成一期，书单拆成封面墙</li><li>日报按你的阅读挑，留一篇「破茧」</li><li>存档写进你的 Obsidian</li></ul>
+    </article>
+  </div>
+</section>
+
+<section id="features" class="features" aria-labelledby="features-h">
+  <h2 id="features-h">打开它，你会看到这几页</h2>
+
+  <article class="feat">
+    <div class="feat-text">
+      <p class="num">01</p>
+      <h3>学术动态</h3>
+      <p>会议、征稿、讲座、招聘、申报，由 AI 从推文里读出来，只有海报的先做 OCR，按截止日期排。几个号发的同一场只出现一次，展开能看到每一篇原文；讲座散场后，Lumen 会去 B 站找录像。</p>
+      <a class="see" href="demo/#see=notices">在演示里看 →</a>
+    </div>
+    <figure><img src="images/notices-anim.webp" width="1280" height="800" loading="lazy" alt="学术动态：展开一条看原文出处，再只看会议"></figure>
+  </article>
+
+  <article class="feat flip">
+    <div class="feat-text">
+      <p class="num">02</p>
+      <h3>新书</h3>
+      <p>出版社、书店、学者的书单拆成一本本书，几份书单都推荐的标出来。按出版月份分组，书多的月份再按主题分架；可以只看 Zotero 里还没有的。</p>
+      <a class="see" href="demo/#see=books">在演示里看 →</a>
+    </div>
+    <figure><img src="images/books-anim.webp" width="1280" height="800" loading="lazy" alt="新书：往下翻，再只看虚构类、只看小说"></figure>
+  </article>
+
+  <article class="feat">
+    <div class="feat-text">
+      <p class="num">03</p>
+      <h3>期刊目录</h3>
+      <p>格式各异的目录推文统一成一种目录，知网 RSS 按刊名和期号拼回一期。被人大复印转载的文章，标在<em>原刊</em>的目录里，因为人们是在原刊里找文章的。</p>
+      <a class="see" href="demo/#see=tocs">在演示里看 →</a>
+    </div>
+    <figure><img src="images/tocs.webp" width="2880" height="1800" loading="lazy" alt="期刊目录：栏目和篇目，转载的文章标出"></figure>
+  </article>
+
+  <article class="feat flip">
+    <div class="feat-text">
+      <p class="num">04</p>
+      <h3>日报与论文周报</h3>
+      <p>日报从当天进来的文章里按你的阅读挑，AI 分组写导语。最后的「破茧」是故意放进来的例外：一篇你从没点开过、但值得一看的。推荐只看你明确做过的事，点开不算。</p>
+      <a class="see" href="demo/#see=daily">在演示里看 →</a>
+    </div>
+    <figure><img src="images/daily.webp" width="2880" height="1800" loading="lazy" alt="日报：你可能错过、破茧和按议题分组"></figure>
+  </article>
+
+  <article class="feat">
+    <div class="feat-text">
+      <p class="num">05</p>
+      <h3>友邻标记与书影榜</h3>
+      <p>豆瓣友邻对同一本书的想读、在读、读过并成一张卡；书影榜把友邻近 30 天标得最多的，和豆瓣公共榜单并排。</p>
+      <a class="see" href="demo/#see=hot">在演示里看 →</a>
+    </div>
+    <figure><img src="images/hot.webp" width="2880" height="1800" loading="lazy" alt="书影榜：友邻榜和豆瓣公共榜单并排"></figure>
+  </article>
+
+  <article class="feat flip">
+    <div class="feat-text">
+      <p class="num">06</p>
+      <h3>外文与检索</h3>
+      <p>外文标题直接显示中文，正文双语对照。检索除了按词找，还能「意思相近」：找出没出现这个词、但在说同一件事的文章。</p>
+      <a class="see" href="demo/">在演示里看 →</a>
+    </div>
+    <figure><img src="images/search-anim.webp" width="1280" height="800" loading="lazy" alt="检索：按词找「骑手」，再换成意思相近"></figure>
+  </article>
+
+  <div class="more">
+    <figure><img src="images/masonry.webp" width="2880" height="1800" loading="lazy" alt="瀑布流"><figcaption>五种显示方式，按源的类型自动选</figcaption></figure>
+    <figure><img src="images/themes.webp" width="2880" height="1800" loading="lazy" alt="七套配色"><figcaption>七套配色，各有浅色和深色</figcaption></figure>
+    <figure class="phone"><img src="images/mobile.webp" width="390" height="844" loading="lazy" alt="手机上的文章列表"><figcaption>手机浏览器、GReader 客户端都能连</figcaption></figure>
+  </div>
+</section>
+
+<section id="data" class="data" aria-labelledby="data-h">
+  <h2 id="data-h">你的阅读，留在你自己手里</h2>
+  <dl>
+    <div><dt>本机运行</dt><dd>默认只监听本机。数据是一个文件夹，拷走就是备份。</dd></div>
+    <div><dt>没有云端账号</dt><dd>不注册、不同步、不上传。给手机用时可以打开登录。</dd></div>
+    <div><dt>AI 你来配</dt><dd>接口和密钥自己填，只存在本机；不配也能用。</dd></div>
+    <div><dt>开源</dt><dd>MIT 许可，代码都在 GitHub 上。</dd></div>
+  </dl>
+</section>
+
+<section id="install" class="install" aria-labelledby="install-h">
+  <h2 id="install-h">装上试试</h2>
+  <p>桌面版装好就能用。第一次打开时 macOS 和 Windows 会提示来源未验证，放行一次即可，详见 <a href="https://github.com/Callioper/Lumen#快速安装">安装说明</a>。也可以从源码运行，或者装在家里的电脑上给手机用。</p>
+  <div class="cta">
+    <a class="btn primary" data-auto href="https://github.com/Callioper/Lumen/releases/latest">下载 Lumen</a>
+    <a class="btn" href="demo/">先在线试用</a>
+    <a class="btn" href="https://github.com/Callioper/Lumen">GitHub</a>
+  </div>
+</section>
+</main>
+
+<footer class="foot">
+  <span>Lumen v{{VERSION}} · MIT</span>
+  <a href="https://github.com/Callioper/Lumen">GitHub</a>
+  <a href="https://github.com/Callioper/Lumen/issues">反馈问题</a>
+  <a href="https://github.com/Callioper/Lumen/blob/main/docs/tour.md">设计导览</a>
+</footer>
+
+<script>
+// Point the main download buttons at this system's package; Macs whose chip can't be told get the Apple-chip build.
+(() => {
+  const ua = navigator.userAgent;
+  const os = /iPhone|iPad|Android/.test(ua) ? null : /Windows/.test(ua) ? 'win' : /Mac/.test(ua) ? 'mac-arm' : /Linux/.test(ua) ? 'linux' : null;
+  if (!os) return;
+  const link = document.querySelector(`[data-os="${os}"]`);
+  if (!link) return;
+  for (const btn of document.querySelectorAll('[data-auto]')) {
+    btn.href = link.href;
+    btn.textContent = `下载 Lumen（${link.textContent}）`;
+  }
+})();
+</script>
+</body>
+</html>

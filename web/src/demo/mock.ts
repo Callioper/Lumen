@@ -5,6 +5,7 @@ import art from './art.json';
 import './demo.css';
 import { notify } from '../store.ts';
 import type { AppState, EntryDetail, ListItem, RecInfo, TocIssue, Notice, Count } from '../api.ts';
+import { DOWNLOADS, HOME, REPO } from './links.ts';
 
 interface Meta { view: string; category: number | null; layout: string; tags: string[]; archived: boolean; head: string; body: string; longSnippet?: string }
 interface Fixture {
@@ -308,7 +309,7 @@ export function installDemo(): void {
   // Links lead out to 豆瓣, B站, CNKI and invented addresses: say where instead of opening them.
   document.addEventListener('click', (e) => {
     const a = (e.target as HTMLElement).closest?.('a[href]') as HTMLAnchorElement | null;
-    if (!a || a.origin === location.origin) return;
+    if (!a || a.origin === location.origin || a.dataset.demoOut !== undefined) return;
     e.preventDefault();
     e.stopPropagation();
     notify(`演示版不打开外链：真实使用时这里会打开${placeOf(a.href)}`);
@@ -320,6 +321,16 @@ export function installDemo(): void {
   };
   const banner = document.createElement('div');
   banner.className = 'demo-banner';
-  banner.textContent = '演示版 · 内容均为虚构，改动不保存';
+  const out = (text: string, href: string): HTMLAnchorElement => {
+    const a = document.createElement('a');
+    a.href = href;
+    a.textContent = text;
+    a.dataset.demoOut = '';
+    if (href !== HOME) a.target = '_blank';
+    return a;
+  };
+  const note = document.createElement('span');
+  note.textContent = '演示版 · 内容虚构，改动不保存';
+  banner.append(out('← 主页', HOME), note, out('下载', DOWNLOADS), out('GitHub', REPO));
   document.body.append(banner);
 }

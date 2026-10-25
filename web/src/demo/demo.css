@@ -2,10 +2,16 @@
 
 /* The static demo's notice (web/src/demo/mock.ts). */
 .demo-banner {
-  position: fixed; right: 12px; bottom: 12px; z-index: 50; white-space: nowrap;
-  padding: 4px 12px; border-radius: 999px; font-size: 11px; pointer-events: none;
-  background: var(--indigo); color: var(--paper); box-shadow: var(--shadow-2); opacity: 0.92;
+  position: fixed; right: 12px; bottom: 12px; z-index: 50; white-space: nowrap; display: flex; gap: 10px; align-items: center;
+  padding: 4px 12px; border-radius: 999px; font-size: 11px;
+  background: var(--indigo); color: var(--paper); box-shadow: var(--shadow-2); opacity: 0.94;
 }
+.demo-banner a { color: inherit; font-weight: 600; text-decoration: underline; text-underline-offset: 2px; text-decoration-color: color-mix(in srgb, currentColor 45%, transparent); }
+.demo-banner a:hover { text-decoration-color: currentColor; }
+.demo-welcome-get { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: -6px 0 30px; font-size: 13px; color: var(--ink-2); }
+.demo-welcome-get a, .demo-tour-get a { color: var(--indigo); font-weight: 600; }
+.demo-tour-get { margin: 10px 0 0; font-size: 13px; color: var(--ink-2); }
+@media (max-width: 640px) { .demo-banner span { display: none; } }
 
 /* The demo's welcome is taller than the pane: start at its top and scroll, instead of centring it off the top. */
 .reader.blank:has(.demo-welcome) { justify-content: flex-start; overflow-y: auto; padding-block: 40px; }

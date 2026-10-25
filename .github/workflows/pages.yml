@@ -1,4 +1,4 @@
-# The demo site: made-up data, built from scratch on every push to main and published to GitHub Pages.
+# The site on GitHub Pages: the home page (site/) at the root and the demo (made-up data) under demo/, built from scratch on every push to main.
 name: demo site
 
 on:
@@ -28,9 +28,10 @@ jobs:
         env:
           ELECTRON_SKIP_BINARY_DOWNLOAD: '1'   # the demo needs no desktop app
       - run: npm run demo
+      - run: node scripts/site/build.mjs web/dist-demo _site   # home page at the root, the demo under demo/
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: web/dist-demo
+          path: _site
   deploy:
     needs: build
     runs-on: ubuntu-latest
