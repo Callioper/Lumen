@@ -66,9 +66,12 @@ export function Sidebar() {
   return (
     <aside class={cx('sidebar', navOpen.value && 'open')}>
       <header class="brand">
-        <img class="logo" src={`${import.meta.env.BASE_URL}favicon.svg`} alt="" width={24} height={24} />
-        <span class="brand-name">Lumen</span>
+        <button class="brand-home" title="首页" onClick={() => void select({ kind: 'home' })}>
+          <img class="logo" src={`${import.meta.env.BASE_URL}favicon.svg`} alt="" width={24} height={24} />
+          <span class="brand-name">Lumen</span>
+        </button>
         <span class="brand-spacer" />
+        <button class={cx('icon-btn', selection.value.kind === 'home' && 'on')} title="首页" aria-pressed={selection.value.kind === 'home'} onClick={() => void select({ kind: 'home' })}><Icon name="home" /></button>
         <button class="icon-btn" title="添加订阅" onClick={() => { settingsOpen.value = 'add'; }}><Icon name="plus" /></button>
         <button class="icon-btn" title="阅读画像" onClick={() => { settingsOpen.value = 'profile'; }}><Icon name="chart" /></button>
         <button class="icon-btn" title="设置" onClick={() => { settingsOpen.value = 'feeds'; }}><Icon name="settings" /></button>

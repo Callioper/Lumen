@@ -24,7 +24,7 @@ export const WIDE_LAYOUTS: ReadonlySet<Layout> = new Set(['cards', 'masonry']);
 export const OPEN_BESIDE_LAYOUTS: ReadonlySet<Layout> = new Set([...WIDE_LAYOUTS, 'social']);
 
 export type LayoutSelection =
-  | { kind: 'all' } | { kind: 'starred' } | { kind: 'marks' } | { kind: 'reports' } | { kind: 'books' } | { kind: 'hot' } | { kind: 'tocs' } | { kind: 'notices' } | { kind: 'social' }
+  | { kind: 'home' } | { kind: 'all' } | { kind: 'starred' } | { kind: 'marks' } | { kind: 'reports' } | { kind: 'books' } | { kind: 'hot' } | { kind: 'tocs' } | { kind: 'notices' } | { kind: 'social' }
   | { kind: 'feed'; id: number } | { kind: 'category'; id: number } | { kind: 'tag'; name: string };
 
 // Where a layout chosen while looking at this selection is saved. Inside a mode tab the list of
@@ -72,7 +72,7 @@ export function resolveLayout(sel: LayoutSelection, tab: Tab, ctx: LayoutContext
   if (sel.kind === 'marks' || sel.kind === 'reports') return 'list';
   if (sel.kind === 'books' || sel.kind === 'hot') return 'masonry';
   // The contents take the width the reader would have, until a post is opened over them.
-  if (sel.kind === 'tocs' || sel.kind === 'notices') return 'cards';
+  if (sel.kind === 'tocs' || sel.kind === 'notices' || sel.kind === 'home') return 'cards';
   if (sel.kind === 'social') return ctx.local.social ?? 'social';
   if (sel.kind === 'feed') {
     const f = ctx.feeds.get(sel.id);

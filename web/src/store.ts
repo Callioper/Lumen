@@ -9,7 +9,7 @@ import { keepReadTrail, noteRead, isForeignText } from './util.ts';
 import type { PaletteKey } from './themes.ts';
 
 export type Selection =
-  | { kind: 'all' } | { kind: 'starred' } | { kind: 'marks' } | { kind: 'reports' } | { kind: 'books' } | { kind: 'hot' } | { kind: 'tocs' } | { kind: 'notices' } | { kind: 'social' }
+  | { kind: 'home' } | { kind: 'all' } | { kind: 'starred' } | { kind: 'marks' } | { kind: 'reports' } | { kind: 'books' } | { kind: 'hot' } | { kind: 'tocs' } | { kind: 'notices' } | { kind: 'social' }
   | { kind: 'feed'; id: number } | { kind: 'category'; id: number } | { kind: 'tag'; name: string };
 
 const PAGE = 40;
@@ -62,7 +62,8 @@ export function setPrefs(patch: Partial<Prefs>): void {
 export const app = signal<AppState | null>(null);
 // The sidebar tab: 全部 or one display mode (only the feeds shown that way).
 export const tab = signal<Tab>('all');
-export const selection = signal<Selection>({ kind: 'all' });
+// The app opens on 首页; the demo keeps its welcome tour beside 所有文章.
+export const selection = signal<Selection>(import.meta.env.VITE_DEMO ? { kind: 'all' } : { kind: 'home' });
 export const query = signal('');
 // A search's own filters, kept while searching and dropped with the query.
 export type SearchSince = 'any' | 'week' | 'month' | 'year';
@@ -133,7 +134,9 @@ export const isHot = computed(() => selection.value.kind === 'hot');
 export const isTocs = computed(() => selection.value.kind === 'tocs');
 export const isNotices = computed(() => selection.value.kind === 'notices');
 // A page that is not a list of entries: nothing to step through, mark read or check for new.
-export const isPage = computed(() => isBooks.value || isHot.value || isTocs.value || isNotices.value);
+// 首页 (kind 'home'): a page too, the width of list and reader together until an article opens.
+export const isHome = computed(() => selection.value.kind === 'home');
+export const isPage = computed(() => isBooks.value || isHot.value || isTocs.value || isNotices.value || isHome.value);
 
 export const feedsById = computed(() => new Map((app.value?.feeds ?? []).map((f) => [f.id, f])));
 

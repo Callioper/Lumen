@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { items, hasMore, loading, selectedId, open, loadMore, feedsById, selection, tab, app, prefs, setPrefs,
-  reloadList, markAllRead, newCount, query, toggleStar, isMarks, isReports, isBooks, isHot, isTocs, isNotices, layout, defaultLayout, setLayout, markItemsRead,
+  reloadList, markAllRead, newCount, query, toggleStar, isMarks, isReports, isBooks, isHot, isTocs, isNotices, isHome, layout, defaultLayout, setLayout, markItemsRead,
   scrollRead, setScrollRead, markIdsRead, scope, notify, recAvailable, sortMode, setSortMode, recMeta, setSearchOrder, searchSince, searchKept, type SearchSince } from '../store.ts';
 import { LAYOUTS, WIDE_LAYOUTS, groupByDay, groupDigest, layoutLabel, type DigestBlock } from '../layout.ts';
 import { MarksList } from './Marks.tsx';
@@ -10,6 +10,7 @@ import { HotView } from './Hot.tsx';
 import { TocsView, NoticesView } from './Journals.tsx';
 import { api, type ListItem, type Layout } from '../api.ts';
 import { PageTags } from './PageTags.tsx';
+import { HomeView } from './Home.tsx';
 import { Icon, FeedIcon } from './Icon.tsx';
 import { ago, proxiedCover, cx, safeLink } from '../util.ts';
 
@@ -442,7 +443,7 @@ function LayoutPicker() {
 }
 
 export function EntryList() {
-  return isReports.value ? <ReportsView /> : isBooks.value ? <BooksView /> : isHot.value ? <HotView /> : isTocs.value ? <TocsView /> : isNotices.value ? <NoticesView /> : isMarks.value ? <MarksList /> : <Entries />;
+  return isHome.value ? <HomeView /> : isReports.value ? <ReportsView /> : isBooks.value ? <BooksView /> : isHot.value ? <HotView /> : isTocs.value ? <TocsView /> : isNotices.value ? <NoticesView /> : isMarks.value ? <MarksList /> : <Entries />;
 }
 
 function Entries() {

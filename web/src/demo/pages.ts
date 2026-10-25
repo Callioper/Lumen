@@ -7,6 +7,7 @@ import { reportKind } from '../reports.ts';
 export interface PageNote { name: string; text: string }
 
 const NOTES = {
+  home: { name: '首页', text: '先列快到期的：30 天内截止的征稿和申报，两周内要开的会和讲座，都从学术动态里取。右边是还没读的篇数和推荐先读。点左上角的 Lumen 或房子图标回到这里。' },
   'layout:list': { name: '列表', text: '一行一篇，左边是标题和开头几行，右边是小图，点开就在右边读。顶上能切未读和全部、最新和推荐。' },
   'layout:cards': { name: '大卡片', text: '封面图放大，标题和摘要在下面，适合图多的源。点卡片在右边读，Esc 回到满屏。' },
   'layout:masonry': { name: '瀑布流', text: '图按原来的比例排成几列，像翻相册。点一张看原帖，Esc 回来。' },
@@ -50,6 +51,7 @@ export const pageKey = computed<PageKey | null>(() => {
     return sub ? (sub.kind === 'book' ? 'subject-book' : 'subject-movie') : 'marks';
   }
   if (sel.kind === 'reports') return `report:${reportKind.value}`;
+  if (sel.kind === 'home' && !detail.value) return 'home';
   if (sel.kind === 'books' || sel.kind === 'hot' || sel.kind === 'tocs' || sel.kind === 'notices') return sel.kind;
   if (detail.value) return 'reader';
   if (query.value) return 'search';

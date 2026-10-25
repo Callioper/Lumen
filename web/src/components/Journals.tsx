@@ -5,6 +5,7 @@ import { api, type Count, type Notice, type NoticesPage, type PostRef, type TocA
 import { open, notify, detail, prefs } from '../store.ts';
 import { FeedIcon } from './Icon.tsx';
 import { NeedsAi } from './NeedsAi.tsx';
+import { daysUntil } from '../due.ts';
 import { cx, toneOf } from '../util.ts';
 
 const READING_POLL_MS = 20_000;
@@ -78,7 +79,7 @@ function JournalRows({ list, journal, group, onPick }: { list: Count[]; journal:
 
 // While posts are still being read (or the reading waits out an outage), the page asks again now and
 // then, with what it shows now: a count that stays the same between asks must not stop the asking.
-function usePoll(active: boolean, again: () => void): void {
+export function usePoll(active: boolean, again: () => void): void {
   const latest = useRef(again);
   latest.current = again;
   useEffect(() => {
@@ -223,7 +224,6 @@ export function TocsView() {
 }
 
 const today = (): Date => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; };
-const daysUntil = (ymd: string): number => Math.round((new Date(`${ymd}T00:00:00`).getTime() - today().getTime()) / 86_400_000);
 const md = (ymd: string): string => `${Number(ymd.slice(5, 7))}月${Number(ymd.slice(8, 10))}日`;
 
 // An email, a link, or the words around them, each as what it is.
@@ -290,7 +290,7 @@ function Replays({ n }: { n: Notice }) {
 
 // One line each: when, what kind, the name, and where and by whom in a line under it. A click opens
 // the rest in place (what it is about, how to get in, the speakers, contact, the post it came from).
-function NoticeRow({ n }: { n: Notice }) {
+export function NoticeRow({ n }: { n: Notice }) {
   const [open, setOpen] = useState(false);
   const dates = [n.date && `${md(n.date)}${n.end ? `–${md(n.end)}` : ''}举办`, n.deadline && `${md(n.deadline)}截止`].filter(Boolean).join('，');
   const brief = [dates, n.place, n.organizer].filter(Boolean);

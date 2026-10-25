@@ -7,6 +7,7 @@ import { reportKind } from '../reports.ts';
 import { cnkiTitleUrl } from '../cnki.ts';
 import { api, type ListItem, type EntryDetail, type Reaction, type RelatedItem, type SubjectMarks, type Comment, type Comments } from '../api.ts';
 import { PageTags } from './PageTags.tsx';
+import { TopFeeds, AiTags, RecList, topFeeds, topAiTags } from './Overview.tsx';
 import { BookList } from './Books.tsx';
 import { noteProgress } from '../reading.ts';
 import { Icon, FeedIcon } from './Icon.tsx';
@@ -247,9 +248,7 @@ function ScopeOverview() {
   if (!a) return null;
   const inScope = a.feeds.filter((f) => (sel.kind !== 'category' || f.category_id === sel.id) && (sel.kind !== 'feed' || f.id === sel.id)
     && (t === 'all' || sel.kind === 'feed' || effectiveLayout(f, a.categories) === t));
-  const top = inScope.filter((f) => f.unread > 0).sort((x, y) => y.unread - x.unread).slice(0, 6);
   const unread = inScope.reduce((n, f) => n + f.unread, 0);
-  const tags = a.tags.filter((g) => (g.source === 'ai' || g.source === 'knn') && g.unread > 0).sort((x, y) => y.unread - x.unread).slice(0, 12);
   return (
     <div class="scope-ov">
       {DEMO && sel.kind === 'all' && <DemoWelcome />}
@@ -257,35 +256,9 @@ function ScopeOverview() {
         <p class="scope-ov-kicker">左边还有</p>
         <h1><b>{unread}</b> 篇未读<small>来自 {inScope.filter((f) => f.unread > 0).length} 个源</small></h1>
       </header>
-      {top.length > 0 && (
-        <section>
-          <h2 class="dossier-h">未读最多</h2>
-          <ul class="scope-ov-feeds">
-            {top.map((f) => (
-              <li key={f.id}><button onClick={() => select({ kind: 'feed', id: f.id })}>
-                <FeedIcon id={f.id} title={f.title} size={16} /><span class="ov-name">{f.title}</span>
-                <span class="ov-bar" style={{ width: `${Math.max(6, (f.unread / top[0].unread) * 100)}%` }} /><small>{f.unread}</small>
-              </button></li>
-            ))}
-          </ul>
-        </section>
-      )}
-      {tags.length > 0 && (
-        <section>
-          <h2 class="dossier-h">AI 标签</h2>
-          <div class="tag-cloud">{tags.map((g) => (
-            <button key={g.name} class="chip" onClick={() => select({ kind: 'tag', name: g.name })}>{g.name.replace(/^AI:/, '')}<small>{g.unread}</small></button>
-          ))}</div>
-        </section>
-      )}
-      {recs.length > 0 && (
-        <section>
-          <h2 class="dossier-h">推荐先读</h2>
-          <ol class="scope-ov-recs">{recs.map((it) => (
-            <li key={it.id}><button onClick={() => void open(it)}><span>{it.title}</span><small>{feedsById.value.get(it.feed_id)?.title}</small></button></li>
-          ))}</ol>
-        </section>
-      )}
+      <TopFeeds feeds={topFeeds(inScope, 6)} />
+      <AiTags tags={topAiTags(a.tags, 12)} />
+      <RecList items={recs} />
     </div>
   );
 }

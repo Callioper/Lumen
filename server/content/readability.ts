@@ -3,6 +3,7 @@ import { parseHTML } from 'linkedom';
 import type { Settings } from '../config.ts';
 import { httpGet, decodeBody } from '../fetch/http.ts';
 import { sanitize } from './sanitize.ts';
+import { extras } from '../extras.ts';
 
 const MIN_TEXT = 200;
 
@@ -10,7 +11,8 @@ const MIN_TEXT = 200;
 // page has no recognisable article (login walls, captcha, SPA shells).
 export async function fetchFullText(link: string, settings: Settings): Promise<string | null> {
   // The link comes from feed content, so it must not reach local services.
-  const res = await httpGet(link, settings, { headers: { accept: 'text/html,application/xhtml+xml' }, publicOnly: true });
+  const cookie = extras.pageCookie?.(new URL(link));
+  const res = await httpGet(link, settings, { headers: { accept: 'text/html,application/xhtml+xml', ...(cookie ? { cookie } : {}) }, publicOnly: true });
   if (res.status >= 400) throw new Error(`HTTP ${res.status}`);
   return extractArticle(decodeBody(res.body, res.headers.get('content-type')), res.url)?.content ?? null;
 }
