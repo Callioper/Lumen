@@ -113,3 +113,13 @@
 @media (prefers-reduced-motion: reduce) {
   .today-card, .today-cover img, .shelf-book img, .np-posters img, .np { transition: none; animation: none; }
 }
+
+/* The first time, before any feed. */
+.home-welcome { max-width: 680px; margin: 8px 0 32px; }
+.home-welcome-lede { font: 500 16px var(--serif); margin: 0 0 14px; }
+.home-steps { margin: 0 0 18px; padding: 0; list-style: none; counter-reset: step; display: grid; gap: 10px; }
+.home-steps li { counter-increment: step; display: flex; gap: 14px; align-items: center; padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--raised); }
+.home-steps li::before { content: counter(step); flex: none; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: var(--indigo); color: var(--on-accent); font: 600 13px var(--sans); }
+.home-steps li > div { flex: 1; min-width: 0; }
+.home-steps p { margin: 4px 0 0; }
+.home-welcome a { color: var(--indigo); }

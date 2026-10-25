@@ -79,7 +79,7 @@ export const detail = signal<EntryDetail | null>(null);
 export const newCount = signal(0);
 export interface ToastAction { label: string; run: () => void }
 export const toast = signal<{ text: string; error?: boolean; action?: ToastAction } | null>(null);
-export const settingsOpen = signal<null | 'feeds' | 'add' | 'ai' | 'clip' | 'fetch' | 'data' | 'look' | 'profile'>(null);
+export const settingsOpen = signal<null | 'feeds' | 'add' | 'ai' | 'clip' | 'fetch' | 'data' | 'look' | 'profile' | 'about'>(null);
 export const editFeedId = signal<number | null>(null);
 // The sidebar as a drawer on a phone, where it has no room of its own; it closes once a page is picked.
 export const navOpen = signal(false);

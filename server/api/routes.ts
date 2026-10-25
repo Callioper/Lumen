@@ -48,6 +48,7 @@ import { logEvent, logView, setReaction, profileStats, REACTIONS, type Reaction,
 import { loopHealth } from '../stall.ts';
 import { hasLibrary } from '../content/library.ts';
 import { postPictures } from '../content/pictures.ts';
+import { checkUpdate } from './update.ts';
 
 export interface Deps {
   db: DB;
@@ -132,6 +133,9 @@ export function apiApp(d: Deps): Hono {
     return { reading: left && isExtracting(ex.kind) ? left : 0, stalled: left > 0 && isStalled(ex.kind) };
   };
 
+  // 设置 → 关于's 检查更新: the one time Lumen asks GitHub anything.
+  app.get('/update', async (c) => c.json(await checkUpdate(d.getSettings())));
+
   app.get('/state', (c) => {
     const s = d.getSettings();
     return c.json({ ...appState(db), views: VIEWS, aiQueue: d.enricher.queueSize(), fetching: d.scheduler.busy,
@@ -211,7 +215,7 @@ export function apiApp(d: Deps): Hono {
     const limit = Math.min(Math.max(Number(c.req.query('limit')) || PICTURES_DEFAULT, 1), PICTURES_MAX);
     const e = db.prepare('SELECT COALESCE(content_full, content) AS html FROM entry WHERE id = ?').get(id) as { html: string | null } | undefined;
     if (!e) return c.json({ error: '文章不存在' }, 404);
-    return c.json({ urls: await postPictures(id, e.html ?? '', d.getSettings(), limit) });
+    return c.json(await postPictures(id, e.html ?? '', d.getSettings(), limit));
   });
 
   app.get('/entries/:id/books', async (c) => {

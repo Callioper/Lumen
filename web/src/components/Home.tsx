@@ -4,7 +4,8 @@
 // The Lumen name and the house button open it.
 import { useEffect, useState } from 'preact/hooks';
 import { api, type ListItem, type NewBook, type Notice } from '../api.ts';
-import { app, select, notify, open, detail, feedsById } from '../store.ts';
+import { app, select, notify, open, detail, feedsById, settingsOpen } from '../store.ts';
+import { DEMO_SITE, TOUR, INSTALL } from '../links.ts';
 import { NoticeRow, usePoll, md, shownName } from './Journals.tsx';
 import { NoticePreview, ownCover } from './NoticePreview.tsx';
 import { dueSoon, DEADLINE_DAYS, EVENT_DAYS } from '../due.ts';
@@ -119,6 +120,33 @@ function Recs({ items }: { items: ListItem[] }) {
   );
 }
 
+// The first time, before any feed: what to do first, in order, each a button to the place it is done.
+const STEPS = [
+  { tab: 'add', title: '添加订阅', note: '粘贴 RSS 地址，或者网站、公众号转 RSS 的首页，Lumen 会自己找订阅地址。', go: '去添加' },
+  { tab: 'data', title: '从别的阅读器搬过来', note: '导出 OPML，在「数据与接口」里导入，分类一并带过来。', go: '导入 OPML' },
+  { tab: 'ai', title: '配上 AI（可以以后再说）', note: '学术动态、期刊目录、日报和翻译靠它读推文；任何兼容 OpenAI 的接口都行。不配也能当普通阅读器用。', go: '去设置' },
+] as const;
+
+function Welcome() {
+  return (
+    <div class="home-welcome">
+      <p class="home-welcome-lede">还没有订阅。按下面的顺序来，几分钟就能用上：</p>
+      <ol class="home-steps">
+        {STEPS.map((s) => (
+          <li key={s.tab}>
+            <div><b>{s.title}</b><p class="small muted">{s.note}</p></div>
+            <button class="btn small" onClick={() => { settingsOpen.value = s.tab; }}>{s.go}</button>
+          </li>
+        ))}
+      </ol>
+      <p class="small muted">
+        不知道订什么好，先到<a href={DEMO_SITE} target="_blank" rel="noreferrer">演示站</a>点一遍；每一页做什么，见<a href={TOUR} target="_blank" rel="noreferrer">设计导览</a>；
+        RSSHub、Zotero、OCR 这些可选的部分怎么配，见<a href={INSTALL} target="_blank" rel="noreferrer">安装说明</a>。版本与更新在 设置 → 关于。
+      </p>
+    </div>
+  );
+}
+
 export function HomeView() {
   const a = app.value;
   const wide = useWide();
@@ -142,7 +170,7 @@ export function HomeView() {
   if (!a) return null;
   const due = dueSoon(notices ?? []);
   // The preview takes the right column only while no article is open beside the page.
-  const previewing = wide && !detail.value;
+  const previewing = wide && !detail.value && a.feeds.length > 0;
   const first = due.today[0] ?? due.closing[0] ?? due.starting[0] ?? null;
   // A reload of the lists brings new objects; keep the pick by what it is.
   const same = picked && (notices ?? []).find((n) => n.post.id === picked.post.id && n.name === picked.name);
@@ -160,7 +188,7 @@ export function HomeView() {
             <div class="home-title">
               <p class="home-date">{now.getMonth() + 1}月{now.getDate()}日 · 星期{WEEKDAY[now.getDay()]}</p>
               <h2>别错过</h2>
-              {notices && <p class="home-lede">今天 {due.today.length} 项，{DEADLINE_DAYS} 天内截止 {due.closing.length} 项，两周内开始 {due.starting.length} 项。</p>}
+              {notices && a.feeds.length > 0 && <p class="home-lede">今天 {due.today.length} 项，{DEADLINE_DAYS} 天内截止 {due.closing.length} 项，两周内开始 {due.starting.length} 项。</p>}
             </div>
             <div class="home-aside">
               <button class="home-unread" onClick={() => void select({ kind: 'all' })} title="去所有文章">
@@ -173,7 +201,7 @@ export function HomeView() {
               </nav>
             </div>
           </header>
-          <div class="home-main">
+          {a.feeds.length === 0 ? <div class="home-main"><Welcome /></div> : <div class="home-main">
             {notices === null ? <p class="muted home-empty">正在读取学术动态…</p> : (
               <>
                 <TodayCards items={due.today} pick={pick} />
@@ -191,7 +219,7 @@ export function HomeView() {
                 <AiTags tags={topAiTags(a.tags, 12)} />
               </div>
             )}
-          </div>
+          </div>}
         </div>
         {previewing && <aside class="home-preview" aria-label="预览"><NoticePreview n={shown} /></aside>}
       </div>

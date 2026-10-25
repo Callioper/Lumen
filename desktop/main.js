@@ -20,6 +20,7 @@ const DEFAULT_PORT = 8780;
 const STOP_WAIT_MS = 5000;
 const STDERR_KEEP = 4000;          // characters of the server's stderr kept for the error dialog
 const HOME = 'https://github.com/Callioper/Lumen';
+const SITE = 'https://callioper.github.io/Lumen/';
 
 let win = null;
 let server = null;                 // the child we started; null when we found a Lumen already running
@@ -113,6 +114,23 @@ function createWindow() {
   void win.loadURL(base ? `${base}/` : LOADING(dark));
 }
 
+// 帮助 → 检查更新: the server asks GitHub once (server/api/update.ts); a newer version is downloaded
+// from its release page and installed over this one, the data folder left as it is.
+async function checkForUpdate() {
+  try {
+    if (!base) throw new Error('Lumen 还没启动好');
+    const r = await (await fetch(`${base}/api/update`, { signal: AbortSignal.timeout(15_000) })).json();
+    if (r.error) throw new Error(r.error);
+    if (!r.newer) { void dialog.showMessageBox({ type: 'info', message: `已经是最新版本（v${r.current}）。` }); return; }
+    const { response } = await dialog.showMessageBox({ type: 'info', buttons: ['去下载', '看更新了什么', '以后再说'], defaultId: 0, cancelId: 2,
+      message: `有新版本 v${r.latest}`, detail: `现在是 v${r.current}。下载新的安装包覆盖安装即可，订阅和文章都在数据文件夹里，不受影响。` });
+    if (response === 0) void shell.openExternal(r.url);
+    if (response === 1) void shell.openExternal(`${SITE}releases.html`);
+  } catch (e) {
+    void dialog.showMessageBox({ type: 'warning', message: '没能检查更新', detail: e.message });
+  }
+}
+
 function buildMenu() {
   const mac = process.platform === 'darwin';
   const template = [
@@ -132,8 +150,17 @@ function buildMenu() {
     { label: '视图', submenu: [{ role: 'reload', label: '重新加载' }, { type: 'separator' }, { role: 'resetZoom', label: '实际大小' },
       { role: 'zoomIn', label: '放大' }, { role: 'zoomOut', label: '缩小' }, { type: 'separator' }, { role: 'togglefullscreen', label: '全屏' },
       { role: 'toggleDevTools', label: '开发者工具' }] },
-    { label: '帮助', submenu: [{ label: '项目主页', click: () => void shell.openExternal(HOME) },
-      { label: '报告问题', click: () => void shell.openExternal(`${HOME}/issues`) }] },
+    { label: '帮助', submenu: [
+      { label: '检查更新…', click: () => void checkForUpdate() },
+      { label: '更新日志', click: () => void shell.openExternal(`${SITE}releases.html`) },
+      { type: 'separator' },
+      { label: '主页', click: () => void shell.openExternal(SITE) },
+      { label: '在线演示', click: () => void shell.openExternal(`${SITE}demo/`) },
+      { label: '安装与配置说明', click: () => void shell.openExternal(`${HOME}#快速安装`) },
+      { label: '源码', click: () => void shell.openExternal(HOME) },
+      { label: '报告问题', click: () => void shell.openExternal(`${HOME}/issues`) },
+      { type: 'separator' },
+      { label: `Lumen v${app.getVersion()}`, enabled: false }] },
   ];
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }

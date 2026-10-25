@@ -4,12 +4,13 @@ import { api, type Feed, type View, type Layout, type EmbedStatus, type Discover
 import { LAYOUTS } from '../layout.ts';
 import { Icon, FeedIcon } from './Icon.tsx';
 import { ProfileTab } from './Profile.tsx';
+import { AboutTab } from './About.tsx';
 import { ago, cx } from '../util.ts';
 import { PALETTES, paletteOf, type Palette } from '../themes.ts';
 
 const VIEW_LABEL: Record<View, string> = { article: '文章', social: '动态', picture: '图片', video: '视频', audio: '音频' };
 const TTL_OPTIONS = [[0, '默认'], [1800, '30 分钟'], [3600, '1 小时'], [10800, '3 小时'], [43200, '12 小时'], [86400, '1 天']] as const;
-type Tab = 'feeds' | 'add' | 'ai' | 'clip' | 'fetch' | 'data' | 'look' | 'profile';
+type Tab = 'feeds' | 'add' | 'ai' | 'clip' | 'fetch' | 'data' | 'look' | 'profile' | 'about';
 
 async function act(fn: () => Promise<unknown>, ok?: string): Promise<boolean> {
   try { await fn(); if (ok) notify(ok); await refreshState(); return true; } catch (e) { notify((e as Error).message, true); return false; }
@@ -521,7 +522,7 @@ function LookTab() {
 
 const TABS: { key: Tab; label: string }[] = [
   { key: 'feeds', label: '订阅源' }, { key: 'add', label: '添加订阅' }, { key: 'ai', label: 'AI' }, { key: 'clip', label: '存档' }, { key: 'fetch', label: '抓取' }, { key: 'data', label: '数据与接口' },
-  { key: 'look', label: '外观' }, { key: 'profile', label: '阅读画像' },
+  { key: 'look', label: '外观' }, { key: 'profile', label: '阅读画像' }, { key: 'about', label: '关于' },
 ];
 
 export function SettingsModal() {
@@ -549,6 +550,7 @@ export function SettingsModal() {
         {tab === 'data' && <DataTab />}
         {tab === 'look' && <LookTab />}
         {tab === 'profile' && <ProfileTab />}
+        {tab === 'about' && <AboutTab />}
       </div>
     </div>
   );

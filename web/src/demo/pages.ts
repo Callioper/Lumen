@@ -37,6 +37,7 @@ const NOTES = {
   'settings:data': { name: '设置 · 数据与接口', text: 'OPML 导入导出，和给手机客户端用的 Google Reader 接口。人大复印收哪些刊、侧栏分类默认展开还是收起，也在这一页。' },
   'settings:look': { name: '设置 · 外观', text: '七套配色：默认的纸墨 Flexoki，还有素白、Solarized、Nord、Catppuccin、Rosé Pine、Everforest，每套都分浅色和深色。演示版里也能换着试。' },
   'settings:profile': { name: '阅读画像', text: '推荐根据的是你做过的事：喜欢、少推、收藏、存档、读完。兴趣簇是 AI 归的类，可以改名或隐藏。下面能看到哪些源你常读，哪些常跳过。' },
+  'settings:about': { name: '设置 · 关于', text: '版本号，和去更新日志、主页、源码的链接。装好的 Lumen 在这里检查更新，只在按下按钮时问一次 GitHub。' },
   jobs: { name: '任务进度', text: '存档、写摘要这类要等一会儿的事都在这里排着。演示里放了两条已经做完的。' },
 } satisfies Record<string, PageNote>;
 
