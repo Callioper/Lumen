@@ -5,7 +5,7 @@
 import { useEffect, useState } from 'preact/hooks';
 import { api, type ListItem, type NewBook, type Notice } from '../api.ts';
 import { app, select, notify, open, detail, feedsById, settingsOpen } from '../store.ts';
-import { DEMO_SITE, TOUR, INSTALL } from '../links.ts';
+import { DEMO_SITE, TOUR, INSTALL, RELEASE_NOTES } from '../links.ts';
 import { NoticeRow, usePoll, md, shownName } from './Journals.tsx';
 import { NoticePreview, ownCover } from './NoticePreview.tsx';
 import { dueSoon, DEADLINE_DAYS, EVENT_DAYS } from '../due.ts';
@@ -120,6 +120,29 @@ function Recs({ items }: { items: ListItem[] }) {
   );
 }
 
+// A newer version, found by the daily check (server/api/update.ts): until it is installed or this
+// version is put aside here (kept in this browser only).
+const IGNORED_KEY = 'lumen.update.ignored';
+const ignoredVersion = (): string | null => { try { return localStorage.getItem(IGNORED_KEY); } catch { return null; } };
+
+function UpdateNotice() {
+  const u = app.value?.update;
+  const [ignored, setIgnored] = useState(ignoredVersion);
+  if (!u?.newer || !u.latest || ignored === u.latest) return null;
+  const ignore = (): void => {
+    try { localStorage.setItem(IGNORED_KEY, u.latest!); } catch { /* shown again next time */ }
+    setIgnored(u.latest);
+  };
+  return (
+    <div class="home-update" role="status">
+      <span><b>有新版本 v{u.latest}</b>（现在是 v{u.current}）。下载新的安装包覆盖安装即可，订阅和文章不受影响。</span>
+      <a href={RELEASE_NOTES} target="_blank" rel="noreferrer">看更新了什么</a>
+      <a class="btn small" href={u.url} target="_blank" rel="noreferrer">下载</a>
+      <button class="link" onClick={ignore}>忽略这个版本</button>
+    </div>
+  );
+}
+
 // The first time, before any feed: what to do first, in order, each a button to the place it is done.
 const STEPS = [
   { tab: 'add', title: '添加订阅', note: '粘贴 RSS 地址，或者网站、公众号转 RSS 的首页，Lumen 会自己找订阅地址。', go: '去添加' },
@@ -184,6 +207,7 @@ export function HomeView() {
     <section class={cx('list home-page', previewing && 'previewing')}>
       <div class="home-columns">
         <div class="list-scroll home-scroll">
+          <UpdateNotice />
           <header class="home-head">
             <div class="home-title">
               <p class="home-date">{now.getMonth() + 1}月{now.getDate()}日 · 星期{WEEKDAY[now.getDay()]}</p>

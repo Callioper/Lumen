@@ -11,6 +11,7 @@ import { ROOT, DATA_DIR, loadSettings, saveSettings, loadSecrets, saveSecrets, t
 import { useZoteroDb } from './content/library.ts';
 import { useOcr } from './content/ocr.ts';
 import { warmNoticePictures } from './content/pictures.ts';
+import { dailyCheck } from './api/update.ts';
 import { Scheduler } from './fetch/scheduler.ts';
 import { Enricher } from './ai/enrich.ts';
 import { Embedder } from './rec/embed.ts';
@@ -177,6 +178,12 @@ function main(): void {
   };
   const extractTimer = setInterval(extractPosts, EXTRACT_MS);
   const firstExtract = setTimeout(extractPosts, 120_000);
+  // Whether a newer Lumen is out (api/update.ts): once a day while 自动检查更新 is on; looked at every
+  // few hours so a computer left on for days still hears.
+  const UPDATE_LOOK_MS = 6 * 60 * 60_000;
+  const lookForUpdate = (): void => { void dailyCheck(settings); };
+  const updateTimer = setInterval(lookForUpdate, UPDATE_LOOK_MS);
+  const firstUpdate = setTimeout(lookForUpdate, 60_000);
   // 学术动态's talks and conferences once over: whether a recording went up on B站 (content/replays.ts).
   const REPLAYS_MS = 30 * 60_000;
   const lookForReplays = (): void => { void findReplays(db, settings); };
@@ -191,7 +198,7 @@ function main(): void {
   // A restart once went unexplained (nothing in stderr, no crash event), so every way out is logged.
   const shutdown = (signal: string): void => {
     log.warn(`收到 ${signal}，正在退出`);
-    unwatch(); scheduler.stop(); enricher.stop(); embedder.stop(); translator.stop(); snippets.stop(); clearInterval(nameTimer); clearTimeout(firstNaming); clearInterval(warmTimer); clearTimeout(firstWarm); clearInterval(extractTimer); clearTimeout(firstExtract); clearInterval(replayTimer); clearTimeout(firstReplays); db.close(); process.exit(0);
+    unwatch(); scheduler.stop(); enricher.stop(); embedder.stop(); translator.stop(); snippets.stop(); clearInterval(nameTimer); clearTimeout(firstNaming); clearInterval(warmTimer); clearTimeout(firstWarm); clearInterval(extractTimer); clearTimeout(firstExtract); clearInterval(replayTimer); clearTimeout(firstReplays); clearInterval(updateTimer); clearTimeout(firstUpdate); db.close(); process.exit(0);
   };
   process.on('SIGINT', () => shutdown('SIGINT'));
   process.on('SIGTERM', () => shutdown('SIGTERM'));

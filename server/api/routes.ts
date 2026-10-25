@@ -48,7 +48,7 @@ import { logEvent, logView, setReaction, profileStats, REACTIONS, type Reaction,
 import { loopHealth } from '../stall.ts';
 import { hasLibrary } from '../content/library.ts';
 import { postPictures } from '../content/pictures.ts';
-import { checkUpdate } from './update.ts';
+import { checkUpdate, knownUpdate } from './update.ts';
 
 export interface Deps {
   db: DB;
@@ -140,7 +140,7 @@ export function apiApp(d: Deps): Hono {
     const s = d.getSettings();
     return c.json({ ...appState(db), views: VIEWS, aiQueue: d.enricher.queueSize(), fetching: d.scheduler.busy,
       settings: s, hasAiKey: !!d.getSecrets().aiApiKey, hasEmbeddingKey: !!d.getSecrets().embeddingApiKey, translateError: d.translator.lastError, apiUser: d.getSecrets().apiUser, hasApiPassword: !!d.getSecrets().apiPassword,
-      doubanSync: !!extras.doubanWish, hasZotero: hasLibrary() });
+      doubanSync: !!extras.doubanWish, hasZotero: hasLibrary(), update: knownUpdate() });
   });
 
   app.get('/entries', async (c) => {

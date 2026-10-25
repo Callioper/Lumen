@@ -4,7 +4,7 @@
 //
 // Data lives in the user's app-data folder (Windows %APPDATA%\Lumen\data, macOS ~/Library/Application
 // Support/Lumen/data, Linux ~/.config/Lumen/data), so an upgrade replaces the program and keeps it.
-import { app, BrowserWindow, dialog, Menu, nativeTheme, shell } from 'electron';
+import { app, BrowserWindow, dialog, Menu, Notification, nativeTheme, shell } from 'electron';
 import { fork } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -28,6 +28,8 @@ let base = null;                   // http://127.0.0.1:<port>
 let quitting = false;
 
 // A second launch just brings the first window forward (second-instance below).
+// Windows shows a notification only for an app it knows by this id: the installer's (electron-builder.yml appId).
+if (process.platform === 'win32') app.setAppUserModelId('io.github.callioper.lumen');
 const primary = app.requestSingleInstanceLock();
 if (!primary) app.quit();
 
@@ -165,6 +167,27 @@ function buildMenu() {
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
 
+// A newer version the server's daily check found (server/api/update.ts): told once per version by a
+// system notification, which opens the release notes; 首页 shows it too, until it is installed.
+const NOTIFIED_FILE = join(app.getPath('userData'), 'update-notified.txt');
+const UPDATE_FIRST_MS = 2 * 60_000;          // after the server's first check (a minute in)
+const UPDATE_EVERY_MS = 6 * 60 * 60_000;
+
+async function tellOfUpdate() {
+  try {
+    if (!base || !Notification.isSupported()) return;
+    const { update } = await (await fetch(`${base}/api/state`, { signal: AbortSignal.timeout(10_000) })).json();
+    if (!update?.newer || !update.latest) return;
+    if (existsSync(NOTIFIED_FILE) && readFileSync(NOTIFIED_FILE, 'utf8').trim() === update.latest) return;
+    writeFileSync(NOTIFIED_FILE, update.latest);
+    const n = new Notification({ title: `Lumen 有新版本 v${update.latest}`, body: `现在是 v${update.current}。点这里看更新了什么；下载新的安装包覆盖安装即可。` });
+    n.on('click', () => void shell.openExternal(`${SITE}releases.html`));
+    n.show();
+  } catch {
+    // Not now: looked at again in a few hours.
+  }
+}
+
 async function boot() {
   buildMenu();
   createWindow();
@@ -181,6 +204,8 @@ async function boot() {
     }
   }
   if (win) void win.loadURL(`${base}/`);
+  setTimeout(() => void tellOfUpdate(), UPDATE_FIRST_MS);
+  setInterval(() => void tellOfUpdate(), UPDATE_EVERY_MS);
 }
 
 app.on('second-instance', () => {

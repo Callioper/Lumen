@@ -123,3 +123,8 @@
 .home-steps li > div { flex: 1; min-width: 0; }
 .home-steps p { margin: 4px 0 0; }
 .home-welcome a { color: var(--indigo); }
+
+/* A newer version is out (the daily check). */
+.home-update { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; max-width: 980px; margin: 0 auto 22px; padding: 10px 14px; border: 1px solid var(--indigo-line); border-radius: 10px; background: var(--raised); font-size: 13px; }
+.home-update > span { flex: 1 1 260px; min-width: 0; }
+.home-update a:not(.btn) { color: var(--indigo); }

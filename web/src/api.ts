@@ -13,6 +13,7 @@ export interface Settings {
   defaultTtl: number; fetchConcurrency: number; perHostConcurrency: number; fetchTimeoutMs: number;
   proxy: string; noProxy: string[]; rsshubBase: string;
   wechat2rssBase: string; zoteroDb: string; ocrPython: string; ocrEngine: string;   // '' = Zotero's default place; OCR off
+  updateCheck: boolean;              // once a day, ask GitHub whether a newer Lumen is out
   retention: { days: number; keepMinPerFeed: number; maxPerFeed: number };
   ai: { enabled: boolean; baseUrl: string; model: string; concurrency: number; maxInputChars: number; summaryMinChars: number; tagPrefix: string; allowedTags: string[] };
   embedding: { enabled: boolean; baseUrl: string; model: string; batchSize: number; intervalMs: number };
@@ -30,6 +31,7 @@ export interface AppState {
   categories: Category[]; feeds: Feed[]; tags: TagCount[];
   totals: { unread: number; starred: number; total: number };
   marksUnread: number; aiQueue: number; fetching: number; settings: Settings; hasAiKey: boolean; hasEmbeddingKey: boolean; translateError: string | null; apiUser: string; hasApiPassword: boolean;
+  update?: UpdateInfo | null;        // a newer version found by the daily check or 检查更新 (server/api/update.ts)
   doubanSync?: boolean;   // 想读 also written to 豆瓣 (the author's install only, server/extras.ts)
   hasZotero?: boolean;    // a Zotero database was found, so 在库 can be told
 }

@@ -20,6 +20,7 @@ export interface Settings {
   zoteroDb: string;              // '' = where Zotero keeps it by default (~/Zotero/zotero.sqlite)
   ocrPython: string;             // the Python the OCR engine runs on; '' = no OCR
   ocrEngine: string;             // the folder holding that engine's `ocr` module (scripts/ocr_images.py)
+  updateCheck: boolean;          // ask GitHub once a day whether a newer Lumen is out (server/api/update.ts)
   retention: { days: number; keepMinPerFeed: number; maxPerFeed: number };
   ai: {
     enabled: boolean;
@@ -148,6 +149,7 @@ const DEFAULTS: Settings = {
   zoteroDb: '',
   ocrPython: '',
   ocrEngine: '',
+  updateCheck: true,
   retention: { days: 90, keepMinPerFeed: 50, maxPerFeed: 400 },
   ai: {
     enabled: true,

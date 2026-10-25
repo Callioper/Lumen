@@ -374,6 +374,7 @@ mark.hit { background: var(--seal-soft); color: inherit; border-radius: 2px; pad
 .tab-body.narrow { padding: 22px 32px 32px; max-width: 760px; }
 .tab-body h4 { margin: 26px 0 10px; font: 600 14px var(--serif); }
 .about-update { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 12px; }
+.about-auto { display: flex; align-items: center; gap: 6px; margin-top: 10px; font-size: 13px; }
 .about-links { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
 .about-links li { display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; }
 .about-links a { min-width: 7em; }

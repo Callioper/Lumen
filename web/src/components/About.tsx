@@ -1,7 +1,8 @@
-// 设置 → 关于: the version, whether a newer one is out (asked of GitHub only on the button), and the
-// way to the home page, the release notes, the demo and the source.
+// 设置 → 关于: the version, whether a newer one is out (asked of GitHub on the button, and once a day
+// while 自动检查 is on), and the way to the home page, the release notes, the demo and the source.
 import { useState } from 'preact/hooks';
 import { api, type UpdateInfo } from '../api.ts';
+import { app, refreshState, notify } from '../store.ts';
 import { DEMO_SITE, DOWNLOADS, INSTALL, ISSUES, RELEASE_NOTES, REPO, SITE, TOUR } from '../links.ts';
 
 const LINKS: { href: string; label: string; note: string }[] = [
@@ -13,6 +14,20 @@ const LINKS: { href: string; label: string; note: string }[] = [
   { href: REPO, label: '源码', note: 'GitHub，MIT 许可' },
   { href: ISSUES, label: '报告问题', note: 'GitHub Issues' },
 ];
+
+// Once a day, on by default: what it asks and that it can be turned off, said where it is turned off.
+function AutoCheck() {
+  const on = app.value?.settings.updateCheck ?? true;
+  const flip = (v: boolean): void => {
+    api.saveSettings({ settings: { updateCheck: v } }).then(() => refreshState(), (e: Error) => notify(e.message, true));
+  };
+  return (
+    <label class="about-auto">
+      <input type="checkbox" checked={on} onChange={(e) => flip((e.currentTarget as HTMLInputElement).checked)} />
+      <span>每天自动检查一次，有新版本时在首页提示</span>
+    </label>
+  );
+}
 
 function UpdateCheck() {
   const [state, setState] = useState<'idle' | 'asking' | UpdateInfo>('idle');
@@ -37,8 +52,9 @@ export function AboutTab() {
   return (
     <div class="tab-body narrow about">
       <h4>Lumen v{__LUMEN_VERSION__}</h4>
-      <p class="small muted">装在自己电脑上的学术向 RSS 阅读器。检查更新时会问一次 GitHub，别的时候不连它。</p>
+      <p class="small muted">装在自己电脑上的学术向 RSS 阅读器。检查更新只向 GitHub 问最新的版本号，不带任何别的信息。</p>
       <UpdateCheck />
+      {!import.meta.env.VITE_DEMO && <AutoCheck />}
       <h4>链接</h4>
       <ul class="about-links">
         {LINKS.map((l) => (
