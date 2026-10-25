@@ -6,6 +6,7 @@ import type { Settings } from '../config.ts';
 import { httpGet } from '../fetch/http.ts';
 import { refererFor } from '../api/media.ts';
 import { log } from '../log.ts';
+import { isFlatCutout } from './flatpng.ts';
 
 const MAX_IMAGES = 60;
 const MAX_IMAGE_BYTES = 15 * 1024 * 1024;
@@ -96,7 +97,7 @@ export async function localizeImages(markdown: string, opts: LocalizeOptions): P
       const body = await download(url, opts.settings);
       const size = imageSize(body);
       if (!size) return { kind: 'failed' };
-      if (isFurniture(size)) return { kind: 'dropped' };
+      if (isFurniture(size) || (size.ext === 'png' && isFlatCutout(body))) return { kind: 'dropped' };
       const rel = `${opts.folder}/${opts.baseName}-${String(i + 1).padStart(2, '0')}.${size.ext}`;
       const abs = join(opts.vaultPath, rel);
       mkdirSync(dirname(abs), { recursive: true });
