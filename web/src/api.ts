@@ -156,7 +156,7 @@ export interface Shelf { label: string; n: number; topics: string[] }
 export interface MonthCount extends Count { shelves?: Shelf[] }
 export interface Count { label: string; n: number; group?: string }
 // 期刊目录 and 学术动态: what the AI read out of a post (server/content/tocs.ts, notices.ts).
-export interface PostRef { id: number; title: string; feedId: number; feed: string; published: number; link: string | null }
+export interface PostRef { id: number; title: string; feedId: number; feed: string; published: number; link: string | null; image?: string | null }
 export interface TocArticle { title: string; subtitle: string; authors: string[]; translators: string[]; page: string; abstract: string; keywords: string[]; link?: string; lead?: boolean; abstractFrom?: 'cnki'; reprint?: string; reprintOf?: string }
 export interface TocIssue {
   key: string; source: 'post' | 'cnki' | 'reprint'; journal: string; issue: string; sections: { name: string; articles: TocArticle[] }[];

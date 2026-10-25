@@ -119,7 +119,7 @@ export interface NoticeView extends Notice {
   access?: LiveAccess;               // how to get in, for what can be followed online and is still to come
   replays: Replay[];
   next: { what: '截止' | '举办' | '进行中'; date: string } | null;     // 进行中: date is when it ends
-  post: { id: number; title: string; feedId: number; feed: string; published: number; link: string | null };
+  post: { id: number; title: string; feedId: number; feed: string; published: number; link: string | null; image?: string | null };
   posts: number;
 }
 export interface Count { label: string; n: number }

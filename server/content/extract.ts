@@ -159,18 +159,19 @@ export function runExtract<T>(db: DB, ex: Extractor<T>, settings: Settings, secr
   return pass;
 }
 
-export interface Found<T> { data: T; post: { id: number; title: string; feedId: number; feed: string; published: number; link: string | null } }
+// image: the post's cover, which 首页 shows beside what was found in it.
+export interface Found<T> { data: T; post: { id: number; title: string; feedId: number; feed: string; published: number; link: string | null; image?: string | null } }
 
 // What was found, newest post first. A post read by an older prompt shows what that one found until
 // it is read again: a new version empties no page while the posts are gone through anew.
 export function extracted<T>(db: DB, kind: ExtractKind, version: number): Found<T>[] {
-  const rows = db.prepare(`SELECT x.data, e.id, e.title, e.published, e.link, f.id AS feed_id, f.title AS feed
+  const rows = db.prepare(`SELECT x.data, e.id, e.title, e.published, e.link, e.thumbnail, f.id AS feed_id, f.title AS feed
     FROM extract x JOIN entry e ON e.id = x.entry_id JOIN feed f ON f.id = e.feed_id
     WHERE x.kind = ? AND x.version <= ? AND x.data IS NOT NULL ORDER BY e.published DESC, e.id DESC`).all(kind, version) as
-    { data: string; id: number; title: string; published: number; link: string | null; feed_id: number; feed: string }[];
+    { data: string; id: number; title: string; published: number; link: string | null; thumbnail: string | null; feed_id: number; feed: string }[];
   return rows.flatMap((r) => {
     let data: T;
     try { data = JSON.parse(r.data) as T; } catch { return []; }      // a row written wrong costs only itself
-    return [{ data, post: { id: r.id, title: r.title, feedId: r.feed_id, feed: r.feed, published: r.published, link: r.link } }];
+    return [{ data, post: { id: r.id, title: r.title, feedId: r.feed_id, feed: r.feed, published: r.published, link: r.link, image: r.thumbnail } }];
   });
 }

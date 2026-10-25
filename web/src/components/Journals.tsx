@@ -25,7 +25,7 @@ const postDate = (sec: number): string => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
 
-function FromPost({ post, scope, extra }: { post: PostRef; scope: string; extra?: string }) {
+export function FromPost({ post, scope, extra }: { post: PostRef; scope: string; extra?: string }) {
   return (
     <button class={cx('journal-from', detail.value?.id === post.id && 'on')} onClick={() => void openPost(post, scope)} title={`${post.feed} · ${post.title}`}>
       <FeedIcon id={post.feedId} title={post.feed} size={12} /><span>{post.feed}</span><time>{postDate(post.published)}</time>
@@ -224,12 +224,12 @@ export function TocsView() {
 }
 
 const today = (): Date => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; };
-const md = (ymd: string): string => `${Number(ymd.slice(5, 7))}月${Number(ymd.slice(8, 10))}日`;
+export const md = (ymd: string): string => `${Number(ymd.slice(5, 7))}月${Number(ymd.slice(8, 10))}日`;
 
 // An email, a link, or the words around them, each as what it is.
 const CONTACT_PART = /(https?:\/\/[^\s；;，,）)。、]+|[\w.+-]+@[\w-]+(?:\.[\w-]+)+)/g;
 const isLink = (p: string): boolean => /^https?:\/\//.test(p);
-function Contact({ text }: { text: string }) {
+export function Contact({ text }: { text: string }) {
   if (!text) return null;
   const parts = text.split(CONTACT_PART);
   return (
@@ -258,11 +258,11 @@ function When({ n }: { n: Notice }) {
 }
 
 // 「（二号通知）」 says which notice the post was, not what the event is.
-const shownName = (name: string): string => name.replace(/\s*[（(][^）)]*(?:通知|邀请)[^）)]*[）)]\s*$/, '');
+export const shownName = (name: string): string => name.replace(/\s*[（(][^）)]*(?:通知|邀请)[^）)]*[）)]\s*$/, '');
 
 // How to get in, before the day: the meeting number where the post prints one, the links it gives,
 // the B站 account that streams it; else what the AI read (「腾讯会议」 alone, when that is all it says).
-function Live({ n }: { n: Notice }) {
+export function Live({ n }: { n: Notice }) {
   if (!n.online || n.status !== 'upcoming') return null;
   const a = n.access;
   const said = !a?.meeting && n.live;
@@ -276,7 +276,7 @@ function Live({ n }: { n: Notice }) {
   );
 }
 
-function Replays({ n }: { n: Notice }) {
+export function Replays({ n }: { n: Notice }) {
   if (!n.replays.length) return null;
   return (
     <p class="notice-replays"><b>B站录像</b>
@@ -289,15 +289,18 @@ function Replays({ n }: { n: Notice }) {
 }
 
 // One line each: when, what kind, the name, and where and by whom in a line under it. A click opens
-// the rest in place (what it is about, how to get in, the speakers, contact, the post it came from).
-export function NoticeRow({ n }: { n: Notice }) {
-  const [open, setOpen] = useState(false);
+// the rest in place (what it is about, how to get in, the speakers, contact, the post it came from);
+// with onPick (首页 with room for a preview beside the list) it picks the row instead.
+export function NoticeRow({ n, picked, onPick }: { n: Notice; picked?: boolean; onPick?: (n: Notice) => void }) {
+  const [opened, setOpen] = useState(false);
+  const open = opened && !onPick;
   const dates = [n.date && `${md(n.date)}${n.end ? `–${md(n.end)}` : ''}举办`, n.deadline && `${md(n.deadline)}截止`].filter(Boolean).join('，');
   const brief = [dates, n.place, n.organizer].filter(Boolean);
   const remote = !!n.online && n.status === 'upcoming';
   return (
-    <li class={cx('notice', open && 'open', n.status === 'past' && 'past', remote && 'remote', n.status === 'recorded' && 'recorded')}>
-      <button class="notice-sum" aria-expanded={open} onClick={() => setOpen(!open)}>
+    <li class={cx('notice', open && 'open', picked && 'picked', n.status === 'past' && 'past', remote && 'remote', n.status === 'recorded' && 'recorded')}>
+      <button class="notice-sum" aria-expanded={onPick ? undefined : open} aria-pressed={onPick ? !!picked : undefined}
+        onClick={() => (onPick ? onPick(n) : setOpen(!open))}>
         <When n={n} />
         <span class="notice-body">
           <span class="notice-head">
@@ -308,7 +311,7 @@ export function NoticeRow({ n }: { n: Notice }) {
           </span>
           {brief.length > 0 && <span class="notice-facts">{brief.map((f) => <span key={f}>{f}</span>)}</span>}
         </span>
-        <span class="notice-chev" aria-hidden="true">{open ? '收起' : '展开'}</span>
+        {!onPick && <span class="notice-chev" aria-hidden="true">{open ? '收起' : '展开'}</span>}
       </button>
       {open && (
         <div class="notice-more">

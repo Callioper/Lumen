@@ -1344,18 +1344,4 @@ a.toc-title:hover { color: var(--indigo); text-decoration: underline; text-under
 /* 首页 (Home.tsx): what is closing or starting soon on the left, what is waiting to be read on the right. */
 .brand-home { display: flex; align-items: center; gap: 10px; padding: 2px 6px 2px 2px; margin-left: -2px; border: 0; border-radius: 8px; background: none; color: inherit; font: inherit; cursor: pointer; }
 .brand-home:hover { background: var(--hover); }
-.home-scroll { padding: 28px clamp(16px, 4vw, 48px) 80px; }
-.home-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 16px; max-width: 1180px; margin: 0 auto 18px; }
-.home-date { flex-basis: 100%; margin: 0; font-size: 12px; letter-spacing: 0.08em; color: var(--ink-3); }
-.home-head h2 { margin: 0; font: 700 28px/1.2 var(--sans); letter-spacing: -0.01em; }
-.home-pages { display: flex; flex-wrap: wrap; gap: 6px; margin-left: auto; }
-.home-pages .chip { display: inline-flex; align-items: center; gap: 5px; }
-.home-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 340px); gap: 32px; max-width: 1180px; margin: 0 auto; align-items: start; }
-.home-main { display: flex; flex-direction: column; gap: 28px; min-width: 0; }
-.home-due h3 { display: flex; align-items: baseline; gap: 10px; margin: 0 0 10px; font: 650 17px/1.3 var(--sans); }
-.home-due h3 small { font-size: 12px; font-weight: 400; color: var(--ink-3); }
-.home-count { margin-left: auto; min-width: 22px; padding: 0 7px; border-radius: 999px; background: var(--indigo); color: var(--paper); font-size: 12px; line-height: 20px; text-align: center; font-variant-numeric: tabular-nums; }
-.home-empty { margin: 0; padding: 14px 16px; border-radius: 12px; background: var(--raised); font-size: 13px; }
-.home-more { margin-top: 10px; padding: 0; border: 0; background: none; color: var(--indigo); font: inherit; font-size: 13px; cursor: pointer; }
-.home-side { width: auto; padding: 0; gap: 22px; position: sticky; top: 0; }
-@media (max-width: 900px) { .home-grid { grid-template-columns: 1fr; } .home-side { position: static; } .home-pages { margin-left: 0; } }
+/* 首页's own rules are in home.css. */

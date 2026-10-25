@@ -12,17 +12,20 @@ test('counts days from local midnight', () => {
   assert.equal(daysUntil('2026-11-25', FROM), 30);
 });
 
-test('splits deadlines from what is held, nearest first, within each window', () => {
-  const { closing, starting } = dueSoon([
+test('today first (deadlines before talks), then calls and talks in their windows, nothing twice', () => {
+  const { today, closing, starting } = dueSoon([
     notice('far call', { what: '截止', date: '2026-11-26' }),
     notice('call b', { what: '截止', date: '2026-11-20' }),
     notice('call a', { what: '截止', date: '2026-10-28' }),
+    notice('closes today', { what: '截止', date: '2026-10-26' }),
+    notice('talk today', { what: '举办', date: '2026-10-26' }),
     notice('talk', { what: '举办', date: '2026-11-02' }),
     notice('far talk', { what: '举办', date: '2026-11-10' }),
-    notice('running', { what: '进行中', date: '2026-10-20' }),
+    notice('running', { what: '进行中', date: '2026-10-28' }),
     notice('no date', null),
     notice('over', { what: '举办', date: '2026-10-27' }, 'past'),
   ], FROM);
+  assert.deepEqual(today.map((n) => n.name), ['closes today', 'talk today', 'running']);
   assert.deepEqual(closing.map((n) => n.name), ['call a', 'call b']);
-  assert.deepEqual(starting.map((n) => n.name), ['running', 'talk']);
+  assert.deepEqual(starting.map((n) => n.name), ['talk']);
 });
