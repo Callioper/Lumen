@@ -29,7 +29,9 @@ function readPng(b: Buffer): Png | null {
     else if (kind === 'IEND') break;
     i += 12 + len;
   }
-  try { return { width, height, type, data: inflateSync(Buffer.concat(idat)), palette, trns }; } catch { return null; }
+  // A crafted file can inflate far past its pixels; stop at the size the header promises.
+  const expected = height * (width * CHANNELS[type] + 1);
+  try { return { width, height, type, data: inflateSync(Buffer.concat(idat), { maxOutputLength: expected }), palette, trns }; } catch { return null; }
 }
 
 // The filtered scanlines back to raw bytes (PNG spec, section 9).
