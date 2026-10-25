@@ -66,7 +66,12 @@ test('card text drops a repeated title and ends on a sentence when it can', asyn
 });
 
 test('the card link drops tracking and keeps what opens the article', async () => {
-  const { shareUrl } = await import('../web/src/share/data.ts');
+  const { shareUrl, printedUrl } = await import('../web/src/share/data.ts');
+  // Printed under the QR code on one line only; a long WeChat link would be copied off the picture broken.
+  assert.equal(printedUrl('https://example.com/a?id=3'), 'example.com/a?id=3');
+  assert.equal(printedUrl('https://mp.weixin.qq.com/s?__biz=MzIzNzM3NzE2MA==&mid=2247758979&idx=1&sn=df08f355aa6e974e86246c93fdf83cdc'),
+    'mp.weixin.qq.com · 链接较长，请扫码打开');
+  assert.equal(printedUrl('https://mp.weixin.qq.com/s/AbCdEfGhIjKlMnOpQrStUv'), 'mp.weixin.qq.com/s/AbCdEfGhIjKlMnOpQrStUv');
   assert.equal(shareUrl('http://mp.weixin.qq.com/s?__biz=MzAwMDAwMDAwMA==&mid=2247400001&idx=1&sn=0a1b2c3d&chksm=abc&scene=21&poc_token=HO3J#rd'),
     'https://mp.weixin.qq.com/s?__biz=MzAwMDAwMDAwMA==&mid=2247400001&idx=1&sn=0a1b2c3d');
   assert.equal(shareUrl('https://example.com/a?id=3&utm_source=x'), 'https://example.com/a?id=3');

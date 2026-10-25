@@ -865,9 +865,8 @@ button.digest-title:hover { text-decoration: underline; text-underline-offset: 3
 .sc-foot { display: flex; align-items: flex-end; gap: 16px; margin-top: 30px; padding-top: 18px; border-top: 1px solid var(--c-line); }
 .sc-brand { flex: 1; display: grid; gap: 3px; min-width: 0; font-size: 12px; color: var(--c-ink-3); }
 .sc-brand b { font-size: 14px; letter-spacing: 0.04em; color: var(--c-ink); }
-/* The whole link, so it can be read off the picture; long ones wrap to at most three lines. */
-.sc-url { font-family: var(--mono); font-size: 10.5px; line-height: 1.45; word-break: break-all; overflow-wrap: anywhere;
-  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+/* One line only (printedUrl): a link copied off the picture breaks wherever it wrapped. */
+.sc-url { font-family: var(--mono); font-size: 10.5px; line-height: 1.45; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sc-qr { width: 72px; height: 72px; flex: none; border-radius: 6px; }
 
 .share-back { align-items: center; }

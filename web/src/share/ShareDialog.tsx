@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'preact/hooks';
 import { ShareCard, type CardStyle } from './ShareCard.tsx';
 import { cardPng, copyPng, savePng } from './render.ts';
-import type { ShareData } from './data.ts';
+import { shareUrl, type ShareData } from './data.ts';
 import { cx } from '../util.ts';
 
 // Preview with the choices that matter for a picture: light or dark, serif or not, and, when
@@ -28,6 +28,10 @@ export function ShareDialog({ data, initial, onClose, notify, standalone = false
       setBusy(null);
     }
   };
+  // The picture prints only a short link; the whole one goes to the clipboard from here.
+  const copyLink = async (url: string): Promise<void> => {
+    try { await navigator.clipboard.writeText(url); notify('已复制原文链接'); } catch (e) { notify(`复制链接失败：${(e as Error).message}`, true); }
+  };
   const flip = (k: keyof CardStyle): void => setStyle({ ...style, [k]: !style[k] });
   return (
     <div class={cx('modal-back', 'share-back', standalone && 'standalone')} onClick={(e) => { if (!standalone && e.target === e.currentTarget) onClose(); }}>
@@ -51,6 +55,7 @@ export function ShareDialog({ data, initial, onClose, notify, standalone = false
           </div>
           <span class="grow" />
           <button class="btn primary" disabled={!!busy} onClick={() => void run('copy')}>{busy === 'copy' ? <><span class="spinner sm" />生成中</> : '复制图片'}</button>
+          {data.url && <button class="btn" onClick={() => void copyLink(shareUrl(data.url!))}>复制原文链接</button>}
           <button class="btn" disabled={!!busy} onClick={() => void run('save')}>{busy === 'save' ? <><span class="spinner sm" />生成中</> : '保存 PNG'}</button>
           {!standalone && <button class="btn ghost" onClick={onClose}>关闭</button>}
           <p class="small muted">{standalone

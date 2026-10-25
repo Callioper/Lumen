@@ -1,4 +1,4 @@
-import { shareUrl, type ShareData } from './data.ts';
+import { shareUrl, printedUrl, type ShareData } from './data.ts';
 import { qrPath } from './qr.ts';
 import { cx } from '../util.ts';
 
@@ -54,7 +54,7 @@ export function ShareCard({ data, style }: { data: ShareData; style: CardStyle }
         <div class="sc-brand">
           <b>Lumen</b>
           <span>{url ? '扫码阅读原文' : '来自 Lumen 阅读器'}</span>
-          {url && <span class="sc-url">{url.replace(/^https?:\/\//, '')}</span>}
+          {url && <span class="sc-url">{printedUrl(url)}</span>}
         </div>
         {url && <Qr url={url} />}
       </footer>

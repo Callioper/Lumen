@@ -32,6 +32,16 @@ export function shareUrl(raw: string): string {
   return u.toString().replace(/%3D/gi, '=');
 }
 
+// The link as printed under the QR code. Text read off a picture comes back with a line break wherever
+// it wrapped, and a WeChat link cut at the break no longer opens; so only a link that fits on one line
+// is printed whole, a longer one names its site and leaves the address to the QR code.
+const PRINTED_URL_CHARS = 54;
+export function printedUrl(url: string): string {
+  const bare = url.replace(/^https?:\/\//, '');
+  if (bare.length <= PRINTED_URL_CHARS) return bare;
+  try { return `${new URL(url).hostname} · 链接较长，请扫码打开`; } catch { return '链接较长，请扫码打开'; }
+}
+
 export const SUMMARY_CHARS = 150;
 export const SHARE_COVER_WIDTH = 1080;
 export const QUOTE_CHARS = 420;
