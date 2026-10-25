@@ -196,6 +196,6 @@ function main(): void {
   process.on('exit', (code) => log.warn(`进程退出，code ${code}`));
 }
 
-// The author's private extras (server/extras.ts) register before the routes are built.
+// Optional local extensions (server/extras.ts) register before the routes are built.
 await loadExtras();
 main();
