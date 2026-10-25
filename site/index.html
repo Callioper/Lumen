@@ -34,10 +34,10 @@
       <a class="btn" href="demo/">在线试用</a>
     </div>
     <p class="platforms">
-      <a data-os="win" href="https://github.com/Callioper/Lumen/releases/download/v{{VERSION}}/Lumen-{{VERSION}}-win-x64-setup.exe">Windows</a>
-      <a data-os="mac-arm" href="https://github.com/Callioper/Lumen/releases/download/v{{VERSION}}/Lumen-{{VERSION}}-mac-arm64.dmg">Mac（Apple 芯片）</a>
-      <a data-os="mac-intel" href="https://github.com/Callioper/Lumen/releases/download/v{{VERSION}}/Lumen-{{VERSION}}-mac-x64.dmg">Mac（Intel）</a>
-      <a data-os="linux" href="https://github.com/Callioper/Lumen/releases/download/v{{VERSION}}/Lumen-{{VERSION}}-linux-x86_64.AppImage">Linux</a>
+      <a data-os="win" data-name="Windows" href="https://github.com/Callioper/Lumen/releases/download/v{{VERSION}}/Lumen-{{VERSION}}-win-x64-setup.exe">Windows</a>
+      <a data-os="mac-arm" data-name="Mac，Apple 芯片" href="https://github.com/Callioper/Lumen/releases/download/v{{VERSION}}/Lumen-{{VERSION}}-mac-arm64.dmg">Mac（Apple 芯片）</a>
+      <a data-os="mac-intel" data-name="Mac，Intel" href="https://github.com/Callioper/Lumen/releases/download/v{{VERSION}}/Lumen-{{VERSION}}-mac-x64.dmg">Mac（Intel）</a>
+      <a data-os="linux" data-name="Linux" href="https://github.com/Callioper/Lumen/releases/download/v{{VERSION}}/Lumen-{{VERSION}}-linux-x86_64.AppImage">Linux</a>
       <a href="https://github.com/Callioper/Lumen/releases">所有版本</a>
     </p>
   </div>
@@ -183,7 +183,7 @@
   if (!link) return;
   for (const btn of document.querySelectorAll('[data-auto]')) {
     btn.href = link.href;
-    btn.textContent = `下载 Lumen（${link.textContent}）`;
+    btn.textContent = `下载 Lumen（${link.dataset.name}）`;
   }
 })();
 </script>
