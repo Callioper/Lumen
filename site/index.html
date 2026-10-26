@@ -5,18 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Lumen · 学术 RSS 阅读器</title>
 <meta name="description" content="Lumen 是装在自己电脑上的 RSS 阅读器，专门对付学术公众号：会议按截止日期排好，书单拆成一本本书，期刊目录拼成整期。开源，MIT 许可。">
-<meta property="og:title" content="Lumen · 学术 RSS 阅读器">
-<meta property="og:description" content="订了几十个学术公众号，会议和新书还是会漏。Lumen 把推文读一遍，理成能直接用的样子。">
-<meta property="og:image" content="https://callioper.github.io/Lumen/images/demo.webp">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="site.css">
+<link rel="stylesheet" href="story.css">
 </head>
-<body>
+<body class="story">
 <header class="top">
   <a class="brand" href="./" aria-label="Lumen 主页"><svg class="logo" viewBox="4 4 24 24" width="20" height="20" aria-hidden="true"><path d="M16 5.5c.9 5.6 4.9 9.6 10.5 10.5-5.6.9-9.6 4.9-10.5 10.5C15.1 20.9 11.1 16.9 5.5 16 11.1 15.1 15.1 11.1 16 5.5z" fill="currentColor"/><circle cx="24.2" cy="7.8" r="1.9" fill="#C9962B"/></svg>Lumen</a>
   <nav aria-label="主页导航">
-    <a href="#why">为什么</a>
-    <a href="#features">特色</a>
+    <a href="#notices">功能</a>
     <a href="releases.html">更新</a>
     <a href="demo/">演示</a>
     <a href="https://github.com/Callioper/Lumen">源码</a>
@@ -24,17 +21,11 @@
   </nav>
 </header>
 
-<main>
-<div class="hero-wrap">
-<section class="hero" aria-labelledby="hero-h">
-  <div class="hero-text">
-    <div class="brand-row">
-      <img class="app-icon" src="favicon.svg" width="64" height="64" alt="">
-      <div><p class="brand-name">Lumen</p><p class="kicker">学术 RSS 阅读器，开源，装在自己电脑上</p></div>
-    </div>
-    <a class="news" href="releases.html#v{{VERSION}}"><b>v{{VERSION}}</b><span>{{NEWS}}</span><i aria-hidden="true">→</i></a>
-    <h1 id="hero-h">会议、目录和书单，<br>从推文里理出来。</h1>
-    <p class="lead">订上学术公众号和期刊，推文里的会议会按截止日期排好，书单会拆成一本本书，期刊目录会拼成整期。</p>
+<main class="stage" id="stage" data-ch="0">
+  <section class="copy copy-0 on" id="top" aria-labelledby="c0-h">
+    <p class="kicker-line"><b>LUMEN</b><span>学术 RSS 阅读器 · 开源</span></p>
+    <h1 id="c0-h">众声纷至，条分缕析</h1>
+    <p class="lead">会议依截止排序，书单拆作单册，目录合成整期。</p>
     <div class="get">
       <div class="dl">
         <a class="dl-main" data-auto href="https://github.com/Callioper/Lumen/releases/latest"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 19h14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><span><b>下载 Lumen</b><small data-sub>Windows · Mac · Linux · v{{VERSION}}</small></span></a>
@@ -51,102 +42,262 @@
       </div>
       <a class="btn ghost" href="demo/">在线试用</a>
     </div>
-    <dl class="facts">
-      <div><dt>信源</dt><dd>只读你订阅的源</dd></div>
-      <div><dt>AI</dt><dd>接口自己填，不填也能用</dd></div>
-      <div><dt>数据</dt><dd>都在本机，不用注册</dd></div>
-    </dl>
-  </div>
-  <figure class="frame stage">
-    <video src="media/tour.mp4" poster="media/tour-poster.webp" data-dark-src="media/tour-dark.mp4" data-dark-poster="media/tour-poster-dark.webp" width="2560" height="1600" autoplay muted loop playsinline preload="metadata" aria-label="演示站的「三分钟看特色」导览：学术动态、新书分组、人大复印标记、书影榜、日报里的破茧、外文默认翻译"></video>
-    <figcaption><span>演示站 · 三分钟看特色</span><a href="demo/">自己点一遍 →</a></figcaption>
-  </figure>
-</section>
-</div>
+    <!-- Filled in by scripts/site/build.mjs, as on index.html; story.js hides it on an unbuilt page. -->
+    <a class="news" href="releases.html#v{{VERSION}}"><b>v{{VERSION}}</b><span>{{NEWS}}</span><i aria-hidden="true">→</i></a>
+  </section>
 
-<section id="why" class="why" aria-labelledby="why-h">
-  <p class="eyebrow">为什么</p>
-  <h2 id="why-h">订阅一多，要的那条就找不到了。</h2>
-  <div class="trio">
-    <article class="frame">
-      <header><span>01</span><b>公众号与信息流</b></header>
-      <ul><li class="minus">同一场会，好几个号各发一遍</li><li class="minus">截止日期得自己另外记</li></ul>
-    </article>
-    <article class="frame">
-      <header><span>02</span><b>传统 RSS 阅读器</b></header>
-      <ul><li class="plus">订什么自己定</li><li class="minus">目录和书单还是一整篇推文，要自己一条条翻</li></ul>
-    </article>
-    <article class="frame ours">
-      <header><span>03</span><b>Lumen</b></header>
-      <ul><li class="plus">会议按截止日期排，几个号发的同一场只留一条</li><li class="plus">书单拆成一本本书，看得到 Zotero 里有没有</li><li class="plus">期刊目录拼成整期，人大复印转载的标回原刊</li><li class="plus">每天一份日报，挑出值得看的</li></ul>
-    </article>
-  </div>
-</section>
+  <section class="copy copy-side" id="notices" aria-labelledby="c1-h">
+    <p class="kicker-line"><svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg><span>学术动态</span></p>
+    <h2 id="c1-h">会议截止，<br>一目了然</h2>
+    <p class="lead">从推文读出会议，按截止日排，同一场只留一条。</p>
+    <ol class="steps">
+      <li><button type="button" data-step="0"><span class="n">01</span><b>读出日期和地点</b><i class="bar"></i></button></li>
+      <li><button type="button" data-step="1"><span class="n">02</span><b>按截止日排进去</b><i class="bar"></i></button></li>
+      <li><button type="button" data-step="2"><span class="n">03</span><b>同一场只留一条</b><i class="bar"></i></button></li>
+    </ol>
+  </section>
 
-<section id="features" class="features" aria-labelledby="features-h">
-  <p class="eyebrow">特色<span>7 项</span></p>
-  <h2 id="features-h">打开它，先看这几页。</h2>
-  <div class="bento">
-    <a class="frame tile wide" href="demo/#see=notices">
-      <header><span>01 · 学术动态</span><i>看演示 →</i></header>
-      <p class="desc">会议、征稿和讲座从推文里读出来，按截止日期排。几个号发了同一场，只留一条。</p>
-      <picture><source media="(prefers-color-scheme: dark)" srcset="images/f-notices-dark.webp"><img src="images/f-notices.webp" width="1600" height="901" loading="lazy" alt="学术动态：左栏倒计时，同一场活动合成一条"></picture>
-    </a>
-    <a class="frame tile" href="demo/#see=books">
-      <header><span>02 · 新书</span><i>看演示 →</i></header>
-      <p class="desc">书单推文拆成一本本书，按月份和主题分组。Zotero 里已经有的会标出来。</p>
-      <picture><source media="(prefers-color-scheme: dark)" srcset="images/f-books-dark.webp"><img src="images/f-books.webp" width="1000" height="727" loading="lazy" alt="新书：按月、按主题分架的封面墙"></picture>
-    </a>
-    <a class="frame tile" href="demo/#see=tocs">
-      <header><span>03 · 期刊目录</span><i>看演示 →</i></header>
-      <p class="desc">公众号推的目录和知网 RSS 都拼成整期。被人大复印转载的文章，在原刊目录里标出来。</p>
-      <picture><source media="(prefers-color-scheme: dark)" srcset="images/f-tocs-dark.webp"><img src="images/f-tocs.webp" width="1000" height="750" loading="lazy" alt="期刊目录：人大复印转载的文章，标出原刊出处"></picture>
-    </a>
-    <a class="frame tile wide" href="demo/#see=daily">
-      <header><span>04 · 日报</span><i>看演示 →</i></header>
-      <p class="desc">每天从新文章里挑出值得看的，分组写导语。最后一篇叫「破茧」，是你平时不会点开的。</p>
-      <picture><source media="(prefers-color-scheme: dark)" srcset="images/f-daily-dark.webp"><img src="images/f-daily.webp" width="1600" height="900" loading="lazy" alt="日报：今日导语与你可能错过的文章"></picture>
-    </a>
-    <a class="frame tile" href="demo/#see=hot">
-      <header><span>05 · 书影榜</span><i>看演示 →</i></header>
-      <p class="desc">豆瓣友邻近 30 天标得最多的书和电影，旁边是豆瓣的公共榜单。</p>
-      <picture><source media="(prefers-color-scheme: dark)" srcset="images/f-hot-dark.webp"><img src="images/f-hot.webp" width="1000" height="634" loading="lazy" alt="书影榜：友邻近 30 天标得最多的书"></picture>
-    </a>
-    <div class="frame tile">
-      <header><span>06 · 外文</span></header>
-      <p class="desc">外文文章的标题直接显示中文。正文能看双语、译文或原文，按 t 切换。</p>
-      <div class="vig bi">
-        <p class="zh">开放评审为何在慢慢赢得支持</p>
-        <p class="en">Why open peer review is slowly winning</p>
-        <p class="pair"><span>Journals that publish their reviews are no longer rare.</span>公开审稿意见的期刊，已经不再少见。</p>
-        <p class="pair"><span>Readers can now see how a paper changed.</span>读者能看到一篇论文是怎么改出来的。</p>
-        <p class="sw"><b class="on">双语</b><b>译文</b><b>原文</b><kbd>t</kbd></p>
-      </div>
+  <section class="copy copy-side" id="books" aria-labelledby="c2-h">
+    <p class="kicker-line"><svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H11v16H5.5A1.5 1.5 0 0 1 4 18.5zM20 5.5A1.5 1.5 0 0 0 18.5 4H13v16h5.5a1.5 1.5 0 0 0 1.5-1.5z"/></svg><span>新书</span></p>
+    <h2 id="c2-h">一篇书单，<br>本本分明</h2>
+    <p class="lead">书单拆作单册，按月上架，库里有的另作标记。</p>
+    <ol class="steps">
+      <li><button type="button"><span class="n">01</span><b>拆成一本本书</b><i class="bar"></i></button></li>
+      <li><button type="button"><span class="n">02</span><b>标出库里已有</b><i class="bar"></i></button></li>
+    </ol>
+  </section>
+
+  <section class="copy copy-side" id="journals" aria-labelledby="c3-h">
+    <p class="kicker-line"><svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01"/></svg><span>期刊目录</span></p>
+    <h2 id="c3-h">分篇推送，<br>合为一期</h2>
+    <p class="lead">上下半期分两篇推，合成整期；人大复印转载的，标回原刊。</p>
+    <ol class="steps">
+      <li><button type="button"><span class="n">01</span><b>合成整期目录</b><i class="bar"></i></button></li>
+      <li><button type="button"><span class="n">02</span><b>标出复印转载</b><i class="bar"></i></button></li>
+    </ol>
+  </section>
+
+  <section class="copy copy-side" id="daily" aria-labelledby="c4-h">
+    <p class="kicker-line"><svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><rect x="3.5" y="4" width="17" height="16" rx="2"/><path d="M7.5 8.5h9M7.5 12h9M7.5 15.5h5"/></svg><span>日报</span></p>
+    <h2 id="c4-h">每日一报，<br>择要而读</h2>
+    <p class="lead">昨天来了 23 篇，挑出值得看的分组写好，再荐一篇你平常不读的。</p>
+    <ol class="steps">
+      <li><button type="button"><span class="n">01</span><b>挑出值得看的</b><i class="bar"></i></button></li>
+      <li><button type="button"><span class="n">02</span><b>另荐一篇破茧</b><i class="bar"></i></button></li>
+    </ol>
+  </section>
+
+  <section class="copy copy-side" id="search" aria-labelledby="c5-h">
+    <p class="kicker-line"><svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path d="M4 6h9M8.5 4v2c0 4-2 7-5 8.5M6 10c1.2 2 3.2 3.6 5.5 4.5M13 20l4-9 4 9M14.5 17h5"/></svg><span>外文与检索</span></p>
+    <h2 id="c5-h">外文径读，<br>以意相求</h2>
+    <p class="lead">英文标题直接看中文；搜「骑手」，意思相近的也找得到。</p>
+    <ol class="steps">
+      <li><button type="button"><span class="n">01</span><b>标题译成中文</b><i class="bar"></i></button></li>
+      <li><button type="button"><span class="n">02</span><b>按意思搜索</b><i class="bar"></i></button></li>
+    </ol>
+  </section>
+
+  <section class="copy copy-side copy-end" id="open" aria-labelledby="c6-h">
+    <p class="kicker-line"><svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path d="M8 7l-5 5 5 5M16 7l5 5-5 5M13.5 5l-3 14"/></svg><span>开源与下载</span></p>
+    <h2 id="c6-h">藏之本机，<br>公诸同好</h2>
+    <p class="lead">数据只存在你自己的电脑上；源码以 MIT 许可公开，AI 接口自己填，不填也能用。</p>
+    <div class="get">
+      <a class="btn" data-auto href="https://github.com/Callioper/Lumen/releases/latest"><svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 19h14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><span>下载 Lumen</span></a>
+      <a class="btn ghost" href="demo/">在线试用</a>
     </div>
-    <div class="frame tile">
-      <header><span>07 · 检索</span></header>
-      <p class="desc">搜索可以切到「意思相近」，没写这个词、但在讲同一件事的文章也会出来。</p>
-      <div class="vig q">
-        <p class="box"><span>骑手</span></p>
-        <p class="sw"><b>按词 · 3 篇</b><b class="on">意思相近 · 7 篇</b></p>
-        <p class="hit">和骑手一起跑完一天的单</p>
-        <p class="hit soft">平台算法下的配送时间<i>没有「骑手」二字</i></p>
-      </div>
-    </div>
-  </div>
-</section>
+    <p class="end-links"><a href="https://github.com/Callioper/Lumen/releases">其他平台与所有版本</a><a href="releases.html">更新日志</a><a href="https://github.com/Callioper/Lumen">源码</a></p>
+  </section>
 
-<section class="frame demo" aria-labelledby="demo-h">
-  <div class="demo-text">
-    <p class="eyebrow">演示站</p>
-    <h2 id="demo-h">不用装，先点一遍。</h2>
-    <p>演示站里的订阅、文章和书都是编的，可以随便点。按 <kbd>?</kbd> 能看到每个按钮是做什么的。</p>
-    <a class="btn" href="demo/">打开演示站 →</a>
+  <!-- The one thing the page shows from start to end: posts, and what Lumen makes of them. Everything in it is
+       the demo site's made-up data; the copy beside it carries the text, so it is hidden from screen readers. -->
+  <div class="world" id="world" aria-hidden="true" data-ch="0" data-s="0">
+    <!-- 首屏 at both ends: some of the books the 新书 chapter will be about. Covers are public-domain art
+         (images/real/CREDITS.md) set as made-up books; the titles are the demo site's. -->
+    <figure class="book w bk bk-1 v-bleed"><img src="images/real/saruwaka.webp" alt="" style="object-position:50% 35%"><figcaption><b>城中的陌生人</b><small>[英] 玛丽·温特 著</small><i>鹿鸣书局</i></figcaption></figure>
+    <figure class="book w bk bk-2 v-inset" style="--paper:#ece3cc"><img src="images/real/cellarius.webp" alt="" style="object-position:50% 50%"><figcaption><b>星空下的数学</b><small>林知远 著</small><i>东江出版社</i></figcaption></figure>
+    <figure class="book w bk bk-3 v-label"><img src="images/real/ohashi.webp" alt="" style="object-position:50% 40%"><figcaption><b>一座城市的声音</b><small>[法] 让·莫兰 著</small><i>松溪书社</i></figcaption></figure>
+    <figure class="book w bk bk-4 v-bleed"><img src="images/real/whistler.webp" alt="" style="object-position:40% 50%"><figcaption><b>夜航</b><small>周以宁 著</small><i>北城文艺</i></figcaption></figure>
+
+    <article class="w post post-c">
+      <div class="card">
+        <header class="post-head"><span class="av" style="--c:#AD8301">鹿</span><b>鹿鸣书局</b><time>昨天</time></header>
+        <h3 class="post-title">十月新书｜二十本值得读的人文新书</h3>
+        <div class="fold excerpt" data-in="0 1 2 3 4 5 6"><div><div class="covers"><figure class="book v-inset" style="--paper:#efe8d6"><img src="images/real/song-landscape.webp" alt="" style="object-position:62% 50%"><figcaption><b>河流的档案</b><small>许清 著</small><i>东江出版社</i></figcaption></figure><figure class="book v-cloth" style="--cloth:#34413a"><img src="images/real/lighthouse.webp" alt="" style="object-position:62% 50%"><figcaption><b>灯塔之夜</b><small>[德] 汉娜·施密特 著</small><i>鹿鸣书局</i></figcaption></figure><figure class="book v-swiss"><img src="images/real/muybridge-grid.webp" alt="" style="object-position:50% 39.5%"><figcaption><b>奔跑的时间</b><small>[美] 艾伦·罗斯 著</small><i>北城文艺</i></figcaption></figure><figure class="book v-inset" style="--paper:#f3eee2"><img src="images/real/wave.webp" alt="" style="object-position:78% 50%"><figcaption><b>海的形状</b><small>陈望舒 著</small><i>松溪书社</i></figcaption></figure></div></div></div>
+      </div>
+    </article>
+
+    <article class="w post post-a">
+      <div class="card">
+        <header class="post-head"><span class="av" style="--c:#24837B">东</span><b>东江新传</b><time>2 小时前</time></header>
+        <div class="fold pic" data-in="0 1 2 3 4 5 6"><div><img src="images/real/muybridge-grid.webp" alt="" style="object-position:50% 45%"></div></div>
+        <h3 class="post-title"><mark data-f="name">第五届媒介考古学论坛</mark>（二号通知）</h3>
+        <div class="fold excerpt" data-in="0"><div><p>各位学界同仁：第五届媒介考古学论坛定于 <span data-at="50-51" data-fmt="post">12 月 16 日至 17 日</span>在东江大学逸夫楼举行……</p></div></div>
+        <div class="fold body" data-in="1"><div>
+          <p>第五届媒介考古学论坛定于 <mark data-f="date" data-at="50-51" data-fmt="post-y">2026 年 12 月 16 日至 17 日</mark>在<mark data-f="place">东江大学逸夫楼</mark>举行。本届以“旧机器，新问题”为题，欢迎从技术史、档案与声音研究进入的论文。</p>
+          <p>请有意参会者于 <mark data-f="due" data-at="12" data-fmt="post">11 月 8 日</mark>前提交论文摘要（800 字以内），会务组将在两周内回复。</p>
+          <p class="sign">主办：<mark data-f="org">东江大学新闻学院</mark></p>
+        </div></div>
+      </div>
+    </article>
+
+    <article class="w post post-d">
+      <div class="card">
+        <header class="post-head"><span class="av" style="--c:#5E409D">文</span><b>文艺理论动态</b><time>3 小时前</time></header>
+        <div class="fold pic" data-in="0 1 2 4 5 6"><div><img src="images/real/phonograph.webp" alt="" style="object-position:50% 58%"></div></div>
+        <h3 class="post-title">《文艺理论动态》第 5 期目录（上）</h3>
+        <div class="fold excerpt" data-in="0 1 2 3 4 5 6"><div><p>本期专题“声音与档案”。特稿：后人类叙事的三个问题；书评：《河流的档案》……</p></div></div>
+      </div>
+    </article>
+
+    <article class="w post post-e">
+      <div class="card">
+        <header class="post-head"><span class="av" style="--c:#5E409D">文</span><b>文艺理论动态</b><time>刚刚</time></header>
+        <h3 class="post-title">《文艺理论动态》第 5 期目录（下）</h3>
+        <div class="fold body" data-in="3"><div><ol class="toc-src">
+          <li><span>声音与档案｜</span><b>广播剧与战时的声音共同体</b></li>
+          <li><span>声音与档案｜</span><b>录音室里的作者</b></li>
+          <li><span>书评｜</span><b>时间的切片</b></li>
+          <li><span>书评｜</span><b>河流怎样被记住</b></li>
+        </ol></div></div>
+      </div>
+    </article>
+
+    <article class="w post post-f">
+      <div class="card">
+        <header class="post-head"><span class="av" style="--c:#66800B">复</span><b>复印报刊资料</b><time>今天</time></header>
+        <h3 class="post-title">最新目录｜文艺理论 2026 年第 10 期</h3>
+        <div class="fold body" data-in="3"><div><p class="rp-line"><span class="rp-src">全文转载</span> 屏幕之后的阅读　原载《文艺理论动态》2026 年第 5 期</p></div></div>
+      </div>
+    </article>
+
+    <article class="w post post-b">
+      <div class="card">
+        <header class="post-head"><span class="av" style="--c:#BC5215">媒</span><b>媒介研究前沿</b><time>5 天前</time></header>
+        <div class="post-row">
+          <h3 class="post-title">转发｜<mark data-f="name">第五届媒介考古学论坛</mark>征文启事（一号通知）</h3>
+          <img class="thumb" src="images/real/muybridge-grid.webp" alt="" style="object-position:0% 12%">
+        </div>
+        <p class="stamp"><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>和上面那篇是同一场会，已并成一条</p>
+      </div>
+    </article>
+
+    <section class="w board">
+      <header class="board-head"><b>学术动态</b><span class="board-count">按截止排 · <i>4</i> 条</span></header>
+      <p class="board-chips"><span class="on">全部</span><span>会议</span><span>征稿</span><span>讲座</span><span>申报</span><span>招聘</span></p>
+      <ol class="nts">
+        <li class="nt soon" data-id="ws">
+          <p class="nt-when"><small>截止</small><b data-at="0">10月27日</b><small>今天</small></p>
+          <div class="nt-body"><p class="nt-head"><span class="nt-kind">会议</span><b class="nt-name">“媒介与文明”青年学者工作坊</b></p><p class="nt-facts"><span data-at="38-39">12月4日–5日</span><span>松溪大学人文楼</span></p></div>
+        </li>
+        <li class="nt" data-id="sb">
+          <p class="nt-when"><small>截止</small><b data-at="10">11月6日</b><small>还有 10 天</small></p>
+          <div class="nt-body"><p class="nt-head"><span class="nt-kind">申报</span><b class="nt-name">2027 年度青年社科项目</b></p><p class="nt-facts"><span>北城社科联</span></p></div>
+        </li>
+        <li class="nt fresh" data-id="new">
+          <p class="nt-when"><small>截止</small><b class="fill" data-f="due" data-at="12">11月8日</b><small class="fill" data-f="left">还有 12 天</small></p>
+          <div class="nt-body">
+            <p class="nt-head"><span class="nt-kind fill" data-f="kind">会议</span><b class="nt-name fill" data-f="name">第五届媒介考古学论坛</b><span class="nt-dup">2 个号发过</span></p>
+            <p class="nt-facts"><span class="fill" data-f="date" data-at="50-51">12月16日–17日</span><span class="fill" data-f="place">东江大学逸夫楼</span><span class="fill" data-f="org">东江大学新闻学院</span></p>
+          </div>
+        </li>
+        <li class="nt" data-id="zp">
+          <p class="nt-when"><small>截止</small><b data-at="18">11月14日</b><small>还有 18 天</small></p>
+          <div class="nt-body"><p class="nt-head"><span class="nt-kind">招聘</span><b class="nt-name">松溪大学文学院博士后招聘</b></p><p class="nt-facts"><span>松溪大学文学院</span></p></div>
+        </li>
+        <li class="nt" data-id="zj">
+          <p class="nt-when"><small>截止</small><b data-at="28">11月24日</b><small>还有 28 天</small></p>
+          <div class="nt-body"><p class="nt-head"><span class="nt-kind">征集</span><b class="nt-name">城市口述史影像征集</b></p><p class="nt-facts"><span>城市影像</span></p></div>
+        </li>
+      </ol>
+    </section>
+
+    <!-- 新书: the shelf. story.js fills the slots with copies of the covers: 十月 from the post, 九月 from the pile. -->
+    <section class="w wall">
+      <header class="board-head"><b>新书</b><span class="board-count">按月分组 · <i>4</i> 本<span class="wall-owned"> · 库中已有 1</span></span></header>
+      <p class="board-chips"><span class="on">封面</span><span>列表</span><span>只看未在库</span></p>
+      <h4 class="wall-month">十月</h4>
+      <div class="shelf shelf-new"><div class="slot"></div><div class="slot has"><span class="owned-tag">已在库</span></div><div class="slot"></div><div class="slot"></div></div>
+      <h4 class="wall-month">九月</h4>
+      <div class="shelf shelf-old"><div class="slot"></div><div class="slot"></div><div class="slot"></div><div class="slot"></div></div>
+    </section>
+
+    <!-- 期刊目录: one issue, its first half from yesterday's post; the second half's rows wait as grey bars. -->
+    <section class="w panel tocp">
+      <header class="board-head"><b>期刊目录</b><span class="board-count">按期 · <i>4</i> 篇</span></header>
+      <p class="board-chips"><span class="on">全部</span><span>公众号</span><span>知网</span><span>人大复印</span></p>
+      <div class="toc-card">
+        <p class="toc-hd"><b>文艺理论动态</b><span>2026 年第 5 期</span><em class="toc-half">上半期</em></p>
+        <h5>特稿</h5>
+        <ol><li class="tr"><span class="tt">后人类叙事的三个问题</span><span class="ta">林知远</span><span class="tp">3</span></li><li class="tr rp-row"><span class="tt">屏幕之后的阅读<small>——数字界面中的注意力与文本</small></span><span class="rp-tag">人大复印</span><span class="ta">林远</span><span class="tp">12</span></li></ol>
+        <h5>专题 · 声音与档案</h5>
+        <ol><li class="tr"><span class="tt">留声机与文学的耳朵</span><span class="ta">苏禾</span><span class="tp">24</span></li><li class="tr"><span class="tt">档案的回声</span><span class="ta">韩栎</span><span class="tp">33</span></li><li class="tr late"><span class="tt fill">广播剧与战时的声音共同体</span><span class="ta fill">程野</span><span class="tp fill">41</span></li><li class="tr late"><span class="tt fill">录音室里的作者</span><span class="ta fill">何晴</span><span class="tp fill">50</span></li></ol>
+        <h5>书评</h5>
+        <ol><li class="tr late"><span class="tt fill">时间的切片<small>——评《奔跑的时间》</small></span><span class="ta fill">罗川</span><span class="tp fill">58</span></li><li class="tr late"><span class="tt fill">河流怎样被记住<small>——评《河流的档案》</small></span><span class="ta fill">江枫</span><span class="tp fill">63</span></li></ol>
+      </div>
+    </section>
+
+    <!-- 日报: yesterday's arrivals on the left, the day's report on the right; data-pick says which slot an arrival fills. -->
+    <section class="w inbox">
+      <header class="board-head"><b>收件箱</b><span class="board-count">昨天 · 23 篇</span></header>
+      <ol>
+        <li class="ib" data-pick="0"><small>每日文化速览</small><b>博物馆推出早期媒介装置特展</b></li>
+        <li class="ib"><small>城南读书会</small><b>关注转发，抽三位读者送新书</b></li>
+        <li class="ib" data-pick="1"><small>思想札记</small><b>骑手的时间：一份田野笔记</b></li>
+        <li class="ib"><small>城市影讯</small><b>本周新片排期</b></li>
+        <li class="ib" data-pick="2"><small>文艺理论动态</small><b>分布式认知与文学阅读</b></li>
+        <li class="ib"><small>东江大学研究生院</small><b>2027 年博士招生简章（第三轮）</b></li>
+        <li class="ib" data-pick="3"><small>技术与社会观察</small><b>标注员的一天</b></li>
+        <li class="ib"><small>鹿鸣书局</small><b>会员日｜全场满一百减二十</b></li>
+        <li class="ib explore"><small>文艺理论动态</small><b>气候小说的时间形式</b></li>
+      </ol>
+      <p class="ib-more">还有 14 篇……</p>
+    </section>
+    <section class="w panel report">
+      <header class="board-head"><b>日报 · 昨天</b><span class="board-count">23 篇里挑出 <i>0</i> 篇</span></header>
+      <p class="rp-over fill">昨天的阅读围绕两条线：旧媒介重回公共视野，博物馆、课堂和期刊都在谈幻灯与观看；平台劳动的田野材料比往常集中。</p>
+      <h5>精选</h5>
+      <ol class="rr-list">
+        <li class="rr"><b class="fill">博物馆推出早期媒介装置特展</b><small class="fill">每日文化速览</small></li>
+        <li class="rr"><b class="fill">骑手的时间：一份田野笔记</b><small class="fill">思想札记</small></li>
+        <li class="rr"><b class="fill">分布式认知与文学阅读</b><small class="fill">文艺理论动态</small></li>
+      </ol>
+      <h5>平台上的劳动</h5>
+      <ol class="rr-list">
+        <li class="rr"><b class="fill">标注员的一天</b><small class="fill">技术与社会观察</small></li>
+      </ol>
+      <div class="ex-card"><p class="ex-head"><span class="ex-tag">破茧</span><small>和你平常读的方向不同，换换口味</small></p><b>气候小说的时间形式</b><small>文艺理论动态</small></div>
+    </section>
+
+    <!-- 外文与检索: a foreign journal's feed, read in Chinese; and a search that finds what is meant, not only what is typed. -->
+    <article class="w post en-card">
+      <div class="card">
+        <header class="post-head"><span class="av" style="--c:#205EA6">M</span><b>Media History Review</b><time>Vol. 12</time></header>
+        <div class="en-row"><p class="tl"><span class="en">Lantern Slides and the Making of Public Spectatorship</span><span class="zh">早期幻灯放映与公共观看的形成</span></p><p class="sub"><span class="s0">Shen Zhiyuan · Issue 3</span><span class="s1">Lantern Slides and the Making of Public Spectatorship</span></p></div>
+        <div class="en-row"><p class="tl"><span class="en">Archives, Platforms, and Memory</span><span class="zh">档案、平台与记忆</span></p><p class="sub"><span class="s0">Han Li · Issue 3</span><span class="s1">Archives, Platforms, and Memory</span></p></div>
+        <div class="en-row"><p class="tl"><span class="en">Distributed Cognition and Literary Reading</span><span class="zh">分布式认知与文学阅读</span></p><p class="sub"><span class="s0">Lin Yuan · Issue 3</span><span class="s1">Distributed Cognition and Literary Reading</span></p></div>
+        <p class="en-hint">按 <kbd>t</kbd> 切换原文</p>
+      </div>
+    </article>
+    <section class="w panel search">
+      <header class="board-head"><b>搜索</b><span class="board-count s-count"></span></header>
+      <p class="sbox"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg><span class="q"></span></p>
+      <p class="seg"><span>字面</span><span>意思相近</span></p>
+      <ol class="sres">
+        <li class="sr"><b><mark>骑手</mark>的时间：一份田野笔记</b><p>跟着三位<mark>骑手</mark>跑了一周之后，我才明白他们说的「时间不是自己的」是什么意思。</p></li>
+        <li class="sr near"><b>标注员的一天<span class="near-tag">意思相近</span></b><p>数据标注的工作量按条计算，一个熟练的标注员每天要看几千张图片。</p></li>
+        <li class="sr near"><b>众包平台上的隐形劳动<span class="near-tag">意思相近</span></b><p>众包平台把大任务拆成小任务，也把劳动拆得几乎看不见。</p></li>
+      </ol>
+    </section>
   </div>
-  <a class="demo-shot" href="demo/" aria-label="打开演示站"><picture><source media="(prefers-color-scheme: dark)" srcset="images/demo-dark.webp"><img src="images/demo.webp" width="2000" height="1250" loading="lazy" alt="演示站首页"></picture></a>
-</section>
+
+  <ul class="world-cap" aria-label="Lumen 的三条底线">
+    <li>只读你订阅的源</li>
+    <li>AI 接口自己填，不填也能用</li>
+    <li>数据都在本机，MIT 开源</li>
+  </ul>
 </main>
 
+<!-- Not shown on this page (the last chapter has the links); scripts/site/build.mjs dresses releases.html in it. -->
 <footer class="foot">
   <span class="brand"><svg class="logo" viewBox="4 4 24 24" width="14" height="14" aria-hidden="true"><path d="M16 5.5c.9 5.6 4.9 9.6 10.5 10.5-5.6.9-9.6 4.9-10.5 10.5C15.1 20.9 11.1 16.9 5.5 16 11.1 15.1 15.1 11.1 16 5.5z" fill="currentColor"/><circle cx="24.2" cy="7.8" r="1.9" fill="#C9962B"/></svg>Lumen v{{VERSION}} · MIT</span>
   <nav aria-label="页尾链接">
@@ -159,32 +310,25 @@
   </nav>
 </footer>
 
-<script>
-// The download button points at this system's package; a Mac whose chip can't be told gets the Apple-chip build.
-(() => {
-  const ua = navigator.userAgent;
-  const os = /iPhone|iPad|Android/.test(ua) ? null : /Windows/.test(ua) ? 'win' : /Mac/.test(ua) ? 'mac' : /Linux/.test(ua) ? 'linux' : null;
-  const link = os && document.querySelector(`[data-os="${os}"]`);
-  if (link) {
-    link.classList.add('mine');
-    for (const btn of document.querySelectorAll('[data-auto]')) btn.href = link.href;
-    document.querySelector('[data-sub]').textContent = `${link.dataset.name} · v{{VERSION}}`;
-  }
-  // The video plays in the visitor's colour scheme, like the pictures (<picture> sources) and the page around it.
-  const video = document.querySelector('video[data-dark-src]');
-  const light = { src: video.getAttribute('src'), poster: video.getAttribute('poster') };
-  const dark = matchMedia('(prefers-color-scheme: dark)');
-  const pick = () => {
-    const want = dark.matches ? { src: video.dataset.darkSrc, poster: video.dataset.darkPoster } : light;
-    if (video.getAttribute('src') === want.src) return;
-    video.poster = want.poster; video.src = want.src; video.play().catch(() => {});
-  };
-  pick();
-  dark.addEventListener('change', pick);
-  // The platform menu closes on a click anywhere else.
-  const more = document.querySelector('.dl-more');
-  document.addEventListener('click', (e) => { if (more.open && !more.contains(e.target)) more.open = false; });
-})();
-</script>
+<nav class="wayfinder" aria-label="章节">
+  <p class="way-status" aria-live="polite">众声纷至，条分缕析</p>
+  <div class="way-chapters">
+    <a href="#top" data-go="0" aria-label="首屏" title="首屏" aria-current="step"><svg viewBox="4 4 24 24" aria-hidden="true"><path class="solid" d="M16 7c.8 4.6 4.4 8.2 9 9-4.6.8-8.2 4.4-9 9-.8-4.6-4.4-8.2-9-9 4.6-.8 8.2-4.4 9-9z"/></svg></a>
+    <a href="#notices" data-go="1" aria-label="学术动态" title="学术动态"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg></a>
+    <a href="#books" data-go="2" aria-label="新书" title="新书"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H11v16H5.5A1.5 1.5 0 0 1 4 18.5zM20 5.5A1.5 1.5 0 0 0 18.5 4H13v16h5.5a1.5 1.5 0 0 0 1.5-1.5z"/></svg></a>
+    <a href="#journals" data-go="3" aria-label="期刊目录" title="期刊目录"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01"/></svg></a>
+    <a href="#daily" data-go="4" aria-label="日报" title="日报"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4" width="17" height="16" rx="2"/><path d="M7.5 8.5h9M7.5 12h9M7.5 15.5h5"/></svg></a>
+    <a href="#search" data-go="5" aria-label="外文与检索" title="外文与检索"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h9M8.5 4v2c0 4-2 7-5 8.5M6 10c1.2 2 3.2 3.6 5.5 4.5M13 20l4-9 4 9M14.5 17h5"/></svg></a>
+    <a href="#open" data-go="6" aria-label="开源与下载" title="开源与下载"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 7l-5 5 5 5M16 7l5 5-5 5M13.5 5l-3 14"/></svg></a>
+  </div>
+  <div class="way-tools">
+    <span class="way-hint">滚动或按 <kbd>↓</kbd> 往下看</span>
+    <button type="button" class="way-pause" aria-pressed="false">暂停演示</button>
+    <button type="button" class="way-arrow" data-dir="-1" aria-label="上一章"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
+    <button type="button" class="way-arrow" data-dir="1" aria-label="下一章"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
+  </div>
+</nav>
+
+<script src="story.js"></script>
 </body>
 </html>

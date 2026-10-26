@@ -1,0 +1,500 @@
+/* The home page (index.html) told as chapters, after vpaste.app: one screen per chapter, a bar at the bottom to move between
+   them, and a single scene (#world) that the chapters rearrange instead of a new picture each time. The scene is
+   drawn at a fixed size (920×560) and scaled into whatever room the chapter leaves it (story.js layout()).
+   Colours and type are site.css's; the cards copy the app's own (web/src/styles.css .notice*). */
+:root {
+  --head: 60px;
+  --bar: 66px;
+  --seal: #BC5215;
+  --seal-soft: #BC52151a;
+  --teal-soft: color-mix(in srgb, var(--blue) 13%, transparent);
+  --ease: cubic-bezier(0.22, 0.72, 0.16, 1);
+  --ease-io: cubic-bezier(0.62, 0, 0.32, 1);
+  --card-shadow: 0 1px 2px #18181b0d, 0 0 0 1px #18181b0f, 0 14px 34px -18px #18181b33;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --seal: #DA702C; --seal-soft: #DA702C22; --card-shadow: 0 0 0 1px #ffffff12, 0 18px 40px -16px #000c; }
+}
+
+.story .brand { gap: 10px; font-size: 21px; letter-spacing: 0.01em; }
+.story .brand .logo { width: 27px; height: 27px; }
+.story .top nav { font-size: 14px; }
+html, body.story { height: 100%; overflow: hidden; overscroll-behavior: none; }
+.story > .foot { display: none; }
+.story .top { position: fixed; inset: 0 0 auto; height: var(--head); z-index: 30; padding: 0 max(var(--gutter), calc((100% - 1400px) / 2)); background: transparent; border-bottom: 0; backdrop-filter: none; }
+
+/* ── 舞台 ── */
+.stage { position: fixed; inset: var(--head) 0 var(--bar); overflow: hidden; margin: 0; }
+/* The old hero's 120px column rule, faded out towards the edges so it reads as paper, not a grid. */
+.stage::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: repeating-linear-gradient(90deg, transparent 0 119px, color-mix(in srgb, var(--line) 60%, transparent) 119px 120px);
+  mask-image: radial-gradient(ellipse 70% 75% at 50% 45%, #000 30%, transparent 100%);
+}
+
+/* ── 每章的文字 ── */
+.copy {
+  position: absolute; z-index: 2; opacity: 0; visibility: hidden; translate: 0 var(--off, 24px);
+  transition: opacity 0.35s ease, translate 0.6s var(--ease), visibility 0s linear 0.6s;
+}
+.copy.on { opacity: 1; visibility: visible; translate: 0 0; transition: opacity 0.6s ease 0.16s, translate 0.8s var(--ease) 0.12s, visibility 0s; }
+.copy.instant { transition: none !important; }
+
+.kicker-line { display: flex; align-items: center; gap: 10px; font: 12px var(--mono); color: var(--ink-3); letter-spacing: 0.06em; }
+.kicker-line b { font-weight: 600; color: var(--blue-deep); letter-spacing: 0.14em; }
+.kicker-line svg { fill: none; stroke: var(--blue-deep); stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.kicker-line svg + span { color: var(--blue-deep); }
+
+.copy-0 { left: 50%; top: clamp(18px, 5.5vh, 64px); width: min(900px, calc(100% - 2 * var(--gutter))); transform: translateX(-50%); text-align: center; }
+.copy-0 .kicker-line { justify-content: center; }
+.copy-0 h1 { margin: clamp(14px, 2.4vh, 24px) 0 clamp(12px, 2vh, 18px); font: 600 clamp(32px, 4.3vw, 62px)/1.22 var(--serif); letter-spacing: 0.03em; }
+.copy-0 .lead { margin: 0 auto; max-width: 36em; font-size: clamp(14.5px, 1.2vw, 17px); line-height: 1.85; color: var(--ink-2); }
+.copy-0 .get { justify-content: center; margin-top: clamp(18px, 3vh, 30px); gap: 12px; }
+.copy-0 :is(.dl-main, .dl-menu) { text-align: left; }
+.copy-0 .news { margin-top: clamp(12px, 2vh, 20px); }
+.end-links { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 16px 0 0; font-size: 13px; }
+.end-links a { color: var(--ink-3); }
+.end-links a:hover { color: var(--blue-deep); }
+.copy-0 .btn.ghost { padding: 12px 26px; font: 14.5px/1.3 var(--sans); background: var(--surface); }
+
+.copy-side { left: var(--copy-x, 40px); top: 50%; width: 340px; transform: translateY(-50%); }
+.copy-side h2 { margin: 18px 0 16px; font: 600 clamp(30px, 2.8vw, 42px)/1.28 var(--serif); letter-spacing: 0.02em; }
+.copy-side .lead { font-size: 15px; line-height: 1.9; color: var(--ink-2); }
+
+/* The chapter's steps: the one playing fills its rule; any can be clicked to see it again. */
+.steps { list-style: none; margin: 30px 0 0; padding: 0; display: grid; gap: 8px; }
+.steps button {
+  position: relative; width: 100%; display: flex; align-items: baseline; gap: 14px; padding: 12px 16px 13px; overflow: hidden;
+  border: 1px solid var(--line); border-radius: var(--r); background: color-mix(in srgb, var(--surface) 70%, transparent);
+  color: var(--ink-2); font: 14.5px/1.4 var(--sans); text-align: left; cursor: pointer;
+  transition: border-color 0.25s ease, background 0.25s ease, color 0.25s ease;
+}
+.steps button:hover { border-color: var(--cross); color: var(--ink); }
+.steps .n { font: 11px var(--mono); color: var(--ink-3); transition: color 0.25s ease; }
+.steps b { font-weight: 500; }
+.steps .bar { position: absolute; left: 0; bottom: 0; height: 2px; width: 0; background: var(--blue); }
+.steps li.now button { border-color: var(--blue); background: var(--surface); color: var(--ink); }
+.steps li.now .n { color: var(--blue-deep); }
+.steps li.now .bar { width: 100%; transition: width var(--dur, 4s) linear; }
+.steps li.done .n { color: var(--blue-deep); }
+
+/* ── 场景 ── */
+.world {
+  position: absolute; left: 0; top: 0; width: 920px; height: 560px; transform-origin: 0 0; z-index: 1;
+  transform: translate(var(--bx, 0px), var(--by, 0px)) scale(var(--bs, 1));
+  transition: transform 1.05s var(--ease);
+}
+.world.instant, .world.instant * { transition: none !important; }
+/* Everything in the scene is placed by --x/--y/--rot, so a chapter or a step only changes numbers and the
+   transitions do the moving. */
+.w {
+  position: absolute; left: 0; top: 0; opacity: var(--o, 1);
+  transform: translate(var(--x, 0px), var(--y, 0px)) rotate(var(--rot, 0deg)) scale(var(--sc, 1));
+  transition: transform 1s var(--ease), opacity 0.6s ease;
+}
+
+.post { width: 300px; }
+.card { padding: 15px 17px 16px; border-radius: 12px; background: var(--surface); box-shadow: var(--card-shadow); }
+.post-head { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--ink-3); }
+.post-head b { font-weight: 600; color: var(--ink-2); }
+.post-head time { margin-left: auto; font: 11px var(--mono); }
+.av { flex: none; display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--c); color: #FFFCF0; font: 600 11px/1 var(--sans); }
+.post-title { margin: 9px 0 0; font: 600 16px/1.55 var(--serif); letter-spacing: 0.01em; color: var(--ink); }
+.post p { font-size: 13px; line-height: 1.8; color: var(--ink-2); }
+.post .sign { color: var(--ink-3); }
+/* A post opens from its two-line excerpt to the whole text: grid rows from 0fr to 1fr, so the height moves. */
+.fold { display: grid; grid-template-rows: 0fr; opacity: 0; transition: grid-template-rows 0.9s var(--ease), opacity 0.5s ease; }
+.fold > div { overflow: hidden; min-height: 0; }
+.fold.open { grid-template-rows: 1fr; opacity: 1; }
+.fold > div > p:first-child { margin-top: 8px; }
+.fold > div > p + p { margin-top: 6px; }
+.excerpt p { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+/* Pictures: a post's cover image, and the covers a 书单 post shows. Both are the demo site's own drawings. */
+.pic img { display: block; width: 100%; height: 150px; object-fit: cover; margin-top: 10px; border-radius: 8px; transition: height 0.9s var(--ease); }
+.world[data-ch="1"] .post-a .pic img { height: 92px; }
+.world.narrow[data-ch="1"] .post-a .pic img { height: 0; margin-top: 0; } /* a phone has no room for the strip */
+/* A forwarded post in a list: title beside a square thumbnail, as 公众号 lists show them. */
+.post-row { display: flex; gap: 12px; align-items: flex-start; }
+.post-row .post-title { flex: 1; }
+.thumb { flex: none; width: 62px; height: 62px; margin-top: 10px; border-radius: 6px; object-fit: cover; }
+.post-b.merged .thumb { opacity: 0.5; transition: opacity 0.6s ease; }
+/* The four covers are drawn at the pile's size (132px) and shrunk with a transform: drawn small, their type would
+   fall under the browser's minimum font size and wrap. --k is 61.25px (a quarter of the row) over 132px. */
+.covers { --k: 0.464; display: flex; align-items: flex-start; gap: 7px; height: calc(132px * 1.4 * var(--k)); margin-top: 10px; }
+.covers .book { position: relative; flex: none; width: 132px; margin-right: calc(132px * (var(--k) - 1)); transform: scale(var(--k)); transform-origin: 0 0; box-shadow: 0 6px 14px -8px #000a, 0 0 0 1px #00000014; }
+.bk { width: 132px; box-shadow: 0 22px 40px -18px #000c, 0 0 0 1px #0000001a; }
+
+/* A book: a real picture set as a cover in one of five layouts. Type is sized in cqw, so the same cover reads
+   the same at 60px (inside a post) and at 132px (the pile). The left edge is shaded like a spine. */
+.book {
+  container-type: inline-size; margin: 0; aspect-ratio: 300 / 420; overflow: hidden;
+  border-radius: 2px 4px 4px 2px; background: var(--paper, #efe8d6); color: #2a241d; font-family: var(--serif);
+}
+.book::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(90deg, #0000004d 0, #ffffff26 1.8%, #0000 4%, #00000014 6%, #0000 10%),
+              linear-gradient(118deg, #ffffff1f 0, #0000 34%);
+}
+.book img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.book figcaption { display: flex; flex-direction: column; }
+.book b { font-weight: 700; letter-spacing: 0.06em; line-height: 1.25; }
+.book small { font-family: var(--sans); font-size: 5.4cqw; letter-spacing: 0.04em; opacity: 0.8; }
+.book i { font-style: normal; font-family: var(--sans); font-size: 5cqw; letter-spacing: 0.12em; opacity: 0.75; }
+/* 素封: the title on paper, the picture as a plate. Everything is placed on the children: cqw on the cover's own
+   padding would be measured against the page, not the cover. A cover is 100cqw wide and 140cqw tall. */
+.book.v-inset figcaption { position: absolute; top: 11cqw; left: 10cqw; right: 10cqw; gap: 2.5cqw; }
+.book.v-inset img { position: absolute; top: 46cqw; left: 10cqw; width: 80cqw; height: 76cqw; box-shadow: 0 0 0 0.6cqw #2a241d33; }
+.book.v-inset b { font-size: 10.5cqw; letter-spacing: 0.04em; }
+.book.v-inset figcaption i { position: absolute; top: 116cqw; left: 0; right: 0; text-align: center; }
+/* 满版: the picture to the edges, a paper strip down the right with the title set vertically. */
+.book.v-bleed img { position: absolute; inset: 0; }
+.book.v-bleed figcaption {
+  position: absolute; top: 9cqw; right: 9cqw; bottom: 9cqw; padding: 6cqw 3.5cqw; gap: 4cqw; align-items: center;
+  writing-mode: vertical-rl; background: #f6f0e2; box-shadow: 0 1cqw 4cqw #0004;
+}
+.book.v-bleed b { font-size: 12.5cqw; }
+.book.v-bleed i { margin-top: auto; }
+/* 布面: an old cloth hardback. Gold type and a ruled frame on the cloth, the engraving as an oval plate. */
+.book.v-cloth { background: var(--cloth, #34413a); color: #d8bd7e; }
+.book.v-cloth figcaption { position: absolute; inset: 0; box-shadow: inset 0 0 0 5cqw var(--cloth, #34413a), inset 0 0 0 5.6cqw #d8bd7e8c, inset 0 0 0 7cqw var(--cloth, #34413a), inset 0 0 0 7.4cqw #d8bd7e59; }
+.book.v-cloth b { position: absolute; top: 17cqw; left: 0; right: 0; text-align: center; font-size: 11cqw; letter-spacing: 0.24em; text-indent: 0.24em; }
+.book.v-cloth small { position: absolute; top: 33cqw; left: 0; right: 0; text-align: center; opacity: 0.85; }
+.book.v-cloth img { position: absolute; top: 46cqw; left: 21cqw; width: 58cqw; height: 66cqw; border-radius: 50%; filter: sepia(0.35) contrast(1.05);
+  box-shadow: 0 0 0 1.2cqw var(--cloth, #34413a), 0 0 0 1.7cqw #d8bd7ea6; }
+.book.v-cloth i { position: absolute; bottom: 13cqw; left: 0; right: 0; text-align: center; letter-spacing: 0.3em; }
+/* 瑞士: white stock, a big grotesque title, one strip of the picture and a red rule. */
+.book.v-swiss { background: #f3f1ec; color: #141414; font-family: var(--sans); }
+.book.v-swiss figcaption { position: absolute; inset: 0; }
+.book.v-swiss b { position: absolute; top: 9cqw; left: 9cqw; width: 52cqw; font-size: 15cqw; font-weight: 800; line-height: 1.12; letter-spacing: 0; }
+.book.v-swiss img { position: absolute; top: 72cqw; left: 0; width: 100cqw; height: 15.2cqw; filter: grayscale(1) contrast(1.15); }
+.book.v-swiss figcaption::before { content: ""; position: absolute; top: 93cqw; left: 9cqw; width: 18cqw; height: 1.6cqw; background: #c8372d; }
+.book.v-swiss small { position: absolute; top: 103cqw; left: 9cqw; opacity: 0.9; }
+.book.v-swiss i { position: absolute; bottom: 8cqw; right: 9cqw; }
+/* 贴签: the picture to the edges, a paper label with the title pasted on its top corner. */
+.book.v-label img { position: absolute; inset: 0; }
+.book.v-label figcaption { position: absolute; top: 7cqw; right: 7cqw; padding: 5cqw 6cqw 4.5cqw; gap: 2.4cqw; background: #f7f3ea; box-shadow: 0 0.6cqw 3cqw #0005; }
+.book.v-label b { font-size: 9.5cqw; letter-spacing: 0.08em; }
+.book.v-label i { font-size: 4.4cqw; opacity: 0.6; }
+/* Titles are short; one line each, so a long one shrinks the type instead of leaving a character on line two. */
+.book.v-inset b, .book.v-cloth b, .book.v-label b { white-space: nowrap; }
+
+/* What Lumen picked out of the text. */
+.post mark { color: inherit; background: transparent; border-radius: 3px; padding: 0 1px; box-shadow: inset 0 -1px 0 transparent; transition: background-color 0.45s ease, box-shadow 0.45s ease, color 0.45s ease; }
+.post mark.on { background: var(--teal-soft); box-shadow: inset 0 -1.5px 0 var(--blue); color: var(--ink); }
+.post-title mark.on { box-shadow: inset 0 -2px 0 var(--blue); }
+
+.stamp { display: flex; align-items: center; gap: 6px; margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line); font: 12px/1.5 var(--sans) !important; color: var(--blue-deep) !important;
+  opacity: 0; translate: 0 4px; transition: opacity 0.5s ease, translate 0.6s var(--ease); }
+.stamp svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.post-b .card { transition: opacity 0.6s ease; }
+.post-b.merged .stamp { opacity: 1; translate: 0 0; }
+.post-b.merged .post-head, .post-b.merged .post-title { opacity: 0.5; transition: opacity 0.6s ease; }
+
+/* 学术动态, as the app lays it out: a countdown on the left, kind and name, then the facts. */
+.wall { width: 580px; padding: 16px 18px 4px; border-radius: 14px; background: var(--surface); box-shadow: var(--card-shadow); }
+.wall-owned { opacity: 0; transition: opacity 0.4s ease; }
+.wall-owned.on { opacity: 1; }
+.wall-month { margin: 4px 0 8px; font: 600 12px var(--serif); color: var(--ink-3); letter-spacing: 0.1em; }
+.shelf { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin-bottom: 14px; }
+.slot { position: relative; aspect-ratio: 300 / 420; border-radius: 3px; outline: 1px dashed var(--line); outline-offset: -1px; }
+.slot .book { width: 100%; opacity: 0; box-shadow: 0 2px 10px rgb(0 0 0 / 0.2); transition: opacity 0.3s ease; }
+.slot .book.in { opacity: 1; }
+.shelf-old .book { opacity: 1; }
+.owned-tag { position: absolute; left: 6px; bottom: 6px; z-index: 2; padding: 1px 7px; border-radius: 4px; font-size: 11px; color: var(--blue-deep);
+  background: var(--surface); border: 1px solid currentColor; opacity: 0; scale: 0.8; transition: opacity 0.35s ease, scale 0.45s var(--ease); }
+.owned-tag.on { opacity: 1; scale: 1; }
+.slot.has .book { transition: opacity 0.3s ease, filter 0.5s ease; }
+.slot.has.owned .book { filter: saturate(0.6) brightness(0.85); }
+.covers .book { transition: opacity 0.4s ease; }
+.covers .book.taken { opacity: 0.35; }
+.flyer-book { position: absolute; left: 0; top: 0; z-index: 20; transform-origin: 0 0; pointer-events: none; box-shadow: 0 10px 24px rgb(0 0 0 / 0.3); }
+.board { width: 580px; height: 556px; padding: 16px 16px 0; border-radius: 14px; background: var(--surface); box-shadow: var(--card-shadow); }
+.board-head { display: flex; align-items: baseline; justify-content: space-between; }
+.board-head b { font: 600 17px var(--serif); }
+.board-count { font: 11px var(--mono); color: var(--ink-3); }
+.board-count i { font-style: normal; display: inline-block; transition: transform 0.4s var(--ease); }
+.board-count i.bump { animation: bump 0.5s var(--ease); }
+.board-chips { display: flex; gap: 6px; margin: 10px 0 12px; font-size: 11.5px; }
+.board-chips span { padding: 1px 9px; border-radius: 999px; color: var(--ink-3); border: 1px solid var(--line); }
+.board-chips .on { color: var(--on-accent); background: var(--blue); border-color: var(--blue); }
+.nts { position: relative; list-style: none; margin: 0; padding: 0; --sc: 1; } /* the rows scale on their own, not with the table */
+.nt {
+  position: absolute; left: 0; right: 0; top: 0; height: 74px; display: flex; gap: 12px; align-items: flex-start; padding: 8px 12px 8px 8px;
+  border-radius: 11px; background: var(--paper); box-shadow: 0 0 0 1px var(--line);
+  transform: translateY(var(--y, 0px)) scale(var(--sc, 1)); opacity: var(--o, 1);
+  transition: transform 0.95s var(--ease), opacity 0.5s ease, box-shadow 0.5s ease, background-color 0.8s ease, scale 0.5s var(--ease);
+}
+.nt-when { flex: none; width: 74px; height: 58px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+  border-radius: 8px; background: var(--sunk); text-align: center; }
+.nt-when small { font-size: 10.5px; line-height: 1.3; color: var(--ink-3); }
+.nt-when b { font: 700 13.5px/1.35 var(--sans); color: var(--ink); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.nt.soon .nt-when { background: var(--seal-soft); }
+.nt.soon .nt-when b, .nt.soon .nt-when small:last-child { color: var(--seal); }
+.nt-body { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 5px; padding-top: 4px; }
+.nt-head { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.nt-kind { flex: none; padding: 0 6px; border-radius: 4px; font-size: 11px; line-height: 1.6; background: var(--sunk); color: var(--ink-2); }
+.nt-name { font: 600 14.5px/1.45 var(--serif); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nt-facts { display: flex; gap: 2px 12px; font-size: 12px; color: var(--ink-2); white-space: nowrap; }
+.nt-dup { flex: none; margin-left: auto; padding: 0 7px; border-radius: 999px; font: 11px/1.7 var(--sans); color: var(--blue-deep); background: var(--teal-soft);
+  opacity: 0; scale: 0.6; transition: opacity 0.35s ease, scale 0.55s cubic-bezier(0.3, 1.6, 0.5, 1); }
+.nt-dup.on { opacity: 1; scale: 1; }
+
+/* The card being read: a dashed outline and its fields as grey bars, each filling in as its words arrive. */
+.nt.fresh.draft { background: var(--surface); box-shadow: 0 0 0 1.5px var(--blue), 0 12px 28px -14px color-mix(in srgb, var(--blue) 60%, transparent); }
+.nt.fresh.draft::after { content: "刚读到"; position: absolute; right: 10px; top: -9px; padding: 0 6px; font: 10.5px/1.6 var(--mono); color: var(--on-accent); background: var(--blue); border-radius: 4px; }
+.nt.fresh.landed { background: color-mix(in srgb, var(--blue) 7%, var(--paper)); }
+.nt.fresh.moving { z-index: 2; scale: 1.025; background: var(--surface); box-shadow: 0 0 0 1.5px var(--blue), 0 22px 40px -16px color-mix(in srgb, var(--blue) 55%, #0008); }
+.fill { border-radius: 4px; transition: color 0.4s ease, background-color 0.4s ease, box-shadow 0.4s ease; }
+.fill:not(.on) { color: transparent !important; background-color: var(--sunk); box-shadow: none; }
+.nt-when .fill:not(.on) { background-color: color-mix(in srgb, var(--ink) 10%, transparent); }
+
+/* A word on its way from the post to the card. */
+.flyer {
+  position: absolute; left: 0; top: 0; z-index: 50; pointer-events: none; white-space: nowrap;
+  padding: 0 5px; border-radius: 5px; font: 600 13px/1.75 var(--serif); color: var(--ink);
+  background: var(--surface); box-shadow: 0 0 0 1.5px var(--blue), 0 10px 22px -8px color-mix(in srgb, var(--blue) 70%, transparent);
+}
+.flyer.chip { font: 12px/1.8 var(--sans); color: var(--blue-deep); padding: 0 9px; border-radius: 999px; }
+
+/* ── 各章里场景的摆法 ── */
+/* 首屏: the three posts fanned out like a feed seen from above, breathing slightly. */
+.world[data-ch="0"] .post-c { --x: 10px; --y: 34px; --rot: -5deg; z-index: 1; }
+.world[data-ch="0"] .post-a { --x: 310px; --y: 0px; z-index: 3; }
+.world[data-ch="0"] .post-d { --x: 610px; --y: 34px; --rot: 5deg; z-index: 2; }
+.world[data-ch="0"] .post-b { --x: 310px; --y: 60px; --o: 0; --sc: 0.94; }
+.world[data-ch="0"] .board { --x: 340px; --y: 30px; --o: 0; --sc: 0.96; pointer-events: none; }
+.world[data-ch="0"] .card { animation: drift 7s ease-in-out infinite; }
+.world[data-ch="0"] .post-a .card { animation-delay: -2.3s; }
+.world[data-ch="0"] .post-d .card { animation-delay: -4.6s; }
+
+/* 学术动态: the post opens on the left, the table stands on the right. */
+.world[data-ch="1"] .post-a { --x: 0px; --y: 0px; z-index: 3; }
+.world[data-ch="1"] .post-c { --x: -40px; --y: 90px; --rot: -9deg; --sc: 0.9; --o: 0; }
+.world[data-ch="1"] .post-d { --x: 700px; --y: 110px; --rot: 8deg; --sc: 0.9; --o: 0; }
+/* The two that leave fade before they cross the copy or the table, so their text never shows through. */
+.world[data-ch="1"] :is(.post-c, .post-d) { transition: transform 1s var(--ease), opacity 0.26s ease; }
+.world[data-ch="1"] .post-b { --x: 0px; --y: 430px; --o: 0; }
+.world[data-ch="1"][data-s="3"] .post-b { --y: 392px; --o: 1; }
+.world[data-ch="1"] .board { --x: 340px; --y: 0px; }
+
+/* 窄屏: the same scene, stacked. */
+.world.narrow[data-ch="0"] .post-c { --x: 310px; --y: 0px; --rot: -4deg; }
+.world.narrow[data-ch="0"] .post-d { --x: 310px; --y: 84px; --rot: 3deg; }
+.world.narrow[data-ch="0"] .post-a { --x: 310px; --y: 168px; }
+.world.narrow[data-ch="1"] .post-a { --x: 140px; }
+.world.narrow[data-ch="1"] .post-b { --x: 140px; --y: 290px; z-index: 4; }
+.world.narrow[data-ch="1"][data-s="3"] .post-b { --y: 230px; }
+.world.narrow[data-ch="1"] .board { --x: 0px; --y: 360px; }
+.world.narrow[data-ch="1"] .post-c { --x: 60px; --y: 120px; }
+.world.narrow[data-ch="1"] .post-d { --x: 220px; --y: 120px; }
+
+/* 首屏's books: a loose pile at both ends; in later chapters they slide off the sides. */
+/* 新书: the 书单 post beside the shelf it fills. */
+.world[data-ch="2"] .post-c { --x: 10px; --y: 150px; --sc: 1.1; z-index: 3; }
+.world[data-ch="2"] .post-a { --x: 0px; --y: 260px; --sc: 0.9; --o: 0; }
+.world[data-ch="2"] .post-d { --x: 700px; --y: 110px; --rot: 8deg; --sc: 0.9; --o: 0; }
+.world[data-ch="2"] .post-b { --x: 0px; --y: 430px; --o: 0; }
+.world[data-ch="2"] .board { --x: 340px; --y: 0px; --o: 0; --sc: 0.96; pointer-events: none; }
+.world[data-ch="2"] :is(.post-a, .post-d, .post-b, .board) { transition: transform 1s var(--ease), opacity 0.26s ease; }
+.wall { --x: 340px; --y: 0px; --o: 0; --sc: 0.96; pointer-events: none; }
+.world[data-ch="2"] .wall { --o: 1; --sc: 1; }
+.world.narrow[data-ch="2"] .post-c { --x: 140px; --y: 0px; }
+.world.narrow[data-ch="2"] :is(.wall, .board) { --x: 0px; --y: 300px; }
+
+.world[data-ch="0"] .bk-1 { --x: -150px; --y: -10px; --rot: -13deg; }
+.world[data-ch="0"] .bk-2 { --x: -125px; --y: 160px; --rot: 5deg; z-index: 2; }
+.world[data-ch="0"] .bk-3 { --x: 960px; --y: -16px; --rot: 11deg; }
+.world[data-ch="0"] .bk-4 { --x: 900px; --y: 160px; --rot: -6deg; }
+.world:not([data-ch="0"]) .bk { --o: 0; --sc: 0.85; transition: transform 1s var(--ease), opacity 0.3s ease; }
+.world:not([data-ch="0"]) :is(.bk-1, .bk-2) { --x: -420px; --y: 120px; }
+.world:not([data-ch="0"]) :is(.bk-3, .bk-4) { --x: 1300px; --y: 120px; }
+.world.narrow .bk { --o: 0; }
+.world[data-ch="0"] .bk { animation: bob 9s ease-in-out infinite; }
+.world[data-ch="0"] .bk-2 { animation-delay: -3s; }
+.world[data-ch="0"] .bk-3 { animation-delay: -6s; }
+
+/* translate, not transform, so it adds to where the book was put instead of replacing it. */
+/* ── Chapters 3–6 ── */
+.panel { width: 580px; padding: 16px 18px 14px; border-radius: 14px; background: var(--surface); box-shadow: var(--card-shadow); }
+.panel h5 { margin: 12px 0 4px; font: 600 11.5px var(--sans); color: var(--ink-3); letter-spacing: 0.08em; }
+:is(.post-e, .post-f, .tocp, .inbox, .report, .en-card, .search) { --o: 0; --sc: 0.96; }
+.world:is([data-ch="3"], [data-ch="4"], [data-ch="5"], [data-ch="6"]) :is(.post-a, .post-b, .post-c) { --x: 0px; --y: 120px; --o: 0; --sc: 0.9; }
+.world:is([data-ch="4"], [data-ch="5"], [data-ch="6"]) .post-d { --x: 0px; --y: 120px; --o: 0; --sc: 0.9; }
+.world:is([data-ch="3"], [data-ch="4"], [data-ch="5"]) :is(.board, .wall) { --x: 340px; --y: 0px; --o: 0; --sc: 0.96; }
+.world:not([data-ch="2"]):not([data-ch="6"]) .wall { pointer-events: none; }
+.world:is([data-ch="3"], [data-ch="4"], [data-ch="5"]) .w { transition: transform 1s var(--ease), opacity 0.3s ease; }
+
+/* 期刊目录 */
+.world[data-ch="3"] .post-d { --x: 0px; --y: 6px; --rot: 0deg; --sc: 1; --o: 1; z-index: 1; }
+.world[data-ch="3"] .post-e { --x: 0px; --y: 162px; --o: 1; --sc: 1; z-index: 2; }
+.world[data-ch="3"] .post-f { --x: 0px; --y: 372px; --o: 1; --sc: 1; z-index: 3; }
+.world[data-ch="3"] .tocp { --x: 340px; --y: 0px; --o: 1; --sc: 1; }
+.world[data-ch="3"] .post-d .pic img { height: 0; margin-top: 0; }
+.toc-src { list-style: none; margin: 8px 0 0; padding: 0; font-size: 12.5px; line-height: 1.9; color: var(--ink-3); }
+.toc-src b { font-weight: 500; color: var(--ink-2); border-radius: 3px; padding: 0 1px; transition: background-color 0.4s ease, color 0.4s ease; }
+.toc-src li.sent b { background: var(--teal-soft); color: var(--ink); }
+.rp-line { font-size: 12.5px; }
+.rp-src { padding: 0 5px; border-radius: 4px; font-size: 11px; color: var(--seal); border: 1px solid currentColor; transition: background-color 0.4s ease; }
+.rp-src.on { background: var(--seal-soft); }
+.toc-card { padding: 12px 14px 8px; border-radius: 11px; background: var(--paper); box-shadow: 0 0 0 1px var(--line); }
+.toc-card h5 { margin: 10px 0 0; }
+.toc-hd { display: flex; align-items: baseline; gap: 10px; margin: 0; }
+.toc-hd b { font: 600 15.5px var(--serif); }
+.toc-hd span { font: 12px var(--mono); color: var(--ink-3); }
+.toc-half { margin-left: auto; padding: 0 9px; border-radius: 999px; font: normal 11px/1.8 var(--sans); background: var(--sunk); color: var(--ink-2); transition: background-color 0.4s ease, color 0.4s ease; }
+.toc-half.whole { background: var(--teal-soft); color: var(--blue-deep); }
+.toc-card ol { list-style: none; margin: 0; padding: 0; }
+.tr { display: flex; align-items: baseline; gap: 10px; padding: 6px 4px; border-top: 1px solid var(--line); border-radius: 4px; transition: background-color 0.6s ease; }
+.tr:first-child { border-top: 0; }
+.tt { min-width: 0; font: 500 14px/1.5 var(--serif); color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tt small { font: 12px var(--sans); color: var(--ink-3); }
+.tt.fill:not(.on) small { color: transparent; }
+.ta { flex: none; margin-left: auto; font-size: 12px; color: var(--ink-2); }
+.tp { flex: none; min-width: 20px; text-align: right; font: 11.5px var(--mono); color: var(--ink-3); }
+.rp-tag { flex: none; padding: 0 6px; border-radius: 4px; font-size: 11px; line-height: 1.6; color: var(--seal); border: 1px solid currentColor;
+  opacity: 0; scale: 0.6; transition: opacity 0.35s ease, scale 0.55s cubic-bezier(0.3, 1.6, 0.5, 1); }
+.rp-tag.on { opacity: 1; scale: 1; }
+.tr.rp { background: color-mix(in srgb, var(--seal) 8%, transparent); }
+
+/* 日报 */
+.world[data-ch="4"] .inbox { --x: 0px; --y: 8px; --o: 1; --sc: 1; }
+.world[data-ch="4"] .report { --x: 340px; --y: 0px; --o: 1; --sc: 1; }
+.inbox { width: 300px; padding: 14px 12px 12px; border-radius: 14px; background: var(--surface); box-shadow: var(--card-shadow); }
+.inbox .board-head { padding: 0 6px; }
+.inbox ol { list-style: none; margin: 8px 0 0; padding: 0; }
+.ib { display: flex; flex-direction: column; padding: 5px 8px; border-radius: 8px; transition: opacity 0.5s ease, background-color 0.4s ease; }
+.ib small { font-size: 11px; color: var(--ink-3); }
+.ib b { font: 500 13.5px/1.5 var(--serif); color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ib.out { opacity: 0.28; }
+.ib.sent { background: var(--teal-soft); }
+.ib.explore.sent { background: color-mix(in srgb, #5E409D 16%, transparent); }
+.ib-more { margin: 4px 8px 0; font-size: 11.5px; color: var(--ink-3); }
+.rp-over { margin: 10px 0 0; font-size: 13px; line-height: 1.85; color: var(--ink-2); }
+.rr-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.rr { display: flex; align-items: baseline; gap: 10px; padding: 8px 12px; border-radius: 9px; background: var(--paper); box-shadow: 0 0 0 1px var(--line); }
+.rr b { font: 600 14px/1.5 var(--serif); color: var(--ink); }
+.rr small { margin-left: auto; font-size: 11.5px; color: var(--ink-3); }
+.ex-card { margin-top: 14px; padding: 10px 12px; border-radius: 10px; box-shadow: 0 0 0 1px color-mix(in srgb, #5E409D 45%, transparent);
+  background: color-mix(in srgb, #5E409D 7%, var(--surface)); display: flex; flex-direction: column; gap: 3px;
+  transform: perspective(700px) rotateX(75deg); transform-origin: 50% 0; opacity: 0; transition: transform 0.85s var(--ease), opacity 0.4s ease; }
+.ex-card.on { transform: none; opacity: 1; }
+.ex-head { display: flex; align-items: baseline; gap: 8px; margin: 0 0 2px; }
+.ex-head small { font-size: 11.5px; color: var(--ink-3); }
+.ex-tag { padding: 0 8px; border-radius: 999px; font-size: 11px; line-height: 1.7; color: #fff; background: #5E409D; }
+.ex-card b { font: 600 14.5px/1.5 var(--serif); }
+.ex-card > small { font-size: 11.5px; color: var(--ink-3); }
+
+/* 外文与检索 */
+.world[data-ch="5"] .en-card { --x: 0px; --y: 70px; --o: 1; --sc: 1; }
+.world[data-ch="5"] .search { --x: 340px; --y: 0px; --o: 1; --sc: 1; }
+.en-row { padding: 10px 0 9px; border-top: 1px solid var(--line); }
+.en-row:first-of-type { margin-top: 6px; border-top: 0; }
+.tl, .sub { display: grid; margin: 0; }
+.tl > *, .sub > * { grid-area: 1 / 1; transition: opacity 0.5s ease, translate 0.6s var(--ease); }
+.en-row .tl { font: 600 14.5px/1.45 var(--serif); color: var(--ink); }
+.en-row .sub { margin-top: 3px; font-size: 11.5px; line-height: 1.5; color: var(--ink-3); }
+.en-row .zh, .en-row .s1 { opacity: 0; translate: 0 7px; }
+.en-row.zh .en, .en-row.zh .s0 { opacity: 0; translate: 0 -7px; }
+.en-row.zh .zh, .en-row.zh .s1 { opacity: 1; translate: 0 0; }
+.en-hint { margin: 4px 0 0; font-size: 11.5px; color: var(--ink-3); }
+.en-hint kbd { padding: 0 5px; border-radius: 4px; font: 11px var(--mono); background: var(--sunk); }
+.sbox { display: flex; align-items: center; gap: 9px; height: 42px; margin: 12px 0 0; padding: 0 13px; border-radius: 10px; background: var(--paper); box-shadow: 0 0 0 1px var(--line); font: 15px var(--serif); color: var(--ink); }
+.sbox svg { width: 17px; height: 17px; fill: none; stroke: var(--ink-3); stroke-width: 1.7; stroke-linecap: round; }
+.q:empty::before { content: "搜索标题和正文"; color: var(--ink-3); font-family: var(--sans); font-size: 13px; }
+.search.typing .q::after { content: ""; display: inline-block; width: 1.5px; height: 1.05em; margin-left: 1px; vertical-align: -0.15em; background: var(--blue); animation: caret 1s steps(1) infinite; }
+.seg { display: inline-flex; margin: 12px 0 10px; padding: 2px; border-radius: 999px; background: var(--sunk); font-size: 11.5px; }
+.seg span { padding: 2px 11px; border-radius: 999px; color: var(--ink-3); transition: background-color 0.35s ease, color 0.35s ease, box-shadow 0.35s ease; }
+.seg span:first-child, .seg.near span:last-child { background: var(--surface); color: var(--ink); box-shadow: 0 1px 3px #0002; }
+.seg.near span:first-child { background: transparent; color: var(--ink-3); box-shadow: none; }
+.sres { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.sr { padding: 10px 13px; border-radius: 10px; background: var(--paper); box-shadow: 0 0 0 1px var(--line); opacity: 0; translate: 0 10px; transition: opacity 0.45s ease, translate 0.6s var(--ease); }
+.sr.in { opacity: 1; translate: 0 0; }
+.sr b { font: 600 14.5px/1.5 var(--serif); }
+.sr p { margin: 3px 0 0; font-size: 12.5px; line-height: 1.7; color: var(--ink-2); }
+.sr mark { color: inherit; background: var(--teal-soft); border-radius: 3px; padding: 0 1px; }
+.near-tag { margin-left: 8px; padding: 0 6px; border-radius: 4px; font: 11px/1.6 var(--sans); color: var(--blue-deep); background: var(--teal-soft); vertical-align: 2px; }
+
+/* 开源与下载: what the chapters made, gathered. */
+.world[data-ch="6"] .board { --x: 0px; --y: -136px; --rot: -2deg; --sc: 0.52; --o: 1; }
+.world[data-ch="6"] .wall { --x: 330px; --y: -116px; --rot: 1.5deg; --sc: 0.52; --o: 1; }
+.world[data-ch="6"] .tocp { --x: 0px; --y: 170px; --rot: 1.5deg; --sc: 0.52; --o: 1; }
+.world[data-ch="6"] .report { --x: 330px; --y: 196px; --rot: -1.5deg; --sc: 0.52; --o: 1; }
+.copy-end .get { margin-top: 26px; gap: 10px; }
+.copy-end .get .btn { min-height: 44px; padding: 0 20px; gap: 8px; }
+
+/* Phones */
+.world.narrow[data-ch="3"] :is(.post-d, .post-e, .post-f) { --x: 140px; }
+.world.narrow[data-ch="3"] .tocp { --x: 0px; --y: 470px; }
+.world.narrow[data-ch="4"] .inbox { --x: 140px; --y: 0px; }
+.world.narrow[data-ch="4"] .report { --x: 0px; --y: 500px; }
+.world.narrow[data-ch="5"] .en-card { --x: 140px; --y: 0px; }
+.world.narrow[data-ch="5"] .search { --x: 0px; --y: 330px; }
+@keyframes caret { 50% { opacity: 0; } }
+
+@keyframes bob { 50% { translate: 0 -7px; } }
+@keyframes drift { 50% { transform: translateY(-6px); } }
+@keyframes bump { 40% { transform: scale(1.45); color: var(--blue-deep); } }
+
+/* 首屏 underneath the posts: the three promises, as vPaste does its platform line. */
+.world-cap {
+  position: absolute; left: 50%; bottom: clamp(10px, 2.4vh, 24px); transform: translateX(-50%); z-index: 2;
+  display: flex; gap: clamp(18px, 4vw, 64px); margin: 0; padding: 0; list-style: none; white-space: nowrap;
+  font: 11.5px var(--mono); color: var(--ink-3); transition: opacity 0.4s ease;
+}
+.world-cap li::before { content: ""; display: inline-block; width: 5px; height: 5px; margin-right: 8px; vertical-align: 2px; background: var(--blue); }
+.stage:not([data-ch="0"]) .world-cap { opacity: 0; pointer-events: none; }
+
+/* ── 底栏 ── */
+.wayfinder {
+  position: fixed; inset: auto 0 0; height: var(--bar); z-index: 30; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 16px;
+  padding: 0 max(var(--gutter), calc((100% - 1400px) / 2)); background: var(--surface); border-top: 1px solid var(--line);
+}
+.way-status { font: 600 15px var(--serif); color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.way-chapters { display: flex; align-items: center; gap: 6px; }
+.way-chapters > * { position: relative; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; color: var(--ink-2); transition: background 0.3s ease, color 0.3s ease; }
+.way-chapters svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.way-chapters svg .solid { fill: currentColor; stroke: none; }
+.way-chapters a:hover { color: var(--ink); background: var(--sunk); }
+.way-chapters a[aria-current] { color: var(--on-accent); background: var(--blue); }
+.way-chapters .soon-ch { color: var(--cross); cursor: default; }
+.way-tools { justify-self: end; display: flex; align-items: center; gap: 4px; }
+.way-tools button { border: 0; background: none; color: var(--ink-2); cursor: pointer; border-radius: var(--r-sm); }
+.way-pause { padding: 6px 12px; margin-right: 6px; font: 12px var(--mono); white-space: nowrap; }
+.way-pause:hover, .way-arrow:hover { color: var(--ink); background: var(--sunk); }
+.way-pause[hidden] { display: none; }
+.way-hint { margin-right: 10px; font: 11.5px var(--mono); color: var(--ink-3); transition: opacity 0.4s ease; }
+.way-hint[hidden] { display: none; }
+.way-arrow { display: grid; place-items: center; width: 34px; height: 34px; }
+.way-arrow svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.way-arrow:disabled { color: var(--cross); cursor: default; background: none; }
+
+/* ── 窄屏：文字在上，场景在下 ── */
+@media (max-width: 979px) {
+  .copy-side { left: var(--gutter); right: var(--gutter); top: 16px; width: auto; transform: none; }
+  .copy-side h2 { margin: 10px 0 8px; font-size: clamp(26px, 6vw, 34px); }
+  .copy-side h2 br { display: none; }
+  .copy-side .lead { font-size: 13.5px; line-height: 1.75; }
+  .steps { margin-top: 14px; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+  .steps button { flex-direction: column; gap: 2px; padding: 8px 10px 10px; font-size: 12.5px; }
+}
+@media (max-width: 640px) {
+  .copy-0 h1 br, .copy-side .lead { display: none; }
+  .copy-0 .get { flex-direction: column; align-items: stretch; }
+  .world-cap { flex-direction: column; gap: 4px; align-items: flex-start; }
+  .wayfinder { grid-template-columns: auto 1fr; }
+  .way-status { display: none; }
+  .way-chapters { gap: 0; }
+  .way-chapters > * { width: 34px; height: 34px; }
+  .way-chapters svg { width: 19px; height: 19px; }
+  .wayfinder { gap: 6px; }
+  .way-arrow { width: 30px; }
+  .way-pause { padding: 6px 4px; margin-right: 0; font-size: 11px; }
+  .steps button { font-size: 12px; }
+  .way-hint { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .copy, .copy.on, .world, .w, .nt, .fold, .fill, .post mark, .stamp, .nt-dup, .slot .book, .owned-tag, .wall-owned, .covers .book, .tr, .rp-tag, .toc-src b, .ib, .ex-card, .sr, .tl > *, .sub > *, .seg span { transition-duration: 0.01s !important; transition-delay: 0s !important; }
+  .world[data-ch="0"] .card, .world[data-ch="0"] .bk { animation: none; }
+}

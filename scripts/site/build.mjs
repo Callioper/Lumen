@@ -25,7 +25,7 @@ if (versions[0]?.tag !== `v${version}`) throw new Error(`CHANGELOG.md 最上面�
 const html = readFileSync(join(SITE, 'index.html'), 'utf8').replaceAll('{{VERSION}}', version).replaceAll('{{NEWS}}', versions[0].news);
 writeFileSync(join(out, 'index.html'), html);
 writeFileSync(join(out, 'releases.html'), releasesPage(html, changelog, versions));
-cpSync(join(SITE, 'site.css'), join(out, 'site.css'));
+for (const f of ['site.css', 'story.css', 'story.js']) cpSync(join(SITE, f), join(out, f));
 cpSync(join(ROOT, 'web/public/favicon.svg'), join(out, 'favicon.svg'));
 for (const dir of ['images', 'media']) cpSync(join(SITE, dir), join(out, dir), { recursive: true });
 // Every file the page names must be there.
@@ -40,7 +40,8 @@ function releasesPage(home, md, versions) {
   const part = (re) => { const m = re.exec(home); if (!m) throw new Error(`主页里找不到 ${re}`); return m[0]; };
   const head = part(/^[\s\S]*?<\/head>/)
     .replace(/<title>[^<]*<\/title>/, '<title>更新日志 · Lumen</title>')
-    .replace(/(<meta name="description" content=")[^"]*/, '$1Lumen 每个版本加了什么、改了什么、修了什么。');
+    .replace(/(<meta name="description" content=")[^"]*/, '$1Lumen 每个版本加了什么、改了什么、修了什么。')
+    .replace(/\s*<link rel="stylesheet" href="story\.css">/, ''); // the chapters' stage would hold the notes to one screen
   const home_ = (s) => s.replace(/href="#/g, 'href="./#').replace('<a href="releases.html">', '<a href="releases.html" aria-current="page">');
   const header = home_(part(/<header class="top">[\s\S]*?<\/header>/));
   const footer = home_(part(/<footer class="foot">[\s\S]*?<\/footer>/));
