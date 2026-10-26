@@ -55,13 +55,16 @@ export function Icon({ name, size = 16, fill = false, class: cls }: { name: keyo
   );
 }
 
+// The browser keeps an icon a week; raised when icons already shown change (豆瓣 avatars, 2026-10-26).
+const ICON_VERSION = 3;
+
 export function FeedIcon({ id, title, size = 16 }: { id: number; title: string; size?: number }) {
   // Letter avatar sits underneath; the image covers it once loaded and hides itself on error.
   const hue = (id * 47) % 360;
   return (
     <span class="feed-icon" style={{ width: size, height: size, background: `hsl(${hue} 45% 52%)`, fontSize: size * 0.6 }}>
       {[...title.trim()][0] ?? '?'}
-      {!import.meta.env.VITE_DEMO && <img src={`/icon/${id}`} alt="" loading="lazy" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />}
+      {!import.meta.env.VITE_DEMO && <img src={`/icon/${id}?v=${ICON_VERSION}`} alt="" loading="lazy" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />}
     </span>
   );
 }

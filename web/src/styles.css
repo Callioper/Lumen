@@ -700,7 +700,15 @@ label.block { margin: 12px 0; }
 .card.read .card-title { font-weight: 500; color: var(--ink-3); }
 .card-snippet { margin: 0; font-size: 13.5px; line-height: 1.7; color: var(--ink-2); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .card-star { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; color: var(--ink-3); opacity: 0; }
-.card:hover .card-star, .card-star.on { opacity: 1; }
+.card:hover .card-star, .row:hover .card-star, .line:hover .card-star, .post:hover .card-star, .card-star:focus-visible, .card-star.on { opacity: 1; }
+/* In a row, a line and a post the star sits in the meta line: no box of its own. */
+.row .card-star, .line .card-star, .post .card-star { width: 18px; height: 18px; flex: none; }
+.line .card-star { margin-left: -4px; }
+/* 想读 / 想看 on an entry that is a 豆瓣 book or film (SubjectWish.tsx). */
+.row-meta .row-wish { margin-left: auto; }
+.row-meta .row-wish + .card-star { margin-left: 0; }
+.tile-wish { position: absolute; left: 10px; top: 10px; background: var(--raised); box-shadow: var(--shadow-1); }
+.tile-wish.book-wished { display: inline-block; padding: 2px 8px; border-radius: 999px; }
 .card-star.on { color: var(--star); }
 /* Narrow column (beside an open article, or a small window): cover on top. */
 @container (max-width: 560px) {
@@ -1220,9 +1228,8 @@ a.toc-title:hover { color: var(--indigo); text-decoration: underline; text-under
   font-size: 13px; line-height: 1.4; color: var(--ink-2); border-top: 3px solid var(--indigo); }
 .book-cover-img .book-owned { position: absolute; left: 6px; top: 6px; margin: 0; background: var(--raised); }
 .book-cover-posts { position: absolute; right: 6px; bottom: 6px; padding: 1px 6px; border-radius: 4px; font-size: 10.5px; color: #fff; background: rgb(0 0 0 / 0.55); }
-.book-cover-wish { position: absolute; right: 6px; top: 6px; opacity: 0; transition: opacity 0.12s ease; }
-.book-cover:hover .book-cover-wish, .book-cover:focus-within .book-cover-wish { opacity: 1; }
-.book-cover-wish:has(.book-wished) { opacity: 1; }
+/* Always there, as on the cards: a wall seen without a mouse over it still shows what can be marked. */
+.book-cover-wish { position: absolute; right: 6px; top: 6px; }
 .book-cover-wish .book-wished { display: inline-block; padding: 2px 8px; border-radius: 999px; }
 .book-cover-wish .book-wish, .book-cover-wish .book-wished { background: var(--raised); box-shadow: var(--shadow-1); }
 .book-cover-title { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; margin-top: 7px;
@@ -1350,3 +1357,15 @@ a.toc-title:hover { color: var(--indigo); text-decoration: underline; text-under
 .brand-home { display: flex; align-items: center; gap: 10px; padding: 2px 6px 2px 2px; margin-left: -2px; border: 0; border-radius: 8px; background: none; color: inherit; font: inherit; cursor: pointer; }
 .brand-home:hover { background: var(--hover); }
 /* 首页's own rules are in home.css. */
+
+/* 友邻标记 in the reader: 想读 / 想看 the book or film, as on 标记. */
+.friends-wish { margin: 6px 0 2px; }
+.friends-wish .btn { padding: 3px 10px; font-size: 12px; }
+
+/* 上面已读 on a card (EntryList ReadAbove): on hover, beside the star. */
+.card-above { display: grid; place-items: center; width: 22px; height: 22px; flex: none; border-radius: 6px; color: var(--ink-3); opacity: 0; }
+.card-above:hover { color: var(--ink); background: var(--paper-2); }
+.card:hover .card-above, .post:hover .card-above, .card-above:focus-visible { opacity: 1; }
+.tile-above { position: absolute; top: 10px; right: 46px; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%;
+  background: #0009; backdrop-filter: blur(6px); color: #fff; opacity: 0; transition: opacity var(--fast); }
+.tile:hover .tile-above, .tile-above:focus-visible { opacity: 1; }

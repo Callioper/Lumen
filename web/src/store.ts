@@ -559,7 +559,9 @@ export async function markAllRead(): Promise<void> {
 
 // Shift+K: everything shown above the current entry (or card) is marked read, in the order on
 // screen, so under 推荐 too it is what the eye has passed. Five seconds to take it back.
-export async function markAboveRead(): Promise<void> {
+// above: the entry to count from; the selected one when not given (the reader's button, Shift+K), or
+// the card whose own 上面已读 was pressed in a list that has no reader beside it.
+export async function markAboveRead(above?: number): Promise<void> {
   let ids: number[];
   // Undo puts the list back as it was rather than reloading it: a reloaded 未读 list would drop the
   // entry being read (it is read), and the selection with it.
@@ -578,11 +580,11 @@ export async function markAboveRead(): Promise<void> {
   } else {
     if (isReports.value || isPage.value) return;
     const list = displayOrder(items.value, layout.value, selection.value.kind === 'feed');
-    const at = list.findIndex((i) => i.id === selectedId.value);
+    const at = list.findIndex((i) => i.id === (above ?? selectedId.value));
     if (at <= 0) { notify(at < 0 ? '先选中一篇' : '上面没有了'); return; }
-    const above = list.slice(0, at).filter((i) => !i.is_read);
-    ids = above.map((i) => i.id);
-    if (!(await markItemsRead(above))) return;
+    const before = list.slice(0, at).filter((i) => !i.is_read);
+    ids = before.map((i) => i.id);
+    if (!(await markItemsRead(before))) return;
   }
   if (!ids.length) { notify('上面都读过了'); return; }
   void refreshState();

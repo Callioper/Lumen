@@ -1,13 +1,15 @@
 // 书单 books: the card in the reader above a 书单 post, and 新书, every such post's books as a waterfall.
 import { signal } from '@preact/signals';
 import { Fragment } from 'preact';
-import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
+import { useContext, useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { api, type BookFrom, type BookReprint, type NewBook, type ListedBook, type Count, type MonthCount } from '../api.ts';
 import { app, open, notify, detail, prefs as appPrefs } from '../store.ts';
 import { wishNote } from './BookPage.tsx';
 import { FeedIcon } from './Icon.tsx';
 import { EditionList } from './Editions.tsx';
 import { cx, proxied } from '../util.ts';
+import { DeskHas, isWished, noteWished } from '../wishes.ts';
+import { useDesk } from '../extras.ts';
 
 const BOOKS_FOLDED = 6;
 
@@ -26,6 +28,7 @@ async function wish(b: ListedBook): Promise<void> {
   try {
     const r = await api.wish(b);
     wishing.value = { ...wishing.value, [k]: 'done' };
+    noteWished(r.subject);
     notify(wishNote('想读', r.synced, b.title));
   } catch (e) {
     const { [k]: _, ...rest } = wishing.value;
@@ -34,8 +37,11 @@ async function wish(b: ListedBook): Promise<void> {
   }
 }
 
-function WishButton({ b }: { b: ListedBook }) {
-  const state = b.wished ? 'done' : wishing.value[keyOf(b)];
+// Marked already: from Lumen (here or on another page, by subject), on the reader's own 豆瓣, or on the 想读台.
+export function WishButton({ b }: { b: ListedBook }) {
+  const onDesk = useContext(DeskHas);
+  if (b.mine) return <span class="book-wished" title="你在豆瓣上的标记">我{b.mine}</span>;
+  const state = b.wished || isWished(b.subject) || (!!b.subject && onDesk(b.subject)) ? 'done' : wishing.value[keyOf(b)];
   if (state === 'done') return <span class="book-wished">已想读</span>;
   return (
     <button class="book-wish" disabled={state === 'busy'} onClick={(e) => { e.stopPropagation(); void wish(b); }} title={app.value?.doubanSync ? '在豆瓣标记想读（公开，不发广播）' : '记为想读（记在 Lumen 里）'}>
@@ -91,16 +97,20 @@ export function BookList({ id }: { id: number }) {
     return () => { live = false; };
   }, [id]);
   const { books, error } = state;
+  // Before the returns below: a hook is called on every render.
+  const desk = useDesk(books.flatMap((b) => (b.subject ? [b.subject] : [])));
   if (error) return <p class="books-error">书单没取到：{error}</p>;
   if (!books.length) return null;
   const have = books.filter((b) => b.inZotero).length;
   const shown = all ? books : books.slice(0, BOOKS_FOLDED);
   return (
+    <DeskHas.Provider value={desk.has}>
     <section class="books" aria-label="书单">
       <h3>书单 · {books.length} 本{books[0].inZotero === null ? <span class="muted"> · Zotero 库读不了，未查库</span> : have > 0 && <span> · 库中已有 {have}</span>}</h3>
       <ol>{shown.map((b) => <BookRow key={keyOf(b)} b={b} />)}</ol>
       {books.length > BOOKS_FOLDED && <button class="linkish" onClick={() => setAll(!all)}>{all ? '收起' : `展开全部 ${books.length} 本`}</button>}
     </section>
+    </DeskHas.Provider>
   );
 }
 
@@ -365,6 +375,7 @@ export function BooksView() {
     return () => box.removeEventListener('scroll', look);
   }, [items.length, months]);
   const toggle = (k: keyof BooksPrefs): void => setPrefs((p) => ({ ...p, [k]: !p[k] }));
+  const desk = useDesk([...new Set(items.flatMap((it) => (it.book.subject ? [it.book.subject] : [])))]);
   const [columns, tilesRef] = useColumnCount();
   // One section per month (the books' month by date, the 书单's by post), each dealt into the columns on its own.
   const sections: { label: string | null; items: NewBook[] }[] = [];
@@ -389,6 +400,7 @@ export function BooksView() {
   };
 
   return (
+    <DeskHas.Provider value={desk.has}>
     <section class="list books-page">
       <header class="list-head">
         <div class="list-title"><h2>新书</h2>{total !== null && <span class="muted">{total.books} 本 · 来自 {total.posts} 份书单</span>}
@@ -468,5 +480,6 @@ export function BooksView() {
         <div ref={sentinel} class="books-sentinel">{loadingMore && <span class="spinner sm" />}</div>
       </div>
     </section>
+    </DeskHas.Provider>
   );
 }

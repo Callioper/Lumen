@@ -3,14 +3,15 @@
 // post's books once, by post or by date.
 import type { DB } from '../db.ts';
 import { extractBooks, dateOf, LIST_POST, type ListedBook } from './books.ts';
-import { doulistBooks, doulistIdOf, knownBooks, keyOf } from './douban.ts';
+import { doulistBooks, doulistIdOf, knownBooks, keyOf, wishedSubjects, ownMarks } from './douban.ts';
 import { zoteroLibrary, inLibrary } from './library.ts';
 import { normTitle } from '../report/ngram.ts';
 import { sortedOf, BOOK_KINDS, OTHER_TOPIC } from './bookkinds.ts';
 import { reprintBookIndex, type BookReprint } from './reprints.ts';
 import { shelvesOf, type Shelf } from './bookshelves.ts';
 
-export interface BookView extends ListedBook { inZotero: boolean | null; wished: boolean }
+// mine: what the reader marked it on 豆瓣 themselves (读过, 想读 …), from their interests feed.
+export interface BookView extends ListedBook { inZotero: boolean | null; wished: boolean; mine: string | null }
 
 interface PostRow { id: number; title: string; html: string | null; feed: string; feed_id: number; published: number; link: string | null }
 
@@ -31,11 +32,16 @@ export function viewBooks(db: DB, books: readonly ListedBook[]): BookView[] {
   if (!books.length) return [];
   const lib = zoteroLibrary();
   const known = knownBooks(db, books);
+  const subjectOf = (b: ListedBook): string | null => b.subject ?? known.get(keyOf(b))?.subject ?? null;
+  const wished = wishedSubjects(db, [...new Set(books.map(subjectOf).filter((s): s is string => !!s))]);
+  const own = ownMarks(db);
   return books.map((old) => {
     const b = withDate(old);
     const k = known.get(keyOf(b));
+    const subject = b.subject ?? k?.subject ?? null;
     return { ...b, cover: b.cover ?? k?.cover ?? null, date: b.date || k?.date || '', authors: b.authors || k?.authors || '',
-      publisher: b.publisher || k?.publisher || '', subject: b.subject ?? k?.subject ?? null, inZotero: lib ? inLibrary(lib, b) : null, wished: !!k?.wished };
+      publisher: b.publisher || k?.publisher || '', subject, inZotero: lib ? inLibrary(lib, b) : null,
+      wished: !!k?.wished || (!!subject && wished.has(subject)), mine: (subject && own.get(subject)) ?? null };
   });
 }
 

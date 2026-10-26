@@ -6,6 +6,7 @@ import { useSubject, EditionsView } from './Editions.tsx';
 import { Tr, TrParas } from './Tr.tsx';
 import { Icon } from './Icon.tsx';
 import { proxied, cx } from '../util.ts';
+import { isWished, noteWished } from '../wishes.ts';
 
 const doubanBook = (subject: string): string => `https://book.douban.com/subject/${subject}/`;
 
@@ -18,12 +19,13 @@ export function WishButton({ kind, subject, done, onDone }: { kind: 'book' | 'mo
   const [busy, setBusy] = useState(false);
   const [now, setNow] = useState(false);
   const label = kind === 'book' ? ['想读', '已想读'] : ['想看', '已想看'];
-  const wished = done || now;
+  const wished = done || now || isWished(subject);
   const wish = async (): Promise<void> => {
     setBusy(true);
     try {
       const r = await api.doubanWish(kind, subject);
       setNow(true);
+      noteWished(subject);
       onDone?.();
       notify(wishNote(label[0], r.synced));
     } catch (e) { notify((e as Error).message, true); }

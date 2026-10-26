@@ -5,6 +5,7 @@ import { Tr } from './Tr.tsx';
 import { api, type HotItem, type HotKind, type HotPage, type Translated } from '../api.ts';
 import { useDesk } from '../extras.ts';
 import { wishNote } from './BookPage.tsx';
+import { isWished, noteWished } from '../wishes.ts';
 import { notify, addTr, snipTr, prefs } from '../store.ts';
 import { Icon } from './Icon.tsx';
 import { ago, cx, proxied, toneOf } from '../util.ts';
@@ -28,11 +29,11 @@ function whoLine(x: HotItem): string {
 // tracked: on the author's 想读台 (web/src/extras.ts), which counts as marked.
 function Wish({ x, tracked, onDone }: { x: HotItem; tracked: boolean; onDone: () => void }) {
   const [busy, setBusy] = useState(false);
-  const done = x.wished || !!x.mine || tracked;
+  const done = x.wished || !!x.mine || tracked || isWished(x.subject);
   const [want, had] = WISH[x.kind];
   const wish = async (): Promise<void> => {
     setBusy(true);
-    try { const r = await api.doubanWish(x.kind, x.subject); onDone(); notify(wishNote(want, r.synced)); } catch (e) { notify((e as Error).message, true); }
+    try { const r = await api.doubanWish(x.kind, x.subject); noteWished(x.subject); onDone(); notify(wishNote(want, r.synced)); } catch (e) { notify((e as Error).message, true); }
     setBusy(false);
   };
   if (done) return <span class="hot-mine">{x.mine ? `我${x.mine}` : had}</span>;

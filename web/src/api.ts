@@ -66,7 +66,7 @@ export type EntryState = { read: boolean; starred: boolean } | null;
 
 export interface Comment { who: string; text: string; time: number; likes: number; rating?: number; replies: Comment[] }
 export interface Comments { source: string; url: string; total: number; comments: Comment[]; fetchedAt: number; stale?: string }
-export interface SubjectMarks { kind: MarkGroup['kind']; id: string; title: string; url: string; cover: string | null; info: string; marks: Mark[] }
+export interface SubjectMarks { kind: MarkGroup['kind']; id: string; title: string; url: string; cover: string | null; info: string; marks: Mark[]; wished: boolean }
 export interface MarkGroup {
   key: string; kind: 'book' | 'movie' | 'music' | 'game' | 'other'; title: string; url: string | null;
   cover: string | null; info: string; people: number; unread: number; latest: number; marks: Mark[];
@@ -108,7 +108,10 @@ export interface ListItem {
   rec?: RecInfo;                     // only in the 推荐 order
   pages?: PageOf[];                  // the pages built out of it (server/content/destinations.ts)
   hit?: boolean;                     // a search result: the snippet is the text around a term
+  douban?: EntrySubject;             // the 豆瓣 book or film its link is (server/content/subjects.ts)
 }
+// mine: the reader's own mark on 豆瓣 (读过, 想看 …), from their interests feed.
+export interface EntrySubject { kind: 'book' | 'movie'; subject: string; wished: boolean; mine: string | null }
 export type PageOf = 'notices' | 'tocs' | 'books';
 export interface RecInfo { reasons: string[]; explore?: boolean }
 export interface RecMeta { coldStart: boolean; signals: number; needed: number }
@@ -146,7 +149,7 @@ export interface RelatedItem extends ListItem { feed_title: string; sim: number;
 // A book a 书单 post lists. isbn '' when the post prints none; subject: its 豆瓣 id when known;
 // inZotero null when Zotero's database could not be read; wished: 想读 marked from Lumen.
 export interface ListedBook { title: string; cover: string | null; authors: string; translators: string; publisher: string; date: string;
-  isbn: string; subject: string | null; price: string; blurb: string; inZotero: boolean | null; wished: boolean }
+  isbn: string; subject: string | null; price: string; blurb: string; inZotero: boolean | null; wished: boolean; mine?: string | null }
 // The post a book in 新书 was listed by.
 export interface BookFrom { id: number; title: string; feed: string; feedId: number; published?: number }
 // posts: how many 书单 listed it; month: its section when 新书 is ordered by date.

@@ -195,12 +195,41 @@ export function pruneImageCache(): number {
 
 interface IconFeed { id: number; url: string; site_url: string | null; icon_url: string | null }
 
+// A 豆瓣 person's broadcasts carry no image of their own, and the site's favicon is the 豆瓣 logo
+// (or, now and then, an empty .ico). The person's avatar comes from the mobile site's API instead.
+const DOUBAN_PERSON = /^rsshub:\/\/douban\/people\/(\d+)\//;
+const MOBILE_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1';
+async function doubanAvatar(feedUrl: string, settings: Settings): Promise<string | null> {
+  const id = DOUBAN_PERSON.exec(feedUrl)?.[1];
+  if (!id) return null;
+  try {
+    const res = await httpGet(`https://m.douban.com/rexxar/api/v2/user/${id}?for_mobile=1`, settings, {
+      timeoutMs: 10000, publicOnly: true, headers: { referer: `https://m.douban.com/people/${id}/`, 'user-agent': MOBILE_UA } });
+    if (res.status !== 200) return null;
+    const u = JSON.parse(res.body.toString('utf8')) as { avatar?: string; large_avatar?: string };
+    return u.avatar || u.large_avatar || null;
+  } catch {
+    return null;
+  }
+}
+
 export async function feedIcon(db: DB, id: number, settings: Settings): Promise<Response> {
   mkdirSync(ICON_DIR, { recursive: true });
   const file = join(ICON_DIR, String(id));
   // Known to have none: the browser may remember that too, instead of asking on every list. 204, not 404:
   // the <img> still fails and shows the letter, but the console doesn't log a failed load for each feed.
   if (existsSync(file + '.none') && Date.now() - statSync(file + '.none').mtimeMs < NEGATIVE_TTL_MS) return noIcon();
+  const feed = db.prepare('SELECT id, url, site_url, icon_url FROM feed WHERE id = ?').get(id) as unknown as IconFeed | undefined;
+  if (!feed) return new Response(null, { status: 404 });
+  // The icon kept is the feed's image only while that is still the image the feed gives: an icon
+  // fetched before the feed named one (the site's logo: every 公众号, 微博 or B站 account looked
+  // alike), or from an avatar since changed, is fetched again. A failed fetch keeps the old one.
+  const stale = !!feed.icon_url && existsSync(file) && sourceKey(readSource(file)) !== sourceKey(feed.icon_url);
+  if (stale) {
+    const fresh = await storeIcon(file, [feed.icon_url!], settings);
+    if (fresh) return fresh;
+    writeFileSync(file + '.src', feed.icon_url!);   // tried: not again on every list
+  }
   if (existsSync(file)) {
     const stored = existsSync(file + '.type') ? mediaType(readFileSync(file + '.type', 'utf8')) : '';
     // A few icons migrated from FreshRSS are SVG; the sandbox CSP in MEDIA_HEADERS keeps them inert.
@@ -208,13 +237,25 @@ export async function feedIcon(db: DB, id: number, settings: Settings): Promise<
     const type = SAFE_MEDIA.test(stored) || stored === 'image/svg+xml' ? stored : ICON_FALLBACK_TYPE;
     return new Response(readFileSync(file), { headers: { ...MEDIA_HEADERS, 'content-type': type, 'cache-control': 'public, max-age=604800' } });
   }
-  const feed = db.prepare('SELECT id, url, site_url, icon_url FROM feed WHERE id = ?').get(id) as unknown as IconFeed | undefined;
-  if (!feed) return new Response(null, { status: 404 });
   const site = feed.site_url && /^https?:/.test(feed.site_url) ? feed.site_url : null;
-  const candidates = [feed.icon_url, site && new URL('/favicon.ico', site).toString()].filter(Boolean) as string[];
+  const avatar = feed.icon_url ? null : await doubanAvatar(feed.url, settings);
+  const candidates = [feed.icon_url, avatar, site && new URL('/favicon.ico', site).toString()].filter(Boolean) as string[];
   // Nothing to try yet (a feed not fetched once): not remembered as iconless, or its icon would stay
   // missing for a day after the first fetch filled in the site.
   if (!candidates.length) return new Response(null, { status: 204, headers: { 'cache-control': 'no-store' } });
+  const stored = await storeIcon(file, candidates, settings);
+  if (stored) return stored;
+  writeFileSync(file + '.none', '');
+  return noIcon();
+}
+
+// Where a kept icon came from (.src beside it); '' for icons kept before that was written down.
+const readSource = (file: string): string => (existsSync(file + '.src') ? readFileSync(file + '.src', 'utf8') : '');
+// 微博's avatar addresses carry a signature that changes on every fetch of the feed; the picture is the path.
+const sourceKey = (url: string): string => url.replace(/[?#].*$/, '');
+
+// The first candidate that answers with an image is kept, with where it came from; null when none did.
+async function storeIcon(file: string, candidates: readonly string[], settings: Settings): Promise<Response | null> {
   for (const c of candidates) {
     try {
       const u = new URL(c);
@@ -226,14 +267,14 @@ export async function feedIcon(db: DB, id: number, settings: Settings): Promise<
       if (res.status < 400 && res.body.length > 0 && type) {
         writeFileSync(file, res.body);
         writeFileSync(file + '.type', type);
+        writeFileSync(file + '.src', c);
         return new Response(new Uint8Array(res.body), { headers: { ...MEDIA_HEADERS, 'content-type': type, 'cache-control': 'public, max-age=604800' } });
       }
     } catch {
       // try next candidate
     }
   }
-  writeFileSync(file + '.none', '');
-  return noIcon();
+  return null;
 }
 
 const noIcon = (): Response => new Response(null, { status: 204, headers: { 'cache-control': 'public, max-age=86400' } });

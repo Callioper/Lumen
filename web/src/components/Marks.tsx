@@ -155,6 +155,8 @@ function BoardPanel({ g }: { g: MarkGroup }) {
   const said = g.marks.filter((m) => m.comment).slice(0, PANEL_SAID);
   const url = safeLink(g.url);
   const wishKind = g.kind === 'book' || g.kind === 'movie' ? g.kind : null;
+  const desk = useDesk(isBook && g.subject ? [g.subject] : []);
+  const onDesk = isBook && !!g.subject && desk.has(g.subject);
   return (
     <div class="ov-panel" role="region" aria-label={g.title}>
       {g.cover ? <img class="ov-panel-cover" src={proxied(g.cover)} alt="" /> : <div class="ov-panel-cover blank" aria-hidden="true">{KIND[g.kind]}</div>}
@@ -172,7 +174,7 @@ function BoardPanel({ g }: { g: MarkGroup }) {
           </ul>
         )}
         <div class="bp-actions">
-          {wishKind && g.subject && <WishButton kind={wishKind} subject={g.subject} done={g.wished || !!state?.data?.wished || !!film?.wished} onDone={() => markWished(g.key)} />}
+          {wishKind && g.subject && <WishButton kind={wishKind} subject={g.subject} done={g.wished || onDesk || !!state?.data?.wished || !!film?.wished} onDone={() => markWished(g.key)} />}
           {url && <a class="btn" href={url} target="_blank" rel="noopener noreferrer"><Icon name="external" size={14} />打开豆瓣<kbd>空格</kbd></a>}
           <button class="btn" onClick={() => void openFull(g)}>查看全部<kbd>↵</kbd></button>
           <span class="grow" />

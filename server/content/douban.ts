@@ -192,6 +192,7 @@ export async function markWish(db: DB, b: { isbn: string; title: string; subject
   const key = bookKey(b), now = Math.floor(Date.now() / 1000);
   db.prepare(`INSERT INTO douban_book (key, subject, title, looked_at, wished_at) VALUES (?, ?, ?, ?, ?)
     ON CONFLICT(key) DO UPDATE SET subject = excluded.subject, wished_at = excluded.wished_at`).run(key, subject, b.title, now, now);
+  keepWish(db, subject, now);
   return { subject, synced: !!extras.doubanWish };
 }
 
@@ -332,9 +333,28 @@ export async function editionsOf(db: DB, subject: string): Promise<Editions> {
 // From a 书影音标记 card, by subject; synced as markWish.
 export async function markInterest(db: DB, kind: 'book' | 'movie', subject: string): Promise<{ synced: boolean }> {
   if (extras.doubanWish) await extras.doubanWish(kind, subject);
-  db.prepare(`INSERT INTO douban_subject (subject, wished_at) VALUES (?, ?) ON CONFLICT(subject) DO UPDATE SET wished_at = excluded.wished_at`)
-    .run(subject, Math.floor(Date.now() / 1000));
+  keepWish(db, subject, Math.floor(Date.now() / 1000));
   return { synced: !!extras.doubanWish };
+}
+
+// Every 想读 / 想看 marked from Lumen, wherever it was clicked, is kept by subject: each page that shows
+// a book or a film asks wishedSubjects, so a mark made on one shows on all.
+function keepWish(db: DB, subject: string, now: number): void {
+  db.prepare('INSERT INTO douban_subject (subject, wished_at) VALUES (?, ?) ON CONFLICT(subject) DO UPDATE SET wished_at = excluded.wished_at')
+    .run(subject, now);
+}
+
+// The reader's own 想读 / 读过 … on 豆瓣, from their interests feed (its titles read 「想读夺回时间」), by subject.
+export function ownMarks(db: DB): Map<string, string> {
+  const rows = db.prepare(`SELECT e.title, e.link FROM entry e JOIN feed f ON f.id = e.feed_id
+    WHERE f.url LIKE 'https://www.douban.com/feed/people/%/interests' ORDER BY e.published`).all() as { title: string; link: string | null }[];
+  const out = new Map<string, string>();
+  for (const r of rows) {
+    const id = /douban\.com\/subject\/(\d+)/.exec(r.link ?? '')?.[1];
+    const act = /^(想读|在读|读过|想看|在看|看过|想听|在听|听过)/.exec(r.title)?.[1];
+    if (id && act) out.set(id, act);
+  }
+  return out;
 }
 
 export const wishedSubjects = (db: DB, subjects: readonly string[]): Set<string> => subjects.length

@@ -29,7 +29,9 @@ export async function cardPng(data: ShareData, style: CardStyle): Promise<Blob> 
     await Promise.all([...card.querySelectorAll('img')].map(settle));
     await document.fonts.ready;
     // Fonts are the system's; skipFonts stops the library from fetching and inlining stylesheets.
-    const blob = await toBlob(card, { pixelRatio: PIXEL_RATIO, skipFonts: true, cacheBust: false });
+    // includeQueryParams: the library caches embedded images for the page's lifetime by URL without
+    // its query, so every /img?url=… cover was one key and each card after the first got its cover.
+    const blob = await toBlob(card, { pixelRatio: PIXEL_RATIO, skipFonts: true, cacheBust: false, includeQueryParams: true });
     if (!blob) throw new Error('生成图片失败');
     return blob;
   } finally {

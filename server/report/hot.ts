@@ -3,7 +3,7 @@
 // every few hours and kept in hot_list, so opening the page costs no request most of the time.
 import type { DB } from '../db.ts';
 import { listMarks, MARKS_WINDOW_DAYS, type MarkGroup } from '../api/marks.ts';
-import { wishedSubjects } from '../content/douban.ts';
+import { wishedSubjects, ownMarks } from '../content/douban.ts';
 
 export type HotKind = 'book' | 'movie';
 
@@ -137,19 +137,6 @@ export function refreshLists(db: DB, rsshubBase: string, now = Math.floor(Date.n
     }
   })().finally(() => { refreshing = null; });
   return refreshing;
-}
-
-// The reader's own 想读 / 读过 …, from their interests feed (its titles read 「想读夺回时间」).
-function ownMarks(db: DB): Map<string, string> {
-  const rows = db.prepare(`SELECT e.title, e.link FROM entry e JOIN feed f ON f.id = e.feed_id
-    WHERE f.url LIKE 'https://www.douban.com/feed/people/%/interests' ORDER BY e.published`).all() as { title: string; link: string | null }[];
-  const out = new Map<string, string>();
-  for (const r of rows) {
-    const id = /douban\.com\/subject\/(\d+)/.exec(r.link ?? '')?.[1];
-    const act = /^(想读|在读|读过|想看|在看|看过|想听|在听|听过)/.exec(r.title)?.[1];
-    if (id && act) out.set(id, act);
-  }
-  return out;
 }
 
 // The weekly report's 「本周友邻热点」: the top few of each kind as the week ended.

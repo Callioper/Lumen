@@ -164,6 +164,10 @@ export function openDb(path: string): DB {
   addMissingColumns(db);
   // On added columns, so after them. 喜欢 / 少推: few rows, read on every 推荐 (the profile's key and signals).
   db.exec('CREATE INDEX IF NOT EXISTS entry_reaction ON entry(reaction)');
+  // 想读 from a 书单 was once kept only by the book's key; every page now reads it by subject.
+  db.exec(`INSERT INTO douban_subject (subject, wished_at)
+    SELECT subject, MAX(wished_at) FROM douban_book WHERE wished_at IS NOT NULL AND subject IS NOT NULL GROUP BY subject
+    ON CONFLICT(subject) DO UPDATE SET wished_at = COALESCE(douban_subject.wished_at, excluded.wished_at)`);
   return db;
 }
 

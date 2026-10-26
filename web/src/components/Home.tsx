@@ -11,6 +11,7 @@ import { NoticePreview, ownCover } from './NoticePreview.tsx';
 import { dueSoon, DEADLINE_DAYS, EVENT_DAYS } from '../due.ts';
 import { TopFeeds, AiTags, topFeeds, topAiTags } from './Overview.tsx';
 import { Icon } from './Icon.tsx';
+import { WishButton } from './Books.tsx';
 import { cx, proxiedCover, toneOf } from '../util.ts';
 import '../home.css';
 
@@ -93,11 +94,14 @@ function Shelf({ books }: { books: NewBook[] }) {
         <button class="home-link" onClick={() => void select({ kind: 'books' })}>全部 →</button></h3>
       <div class="shelf-row">
         {shown.map((b) => (
-          <button key={`${b.book.isbn || b.book.title}`} class="shelf-book" title={`${b.book.title}${b.book.authors ? ` · ${b.book.authors}` : ''}`}
-            onClick={() => void select({ kind: 'books' })}>
-            <img src={proxiedCover(b.book.cover, 480)} alt="" loading="lazy" onError={(e) => { ((e.currentTarget as HTMLElement).parentElement as HTMLElement).remove(); }} />
-            <span>{b.book.title}</span>
-          </button>
+          <div key={`${b.book.isbn || b.book.title}`} class="shelf-item">
+            <button class="shelf-book" title={`${b.book.title}${b.book.authors ? ` · ${b.book.authors}` : ''}`}
+              onClick={() => void select({ kind: 'books' })}>
+              <img src={proxiedCover(b.book.cover, 480)} alt="" loading="lazy" onError={(e) => { ((e.currentTarget as HTMLElement).closest('.shelf-item') as HTMLElement).remove(); }} />
+              <span>{b.book.title}</span>
+            </button>
+            <div class="shelf-wish"><WishButton b={b.book} /></div>
+          </div>
         ))}
       </div>
     </section>

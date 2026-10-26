@@ -9,6 +9,8 @@ import { api, type ListItem, type EntryDetail, type Reaction, type RelatedItem, 
 import { PageTags } from './PageTags.tsx';
 import { TopFeeds, AiTags, RecList, topFeeds, topAiTags } from './Overview.tsx';
 import { BookList } from './Books.tsx';
+import { SubjectWish } from './SubjectWish.tsx';
+import { WishButton } from './BookPage.tsx';
 import { noteProgress } from '../reading.ts';
 import { Icon, FeedIcon } from './Icon.tsx';
 import { ago, fullDate, proxied, proxifyHtml, readingMinutes, parseEnclosures, hostOf, cx, safeLink, isForeignText } from '../util.ts';
@@ -185,6 +187,7 @@ function FriendsMarks({ id }: { id: number }) {
             <div class="friends-body">
               <p class="friends-title"><a href={s.url} target="_blank" rel="noopener noreferrer">{s.title}</a>{s.info && <span class="friends-info">{s.info}</span>}</p>
               <p class="friends-who">{actionLine(s)}</p>
+              {(s.kind === 'book' || s.kind === 'movie') && <div class="friends-wish"><WishButton kind={s.kind} subject={s.id} done={s.wished} /></div>}
               {said.slice(0, all ? said.length : FRIEND_COMMENTS_SHOWN).map((m) => (
                 <p class="friends-comment" key={m.id}><strong>{m.who}</strong>{m.comment}</p>
               ))}
@@ -385,6 +388,7 @@ function EntryReader() {
             <time title={fullDate(d.published)}>{fullDate(d.published).slice(0, 16)}</time>
             {!d.loading && <span>{readingMinutes(html)} 分钟</span>}
             {link && <span class="host">{hostOf(link)}</span>}
+            {d.douban && <SubjectWish s={d.douban} />}
           </p>
           {feedTags.length > 0 && <p class="feed-tags">{feedTags.map((t) => <span key={t.name}>#{t.name}</span>)}</p>}
 

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { items, hasMore, loading, selectedId, open, loadMore, feedsById, selection, tab, app, prefs, setPrefs,
   reloadList, markAllRead, newCount, query, toggleStar, isMarks, isReports, isBooks, isHot, isTocs, isNotices, isHome, layout, defaultLayout, setLayout, markItemsRead,
-  scrollRead, setScrollRead, markIdsRead, scope, notify, recAvailable, sortMode, setSortMode, recMeta, setSearchOrder, searchSince, searchKept, type SearchSince } from '../store.ts';
+  scrollRead, setScrollRead, markIdsRead, markAboveRead, scope, notify, recAvailable, sortMode, setSortMode, recMeta, setSearchOrder, searchSince, searchKept, type SearchSince } from '../store.ts';
 import { LAYOUTS, WIDE_LAYOUTS, groupByDay, groupDigest, layoutLabel, type DigestBlock } from '../layout.ts';
 import { MarksList } from './Marks.tsx';
 import { ReportsView } from './Reports.tsx';
@@ -12,6 +12,7 @@ import { api, type ListItem, type Layout } from '../api.ts';
 import { PageTags } from './PageTags.tsx';
 import { HomeView } from './Home.tsx';
 import { Icon, FeedIcon } from './Icon.tsx';
+import { SubjectWish } from './SubjectWish.tsx';
 import { ago, proxiedCover, cx, safeLink } from '../util.ts';
 
 // A translated title's original, under the Chinese, when translations show 对照 (prefs.trView).
@@ -115,24 +116,48 @@ function RecentRead({ social }: { social: boolean }) {
   );
 }
 
+// 收藏 from the list, in every layout: shown while starred, else on hover.
+function StarToggle({ it, size = 13, class: cls = 'card-star' }: { it: ListItem; size?: number; class?: string }) {
+  return (
+    <button class={cx(cls, it.is_starred && 'on')} onClick={(e) => { e.stopPropagation(); void toggleStar(it); }}
+      aria-label={it.is_starred ? '取消收藏' : '收藏'} title={it.is_starred ? '取消收藏 (s)' : '收藏 (s)'}>
+      <Icon name="star" size={size} fill={!!it.is_starred} />
+    </button>
+  );
+}
+
+// 上面已读 on the card itself, for the lists that have no reader beside them (时间线, 瀑布流, 大卡片):
+// there the reader's own button is out of sight until an article is opened. Shown on hover, as the star.
+function ReadAbove({ it, class: cls = 'card-above' }: { it: ListItem; class?: string }) {
+  return (
+    <button class={cls} onClick={(e) => { e.stopPropagation(); void markAboveRead(it.id); }}
+      aria-label="把这篇上面的都标为已读" title="把这篇上面的都标为已读，5 秒内可撤销（选中时也可按 Shift+K）">
+      <Icon name="readAbove" size={13} />
+    </button>
+  );
+}
+
+const AiMark = ({ it }: { it: ListItem }) => (it.has_summary && !it.hit ? <Icon name="sparkles" size={12} class="ai-mark" /> : null);
+
 function Row({ it }: { it: ListItem }) {
   const f = feedsById.value.get(it.feed_id);
   return (
     <article class={cx('row', it.id === selectedId.value && 'selected', it.is_read ? 'read' : 'unread')}
-      onClick={() => void open(it)} data-id={it.id} data-read-ids={readIds([it])}>
+      {...itemHandlers(it)} data-id={it.id} data-read-ids={readIds([it])}>
       <div class="row-meta">
         {f && <FeedIcon id={f.id} title={f.title} size={14} />}
         <span class="row-feed">{f?.title}</span>
         <span class="row-time">{ago(it.published)}</span>
         <RecTag it={it} />
         <PageTags pages={it.pages} />
-        {it.is_starred ? <Icon name="star" size={12} fill class="star-on" /> : null}
+        {it.douban && <SubjectWish s={it.douban} class="row-wish" />}
+        <StarToggle it={it} size={12} />
       </div>
       <div class="row-body">
         <div class="row-text">
           <h3 class="row-title"><Marked text={it.title_zh || it.title} /><OrigTitle it={it} /></h3>
           <p class="row-snippet">
-            {it.has_summary && !it.hit ? <Icon name="sparkles" size={12} class="ai-mark" /> : null}
+            <AiMark it={it} />
             <Marked text={it.snippet} />
           </p>
         </div>
@@ -168,15 +193,16 @@ function Post({ it }: { it: ListItem }) {
   const images = (it.images?.length ? it.images : it.thumbnail ? [it.thumbnail] : []).slice(0, POST_GRID_MAX);
   return (
     <article class={cx('post', it.id === selectedId.value && 'selected', it.is_read ? 'read' : 'unread')}
-      onClick={() => void open(it)} data-id={it.id} data-read-ids={readIds([it])}>
+      {...itemHandlers(it)} data-id={it.id} data-read-ids={readIds([it])}>
       {f ? <FeedIcon id={f.id} title={f.title} size={34} /> : <span class="post-avatar" />}
       <div class="post-main">
         <header class="post-head">
           <span class="post-who">{f?.title ?? it.author}</span>
-          {it.is_starred ? <Icon name="star" size={12} fill class="star-on" /> : null}
+          <StarToggle it={it} size={12} />
+          <ReadAbove it={it} />
           <span class="post-time">{ago(it.published)}</span>
         </header>
-        <p class="post-text"><Marked text={it.snippet || it.title_zh || it.title} /></p>
+        <p class="post-text"><AiMark it={it} /><Marked text={it.snippet || it.title_zh || it.title} /></p>
         {images.length > 0 && (
           <div class={cx('post-images', `n${Math.min(images.length, 3)}`, images.length === 4 && 'four')}>
             {images.map((src) => <img key={src} src={proxiedCover(src, 480)} alt="" loading="lazy" decoding="async"
@@ -188,19 +214,26 @@ function Post({ it }: { it: ListItem }) {
   );
 }
 
+// A cover that fails to load leaves the same placeholder as a tile without one, not an empty box.
+function TileImage({ src }: { src: string | null }) {
+  const [failed, setFailed] = useState<string | null>(null);
+  if (!src || failed === src) return <div class="tile-empty"><Icon name="picture" size={28} /></div>;
+  return <img src={proxiedCover(src, 520)} alt="" loading="lazy" decoding="async" onError={() => setFailed(src)} />;
+}
+
 function Tile({ it }: { it: ListItem }) {
   const f = feedsById.value.get(it.feed_id);
   return (
     <figure class={cx('tile', it.id === selectedId.value && 'selected', it.is_read && 'read')} {...itemHandlers(it)} data-id={it.id} data-read-ids={readIds([it])}>
       <div class="tile-media">
-        {it.thumbnail ? <img src={proxiedCover(it.thumbnail, 520)} alt="" loading="lazy" decoding="async" /> : <div class="tile-empty"><Icon name="picture" size={28} /></div>}
-        <button class={cx('tile-star', it.is_starred && 'on')} onClick={(e) => { e.stopPropagation(); void toggleStar(it); }} aria-label="收藏">
-          <Icon name="star" size={14} fill={!!it.is_starred} />
-        </button>
+        <TileImage src={it.thumbnail} />
+        <StarToggle it={it} size={14} class="tile-star" />
+        <ReadAbove it={it} class="tile-above" />
+        {it.douban && <SubjectWish s={it.douban} class="tile-wish" />}
       </div>
       <figcaption>
         <span class="tile-title"><Marked text={it.title_zh || it.title} /><OrigTitle it={it} /></span>
-        <span class="tile-meta">{f?.title} · {ago(it.published)} <RecTag it={it} /> <PageTags pages={it.pages} /></span>
+        <span class="tile-meta"><AiMark it={it} />{f?.title} · {ago(it.published)} <RecTag it={it} /> <PageTags pages={it.pages} /></span>
       </figcaption>
     </figure>
   );
@@ -221,12 +254,12 @@ function Card({ it }: { it: ListItem }) {
           <span class="row-time">{ago(it.published)}</span>
           <RecTag it={it} />
           <PageTags pages={it.pages} />
-          <button class={cx('card-star', it.is_starred && 'on')} onClick={(e) => { e.stopPropagation(); void toggleStar(it); }} aria-label="收藏">
-            <Icon name="star" size={13} fill={!!it.is_starred} />
-          </button>
+          {it.douban && <SubjectWish s={it.douban} class="row-wish" />}
+          <ReadAbove it={it} />
+          <StarToggle it={it} />
         </div>
         <h3 class="card-title"><Marked text={it.title_zh || it.title} /><OrigTitle it={it} /></h3>
-        <p class="card-snippet">{it.has_summary && !it.hit ? <Icon name="sparkles" size={12} class="ai-mark" /> : null}<Marked text={it.snippet} /></p>
+        <p class="card-snippet"><AiMark it={it} /><Marked text={it.snippet} /></p>
       </div>
     </article>
   );
@@ -242,12 +275,12 @@ const clock = (t: number): string => {
 function Line({ it, oneFeed }: { it: ListItem; oneFeed: boolean }) {
   const f = feedsById.value.get(it.feed_id);
   return (
-    <div data-id={it.id} data-read-ids={readIds([it])} onClick={() => void open(it)}
+    <div data-id={it.id} data-read-ids={readIds([it])} {...itemHandlers(it)}
       class={cx('line', it.id === selectedId.value && 'selected', it.is_read ? 'read' : 'unread')}>
       <span class="line-title" title={it.title_zh && it.title_zh !== it.title ? it.title : undefined}><Marked text={it.title_zh || it.title} /></span>
       <PageTags pages={it.pages} />
       {!oneFeed && <span class="line-feed">{f?.title}</span>}
-      {it.is_starred ? <Icon name="star" size={11} fill class="star-on" /> : null}
+      <StarToggle it={it} size={11} />
       <span class="line-time">{clock(it.published)}</span>
     </div>
   );

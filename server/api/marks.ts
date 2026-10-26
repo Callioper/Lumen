@@ -3,7 +3,7 @@
 import type { DB } from '../db.ts';
 import { tx } from '../db.ts';
 import { plainText } from '../content/sanitize.ts';
-import { wishedSubjects } from '../content/douban.ts';
+import { wishedSubjects, ownMarks } from '../content/douban.ts';
 
 // 收藏到 is a subject saved into a 豆列: counted as a mark, it means "keeping this one" (2026-10-22).
 export const MARK_ACTIONS = ['想读', '在读', '读过', '想看', '在看', '看过', '想听', '在听', '听过', '想玩', '在玩', '玩过', '收藏到'] as const;
@@ -73,7 +73,9 @@ export function listMarks(db: DB, opts: { unreadOnly: boolean; now?: number }): 
     groups.set(key, g);
   }
   const wished = wishedSubjects(db, [...groups.values()].flatMap((g) => (g.subject ? [g.subject] : [])));
-  const withWish = [...groups.values()].map((g) => ({ ...g, wished: !!g.subject && wished.has(g.subject) }));
+  // Marked on the reader's own 豆瓣 counts too: 想读 is then not offered again.
+  const own = ownMarks(db);
+  const withWish = [...groups.values()].map((g) => ({ ...g, wished: !!g.subject && (wished.has(g.subject) || own.has(g.subject)) }));
   const out = mergeEditions(db, withWish).map((g) => ({ ...g, people: new Set(g.marks.map((m) => m.who)).size }));
   return out.filter((g) => !opts.unreadOnly || g.unread > 0)
     .sort((a, b) => b.people - a.people || b.latest - a.latest).slice(0, MAX_GROUPS);
@@ -123,7 +125,7 @@ export function markMarksRead(db: DB, upTo = Number.MAX_SAFE_INTEGER, now = Math
 // people marked it and what they said. Looked up in the local library only, no request goes out.
 const LINKED_SUBJECT = /(book|movie|music)\.douban\.com\/subject\/(\d+)/g;
 const SUBJECTS_LOOKED_UP = 20;
-export interface SubjectMarks { kind: MarkGroup['kind']; id: string; title: string; url: string; cover: string | null; info: string; marks: Mark[] }
+export interface SubjectMarks { kind: MarkGroup['kind']; id: string; title: string; url: string; cover: string | null; info: string; marks: Mark[]; wished: boolean }
 
 export function linkedSubjects(html: string, link: string | null): { kind: string; id: string }[] {
   const seen = new Map<string, string>();
@@ -136,7 +138,9 @@ export function friendsMarks(db: DB, entryId: number): SubjectMarks[] {
   if (!e) return [];
   const find = db.prepare(`SELECT e.id, e.title, substr(COALESCE(e.content, ''), 1, 2000) AS content, e.published, e.is_read, e.link
     FROM entry e JOIN feed f ON f.id = e.feed_id WHERE ${MARK_WHERE} AND e.id != ? AND e.content LIKE ? ORDER BY e.published DESC`);
-  return linkedSubjects(e.html ?? '', e.link).flatMap(({ kind, id }): SubjectMarks[] => {
+  const linked = linkedSubjects(e.html ?? '', e.link);
+  const wished = wishedSubjects(db, linked.map((l) => l.id));
+  return linked.flatMap(({ kind, id }): SubjectMarks[] => {
     // A mark is about the first subject it links; that also keeps 「subject/123」 from finding 「subject/1234」.
     const rows = (find.all(entryId, `%douban.com/subject/${id}%`) as unknown as Row[])
       .filter((r) => SUBJECT_LINK.exec(r.content)?.[3] === id);
@@ -147,6 +151,7 @@ export function friendsMarks(db: DB, entryId: number): SubjectMarks[] {
       kind: kindOf(kind, undefined), id, title: first.p!.subject, url: `https://${kind}.douban.com/subject/${id}/`,
       cover: COVER.exec(first.r.content)?.[1] ?? null, info: subjectInfo(first.r.content),
       marks: parsed.map(({ r, p }) => ({ id: r.id, who: p!.who, action: p!.action, comment: fullComment(r.content, p!.comment), published: r.published, is_read: r.is_read, link: r.link })),
+      wished: wished.has(id),
     }];
   });
 }

@@ -56,6 +56,11 @@
   box-shadow: inset 2px 0 0 #0000001a, 0 6px 14px -6px #0006, 0 1px 2px #0003; transition: transform 180ms var(--ease); }
 .shelf-book:hover img { transform: translateY(-4px) rotate(-1deg); }
 .shelf-book span { font: 12px/1.4 var(--serif); color: var(--ink-2); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+/* 想读 on the cover's corner, as on 新书's cover wall. */
+.shelf-item { position: relative; flex: none; }
+.shelf-wish { position: absolute; right: 4px; top: 4px; }
+.shelf-wish .book-wish, .shelf-wish .book-wished { background: var(--raised); box-shadow: var(--shadow-1); }
+.shelf-wish .book-wished { display: inline-block; padding: 2px 8px; border-radius: 999px; }
 
 /* 推荐先读 with pictures. */
 .home-recs ol { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 8px 18px; }

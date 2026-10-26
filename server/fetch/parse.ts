@@ -133,7 +133,8 @@ export async function parseFeed(text: string): Promise<ParsedFeed> {
     title: str(f.title),
     siteUrl: str(f.link),
     description: str(f.description),
-    image: (typeof img === 'object' ? str(img?.url) : str(img)) || str(f.icon) || str(f.logo),
+    // A podcast often names its cover only as itunes:image.
+    image: (typeof img === 'object' ? str(img?.url) : str(img)) || str(f.icon) || str(f.logo) || str((f.itunes as Raw | undefined)?.image),
     items: (f.items as Raw[]).map(fromXmlItem),
   };
 }

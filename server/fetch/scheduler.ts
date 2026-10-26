@@ -45,10 +45,11 @@ export async function fetchFeed(db: DB, feed: FeedRow, settings: Settings): Prom
     db.prepare(`UPDATE feed SET last_fetch_at = ?, next_fetch_at = ?, error_count = ?, last_error = ?,
       last_ok_at = CASE WHEN ? THEN ? ELSE last_ok_at END,
       etag = COALESCE(?, etag), last_modified = COALESCE(?, last_modified),
-      site_url = COALESCE(site_url, ?), icon_url = COALESCE(icon_url, ?),
+      site_url = COALESCE(site_url, ?), icon_url = COALESCE(?, icon_url),
       title = CASE WHEN title = url AND ? <> '' THEN ? ELSE title END WHERE id = ?`)
       .run(now, now + delay, errorCount, err, ok ? 1 : 0, now,
         (extra.etag as string) ?? null, (extra.lastModified as string) ?? null,
+        // The feed's image as it gives it now: a person's avatar changes, and the icon follows (api/media.ts).
         (extra.siteUrl as string) || null, (extra.image as string) || null,
         // A feed added by its address alone is titled with it until the feed names itself.
         (extra.title as string) ?? '', (extra.title as string) ?? '', feed.id);
