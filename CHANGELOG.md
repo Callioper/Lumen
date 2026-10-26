@@ -2,6 +2,39 @@
 
 每个版本的安装包都在 [GitHub Releases](https://github.com/Callioper/Lumen/releases)。升级时下载新版本覆盖安装即可，订阅、文章和设置都在数据文件夹里，不受影响。
 
+## v0.2.2
+
+<!-- news: 豆瓣的书和电影在文章列表里就能标想读，订阅源图标换成真头像 -->
+
+发布日期：2026-10-27
+
+GitHub Release：[Lumen v0.2.2](https://github.com/Callioper/Lumen/releases/tag/v0.2.2)
+
+v0.2.2 是一次小更新：文章本身是豆瓣的书或电影时，列表和阅读页上就能直接标想读、想看；订阅源的图标改用账号自己的头像；列表的几种布局补上了「上面已读」和收藏。
+
+### 新增功能
+
+- **在文章上标想读 / 想看。** 豆瓣书讯、榜单这类订阅源里，链接是豆瓣书页或影片页的文章，卡片和阅读页上多一个「想读」「想看」按钮。在任何一页标过，别的页面都显示「已想读」；你在豆瓣上已经标过的，显示你自己的标记，不再提示。
+- **卡片上的「上面已读」。** 时间线、瀑布流、大卡片这三种布局旁边没有阅读栏，现在鼠标移到卡片上就能点「上面已读」，把这一篇之上的都标成已读。
+- **首页书架上标想读。** 首页「新书」那一排封面，角上也能直接标想读。
+
+### 改进
+
+- **订阅源图标。** 豆瓣用户的源用本人头像，不再是一排一样的豆瓣标志；公众号、微博、B 站账号换了头像，图标会跟着换；微博头像不再每次刷新都重新下载。
+- **收藏星标。** 各种布局里位置统一：收藏过的一直显示，没收藏的鼠标移上去才出现。
+- **封面。** 加载失败的封面显示占位图，不再是空框；只在 `itunes:image` 里给封面的播客，也能显示封面了。
+
+### 升级影响
+
+不需要手动迁移，下载新的安装包覆盖安装即可。旧版本里标过的想读照样算数。订阅源图标会在下次刷新时自动换新。
+
+### 下载
+
+- [Windows 安装包](https://github.com/Callioper/Lumen/releases/download/v0.2.2/Lumen-0.2.2-win-x64-setup.exe)
+- [Mac · Apple 芯片](https://github.com/Callioper/Lumen/releases/download/v0.2.2/Lumen-0.2.2-mac-arm64.dmg)
+- [Mac · Intel](https://github.com/Callioper/Lumen/releases/download/v0.2.2/Lumen-0.2.2-mac-x64.dmg)
+- [Linux AppImage](https://github.com/Callioper/Lumen/releases/download/v0.2.2/Lumen-0.2.2-linux-x86_64.AppImage)
+
 ## v0.2.1
 
 <!-- news: 新版本会自己提示了：每天检查一次，首页和桌面通知告诉你 -->
