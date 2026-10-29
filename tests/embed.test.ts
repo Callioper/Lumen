@@ -82,3 +82,16 @@ test('a failed request leaves the queue untouched', async () => {
   await assert.rejects(e.runBatch(), /429/);
   assert.equal(e.status().done, 0);
 });
+
+test('once all are done, a round looks only at newer entries, and a new model starts over', async () => {
+  const db = seed();
+  const e = new Embedder(db, () => settings, () => secrets, fakeEmbed);
+  while (await e.runBatch());
+  db.prepare('INSERT INTO entry (id, feed_id, guid, title, content, published) VALUES (9, 1, ?, ?, ?, ?)').run('g9', '诗歌', '', 3000);
+  assert.equal(await e.runBatch(), 1);
+  assert.equal(await e.runBatch(), 0);
+  const other = { embedding: { ...EMB, model: 'm2' } } as unknown as Settings;
+  const e2 = new Embedder(db, () => other, () => secrets, fakeEmbed);
+  let n = 0; for (let k; (k = await e2.runBatch()); ) n += k;
+  assert.equal(n, 5);
+});

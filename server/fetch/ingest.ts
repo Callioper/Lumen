@@ -138,9 +138,10 @@ export function ingest(db: DB, feed: FeedRow, parsed: ParsedFeed, opts: IngestOp
   const wantsWork = feed.fulltext || (opts.aiEnabled && (feed.ai_summary || feed.ai_translate_title || feed.ai_classify));
   const base = feed.site_url || feed.url;
   const isDouban = feed.url.includes('douban');
-  // A 豆瓣 post written into a 话题 used to link to its status page; the topic is the post (rsshub/server.mjs
-  // douban-topic-link). Its guid stayed, so a post already here takes the new link when it comes round again.
-  const relink = db.prepare("UPDATE entry SET link = ? WHERE feed_id = ? AND guid = ? AND link IS NOT ? AND ? LIKE 'https://www.douban.com/topic/%'");
+  // A 豆瓣 post written into a 话题, a 书评 put out as a status, or a plain 转发 of one used to link to the
+  // status page; the post is the topic or review (rsshub/server.mjs douban-topic-link, douban-card-link).
+  // Its guid stayed, so a post already here takes the new link when it comes round again.
+  const relink = db.prepare("UPDATE entry SET link = ? WHERE feed_id = ? AND guid = ? AND link IS NOT ? AND link LIKE 'https://www.douban.com/people/%/status/%' AND ? NOT LIKE '%/status/%'");
 
   const isNew = (it: ParsedItem): boolean => {
     const guid = it.guid.slice(0, 2000);

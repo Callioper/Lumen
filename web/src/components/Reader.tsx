@@ -15,6 +15,7 @@ import { noteProgress } from '../reading.ts';
 import { Icon, FeedIcon } from './Icon.tsx';
 import { ago, fullDate, proxied, proxifyHtml, readingMinutes, parseEnclosures, hostOf, cx, safeLink, isForeignText } from '../util.ts';
 import { DEMO, DemoWelcome } from '../demo/tour.tsx';
+import { Ranks } from './Ranks.tsx';
 
 function bilibiliEmbed(link: string | null): string | null {
   const bv = link?.match(/bilibili\.com\/video\/(BV[\w]+)/)?.[1];
@@ -350,6 +351,7 @@ function EntryReader() {
           {feed && <FeedIcon id={feed.id} title={feed.title} size={18} />}
           <span>{d.feed_title}</span>
         </button>
+        <Ranks rank={d.journal_rank} class="reader-ranks" />
         <span class="grow" />
         {isReports.value && reportKind.value === 'papers' && (
           <a class="icon-btn text-btn" href={cnkiTitleUrl(d.title)} target="_blank" rel="noopener noreferrer" title="在知网按篇名检索">知网</a>

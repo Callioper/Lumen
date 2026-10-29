@@ -6,6 +6,8 @@ import { commentSource, commentsFor, doubanComment, doubanInterest, sspaiComment
 test('the site is told by the entry link; others have no comment section', () => {
   assert.equal(commentSource('https://book.douban.com/review/10000001/'), '豆瓣回应');
   assert.equal(commentSource('https://www.douban.com/people/100000001/status/1000000001/'), '豆瓣回应');
+  assert.equal(commentSource('https://www.douban.com/topic/500000001/'), '豆瓣回应');
+  assert.equal(commentSource('https://www.douban.com/group/topic/500000002/?_spm_id=abc'), '豆瓣回应');
   assert.equal(commentSource('https://movie.douban.com/subject/1000003/'), '豆瓣短评');
   assert.equal(commentSource('https://sspai.com/post/100001'), '少数派评论');
   assert.equal(commentSource('https://mp.weixin.qq.com/s/abc'), null);

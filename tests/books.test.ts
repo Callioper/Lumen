@@ -115,3 +115,24 @@ test('one book a post recommends by name, with no ISBN, is read from the line it
   assert.match(b.blurb, /^翻译远不止/);
   assert.deepEqual(extractBooks(html, '杨川著《知识旅行学》读后'), []);       // not a book post by its title
 });
+
+test('a publisher\'s monthly list: 「01#《…》」 titles, one broken over two lines, the price on its own line', () => {
+  const html = p('01#《在暮色中：一份时代诊断》', '[荷]扬·维尔德 著', '柯远 译', '松溪书店', '68.00元', 'ISBN：9787000000063', '本书源于一次演讲。') +
+    p('02#《城邦为何兴盛：禀赋', '与兴衰》', '方远 著', '松溪书店', '138.00元', 'ISBN：9787000000070', '一部原创著作。');
+  const [a, b] = extractBooks(html, '每月书单');
+  assert.deepEqual([a.title, a.authors, a.translators, a.publisher, a.price], ['在暮色中：一份时代诊断', '[荷]扬·维尔德 著', '柯远 译', '松溪书店', '68.00元']);
+  assert.deepEqual([b.title, b.price, b.blurb], ['城邦为何兴盛：禀赋与兴衰', '138.00元', '一部原创著作。']);
+});
+
+test('the same list\'s one-line rows: 「N.《书名》作者 出版社 定价 ISBN」', () => {
+  const html = p('01#《在暮色中》', '扬·维尔德 著', '松溪书店', '68.00元', 'ISBN：9787000000063', '简介。', '本月新书',
+    '1.《松溪研究（第十三辑）》松溪纪念馆 编松溪书店 75.00元 9787000000087',
+    '2.《在暮色中》扬·维尔德 著 柯远 译 松溪书店 68.00元 9787000000063', '9.《海外文献编年》吴原 编著 松溪书店 98.00元 9787000000100',
+    '26·《跨境之河》杨秋 著 松溪书店 68.00元 9787000000094');
+  const books = extractBooks(html, '每月书单');
+  assert.deepEqual(books.map((b) => b.title), ['在暮色中', '松溪研究（第十三辑）', '海外文献编年', '跨境之河']);
+  const [, c, e, d] = books;
+  assert.equal(e.authors, '吴原 编著');
+  assert.deepEqual([c.authors, c.publisher, c.price, c.isbn], ['松溪纪念馆 编', '松溪书店', '75.00元', '9787000000087']);
+  assert.deepEqual([d.authors, d.isbn], ['杨秋 著', '9787000000094']);
+});

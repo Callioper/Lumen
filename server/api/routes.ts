@@ -24,9 +24,10 @@ import { removeFeed, restoreFeed } from '../unsubscribe.ts';
 import { runExtract, pendingCount, canExtract, isExtracting, isStalled, type Extractor } from '../content/extract.ts';
 import { canSortKinds, sortKinds } from '../content/bookkinds.ts';
 import { tocExtractor, journalTocs } from '../content/tocs.ts';
+import { RANK_FILTERS, schoolShort, type RankFilter } from '../content/ranks.ts';
 import { noticeExtractor, academicNotices } from '../content/notices.ts';
 import { reprintExtractor, reprintIndex } from '../content/reprints.ts';
-import { markWish, detailsFor, editionsOf, markInterest, DoubanError } from '../content/douban.ts';
+import { markWish, detailsFor, editionsOf, markInterest, DoubanError, type SubjectPage } from '../content/douban.ts';
 import { fillDates } from '../content/bookdates.ts';
 import { moviePage } from '../content/doubanmovie.ts';
 import { extras } from '../extras.ts';
@@ -47,7 +48,7 @@ import { semanticSearch, queryEmbedder } from '../rec/semantic.ts';
 import { sharePage, keepShare, getShare, wantsAi, enhanceShare } from './share.ts';
 import { logEvent, logView, setReaction, profileStats, REACTIONS, type Reaction, type ListContext } from '../rec/signals.ts';
 import { loopHealth } from '../stall.ts';
-import { hasLibrary } from '../content/library.ts';
+import { hasLibrary, zoteroLibrary, ownedState, type Owned } from '../content/library.ts';
 import { postPictures } from '../content/pictures.ts';
 import { checkUpdate, knownUpdate } from './update.ts';
 
@@ -257,17 +258,20 @@ export function apiApp(d: Deps): Hono {
     const offset = Math.max(0, Math.trunc(Number(c.req.query('offset'))) || 0);
     const src = c.req.query('source');
     const page = journalTocs(db, { journal: (c.req.query('journal') ?? '').slice(0, 60), group: (c.req.query('group') ?? '').slice(0, 12), source: src === 'post' || src === 'cnki' || src === 'reprint' ? src : '',
+      rank: (RANK_FILTERS as readonly string[]).includes(c.req.query('rank') ?? '') ? c.req.query('rank') as RankFilter : '',
       humanities: c.req.query('reprints') !== 'all', offset, limit: TOC_PAGE });
     // 人大复印's contents are read beside the journals' own: they mark what was reprinted.
     const tocs = readInBackground(tocExtractor);
     const reprints = readInBackground(reprintExtractor);
-    return c.json({ ...page, reading: tocs.reading + reprints.reading, stalled: tocs.stalled || reprints.stalled });
+    return c.json({ ...page, school: schoolShort(), reading: tocs.reading + reprints.reading, stalled: tocs.stalled || reprints.stalled });
   });
 
   // 学术动态: conferences, calls and talks still to come, nearest first; with `past=1` those over too,
-  // with `online=1` only those that can be followed online.
+  // with `online=1` only those that can be followed online, with `replayable=1` only those over with a
+  // recording or a write-up.
   app.get('/notices', (c) => {
-    const page = academicNotices(db, { kind: (c.req.query('kind') ?? '').slice(0, 8), past: c.req.query('past') === '1', online: c.req.query('online') === '1' });
+    const page = academicNotices(db, { kind: (c.req.query('kind') ?? '').slice(0, 8), past: c.req.query('past') === '1',
+      online: c.req.query('online') === '1', replayable: c.req.query('replayable') === '1' });
     return c.json({ ...page, ...readInBackground(noticeExtractor) });
   });
 
@@ -428,11 +432,22 @@ export function apiApp(d: Deps): Hono {
   const hotTexts = (p: ReturnType<typeof hotPage>): string[] =>
     [p.book, p.movie].flatMap((k) => [...k.friends, ...k.lists]).flatMap((x) => [x.title, ...(x.intro && foreignText(x.intro) ? [x.intro] : [])]).filter((t) => t === '' ? false : foreignTitle(t) || foreignText(t));
 
+  // Whether Zotero has the book on this page, and its PDF; read anew each time (the library copy is
+  // kept half an hour), not with the page, which is kept a month. null: no Zotero here, or unreadable.
+  const ownedOf = (page: SubjectPage | null): Owned | null => {
+    const lib = page ? zoteroLibrary() : null;
+    if (!lib || !page) return null;
+    const f = new Map(page.fields);
+    return ownedState(lib, { title: page.title, subtitle: f.get('副标题') ?? '', isbn: f.get('ISBN') ?? '' });
+  };
   // A book's other editions (这本书的其他版本), fetched from its 豆瓣 page at most once a month.
   app.get('/douban/editions/:subject', async (c) => {
     const subject = c.req.param('subject');
     if (!/^\d{1,12}$/.test(subject)) return bad('条目号无效');
-    try { return c.json(withTr(await editionsOf(db, subject), (r) => pageTexts(r.page))); } catch (err) {
+    try {
+      const r = await editionsOf(db, subject);
+      return c.json(withTr({ ...r, owned: ownedOf(r.page) }, (x) => pageTexts(x.page)));
+    } catch (err) {
       if (err instanceof DoubanError) return c.json({ error: err.message }, 502);
       throw err;
     }

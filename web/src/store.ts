@@ -244,7 +244,9 @@ let markReadOrder: string[] = [];
 
 function trimTrail(ids: readonly number[]): void {
   readOrder = noteRead(readOrder, ids);
-  if (scope().filter !== 'unread') return;
+  // 每日简报 keeps whatever was read: dropping a block's newest entries would move the block down
+  // the day, since blocks follow each feed's first appearance (2026-10-28).
+  if (scope().filter !== 'unread' || layout.value === 'digest') return;
   items.value = keepReadTrail(items.value, readOrder, (i) => i.id, (i) => !!i.is_read, selectedId.value);
 }
 export async function reloadList(): Promise<void> {

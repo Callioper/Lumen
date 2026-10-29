@@ -153,6 +153,9 @@ export function BookPage({ subject, cover, title, info, wished, onWished, aside,
             {lines.series && <p class="bp-line">丛书 {lines.series}</p>}
             {lines.specs && <p class="bp-line bp-specs">{lines.specs}</p>}
             <p class="bp-stat">{statLine(p!)}</p>
+            {state?.data?.owned && state.data.owned !== 'none' && (
+              <p class="bp-line"><span class="book-owned bp-owned">Zotero 已在库 · {state.data.owned === 'pdf' ? '有全文' : '缺全文'}</span></p>
+            )}
           </> : <>
             {info && <p class="bp-line">{info}</p>}
             {state?.error ? <p class="editions-note">{state.error}<button class="link" onClick={retry}>重试</button></p>

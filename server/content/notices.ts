@@ -7,9 +7,12 @@ import type { Settings } from '../config.ts';
 import type { ChatMessage } from '../ai/llm.ts';
 import { extracted, postLines, str, strs, type Extractor, type Post } from './extract.ts';
 import { canOcr, ocrImages, postImages } from './ocr.ts';
+import { eventTime } from './eventtime.ts';
 import { log } from '../log.ts';
 import { liveAccess, type LiveAccess } from './liveaccess.ts';
 import { MARK_WHERE } from '../api/marks.ts';
+import { matchRecaps, OVER, recentRecaps, type Recap } from './recaps.ts';
+import { calledJournal, journalRank, type JournalRank } from './ranks.ts';
 
 export const NOTICE_KINDS = ['会议', '征稿', '讲座', '招聘', '申报', '征集', '活动'] as const;
 export type NoticeKind = typeof NOTICE_KINDS[number];
@@ -22,6 +25,7 @@ export interface Notice {
   kind: NoticeKind; name: string; date: string; end: string; deadline: string;
   place: string; organizer: string; speakers: string[]; contact: string; summary: string;
   online: Online; live: string;
+  time?: string;     // when on the day it starts, HH:MM; asked for since 2026-10-29, eventtime.ts for posts read before
 }
 
 // 2: online and live (2026-10-24). Posts read by 1 still show, without them, until read again.
@@ -34,15 +38,14 @@ const TITLE_HINTS = ['征稿', '征文', '会议', '论坛', '讲座', '工作�
 // A 豆瓣 or 微博 post has no title to go by: 「周末会去上海参加《社会》组织的社会理论工作坊……欢迎来我们的
 // panel」 is titled 「卖菜与跳舞，是我们这个时代的大业」. Its text is looked in instead (2026-10-24).
 const BODY_HINTS = ['工作坊', '研讨会', '学术会议', '论坛', '讲座', '征稿', '征文', 'panel', '年会', '报告会', '读书会', '对谈', '分享会', '沙龙'];
-// Said in the title to be over: no need to ask.
-const OVER = /回顾|纪实|综述|致辞|笔记|成功举办|顺利举办|圆满|侧记|发言稿|实录|闭幕/;
+// Said in the title to be over (recaps.ts OVER): no need to ask; such a post may be the event's 纪要.
 
 const SYSTEM = '你从学术公众号推文里抽取会议、征稿、讲座等学术动态，只输出 JSON，不加说明。';
 const prompt = (title: string, published: string, text: string): string => `推文标题：${title}
 推文发布日期：${published}
 
 判断这篇推文是不是在预告或征集一件尚待参加、投稿或申请的学术事项，并抽成 JSON：
-{"items":[{"kind":"会议|征稿|讲座|招聘|申报|征集|活动","name":"事项名称，会议或讲座的题目，期刊征稿写刊名","date":"举办日期，YYYY-MM-DD，多天写起始日，没有则空","end":"结束日期，YYYY-MM-DD，单日或没有则空","deadline":"截止日期（截稿、报名、提交摘要、申请），YYYY-MM-DD，没有则空","place":"地点，线上写线上","organizer":"主办方","speakers":["主讲人，讲座才填"],"contact":"投稿或报名邮箱、链接，没有则空","summary":"一句话说明主题或要求，不超过60字","online":"线上|线上线下|空","live":"直播或线上参会的平台与入口，照抄推文里的会议号、密码、报名或直播链接、直播账号名，如「腾讯会议 123 456 789 密码 1234」「B站 远川」「视频号 澎湃新闻」；推文只写了平台就只写平台，不要编；没有则空"}]}
+{"items":[{"kind":"会议|征稿|讲座|招聘|申报|征集|活动","name":"事项名称，会议或讲座的题目，期刊征稿写刊名","date":"举办日期，YYYY-MM-DD，多天写起始日，没有则空","time":"开始时间，HH:MM，24小时制，推文没写则空","end":"结束日期，YYYY-MM-DD，单日或没有则空","deadline":"截止日期（截稿、报名、提交摘要、申请），YYYY-MM-DD，没有则空","place":"地点，线上写线上","organizer":"主办方","speakers":["主讲人，讲座才填"],"contact":"投稿或报名邮箱、链接，没有则空","summary":"一句话说明主题或要求，不超过60字","online":"线上|线上线下|空","live":"直播或线上参会的平台与入口，照抄推文里的会议号、密码、报名或直播链接、直播账号名，如「腾讯会议 123 456 789 密码 1234」「B站 远川」「视频号 澎湃新闻」；推文只写了平台就只写平台，不要编；没有则空"}]}
 规则：
 - 会议的一号、二号通知、征稿通知、会议议程都算「会议」；期刊、集刊、征文比赛的征稿算「征稿」；课题、项目、奖项申报算「申报」；成果、案例、选题征集算「征集」。
 - 已经开过的会议、讲座的回顾、纪实、综述、致辞、笔记、发言稿不算，新闻报道不算：输出 {"items":[]}。
@@ -81,7 +84,8 @@ function readNotices(raw: unknown): Notice[] | null {
     const end = day(r.end) > date ? day(r.end) : '';
     return { kind, name, date, end, deadline: day(r.deadline), place: str(r.place), organizer: str(r.organizer),
       speakers: kind === '讲座' ? strs(r.speakers) : [], contact: str(r.contact), summary: str(r.summary),
-      online: (ONLINE as readonly string[]).includes(str(r.online)) ? str(r.online) as Online : '', live: str(r.live) };
+      online: (ONLINE as readonly string[]).includes(str(r.online)) ? str(r.online) as Online : '', live: str(r.live),
+      ...(/^\d{1,2}:\d{2}$/.test(str(r.time)) ? { time: str(r.time).padStart(5, '0') } : {}) };
   }).filter((n): n is Notice => !!n);
   return out.length ? out : null;
 }
@@ -111,13 +115,16 @@ export const noticeExtractor: Extractor<Notice[]> = {
   read: (raw) => readNotices(raw),
 };
 
-// recorded: over, but a recording went up on B站 lately (replays.ts); shown with what is to come.
+// recorded: over, but lately, and a recording went up on B站 (replays.ts) or a write-up was posted
+// (recaps.ts); shown with what is to come.
 export type NoticeStatus = 'upcoming' | 'open' | 'recorded' | 'past';
 export interface Replay { bvid: string; title: string; author: string; at: number; minutes: number }
 export interface NoticeView extends Notice {
   status: NoticeStatus;
   access?: LiveAccess;               // how to get in, for what can be followed online and is still to come
   replays: Replay[];
+  recaps: Recap[];
+  rank?: JournalRank | null;         // a journal's call for papers: the journal's standing (ranks.ts)
   next: { what: '截止' | '举办' | '进行中'; date: string } | null;     // 进行中: date is when it ends
   post: { id: number; title: string; feedId: number; feed: string; published: number; link: string | null; image?: string | null };
   posts: number;
@@ -187,6 +194,7 @@ const merged = (x: Notice, y: Notice): Notice => {
 // An event is looked for on B站 by its name and day (replays.ts keeps what was found under this).
 export const replayKey = (n: Notice): string => `${noticeKey(n)}|${n.date}`;
 const RECORDED_FOR_DAYS = 30;
+const RECAP_LOOKBACK_DAYS = 60;
 // A post with this many notices is a roundup (「会议汇总」, 「盘点」: 10–16 measured 10-26); fewer are
 // a lecture series or one event in parts (2–5), whose pictures are its own.
 const ROUNDUP = 6;
@@ -199,9 +207,9 @@ function storedReplays(db: DB): Map<string, Replay[]> {
 export const localDay = (now: Date): string => `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
 // The page: narrowed to a kind, or to what can be followed online, with what is over left out
-// unless asked for.
-export function academicNotices(db: DB, opts: { kind: string; past: boolean; online?: boolean; now?: Date }):
-  { items: NoticeView[]; kinds: Count[]; past: number; online: number } {
+// unless asked for; or only what is over and can be watched or read again (可回看), however long ago.
+export function academicNotices(db: DB, opts: { kind: string; past: boolean; online?: boolean; replayable?: boolean; now?: Date }):
+  { items: NoticeView[]; kinds: Count[]; past: number; online: number; replayable: number } {
   const now = opts.now ?? new Date();
   const today = localDay(now);
   const staleBefore = Math.floor(now.getTime() / 1000) - OPEN_FOR_DAYS * 86_400;
@@ -226,21 +234,26 @@ export function academicNotices(db: DB, opts: { kind: string; past: boolean; onl
         byKey.set(k, v);
         continue;
       }
-      const v: NoticeView = { ...n, status: 'open', next: null, replays: [], post, posts: 1, own: null };
+      const v: NoticeView = { ...n, status: 'open', next: null, replays: [], recaps: [], post, posts: 1, own: null };
       postsOf.set(v, [post.id]);
       byKey.set(k, v);
     }
   }
+  // A write-up comes after the event, so looked for a while further back than a notice is kept.
+  const recaps = matchRecaps([...byKey.values()], recentRecaps(db, staleBefore - RECAP_LOOKBACK_DAYS * 86_400), replayKey);
   const all = [...byKey.values()].map((v) => {
     const ids = postsOf.get(v) ?? [v.post.id];
     const next = nextOf(v, today);
     // An undated call stays open a while; one posted months ago is likely closed.
     const dated = !!(v.date || v.deadline) || v.post.published < staleBefore;
     const found = replays.get(replayKey(v)) ?? [];
-    const recorded = !next && found.length > 0 && (v.end || v.date) >= recordedSince;
+    const written = recaps.get(replayKey(v)) ?? [];
+    const recorded = !next && (found.length > 0 || written.length > 0) && (v.end || v.date) >= recordedSince;
     const ownId = ids.find((id) => (posts.get(id)?.notices ?? 0) < ROUNDUP);
     const own = ownId === undefined ? null : { id: ownId, image: posts.get(ownId)!.image };
-    const out: NoticeView = { ...v, own, next, replays: found, status: (next ? 'upcoming' : recorded ? 'recorded' : dated ? 'past' : 'open') as NoticeStatus };
+    // 「《文艺研究》2027年征稿」 is the journal's; a call named for the journal alone is too.
+    const rank = v.kind === '征稿' ? (calledJournal(v.name) ? journalRank(calledJournal(v.name)) : journalRank(v.name, { exact: true })) : undefined;
+    const out: NoticeView = { ...v, own, next, rank, replays: found, recaps: written, status: (next ? 'upcoming' : recorded ? 'recorded' : dated ? 'past' : 'open') as NoticeStatus };
     postsOf.set(out, ids);
     return out;
   });
@@ -248,7 +261,8 @@ export function academicNotices(db: DB, opts: { kind: string; past: boolean; onl
   const when = (v: NoticeView): string => (v.next!.what === '进行中' ? today : v.next!.date);     // what is on now first
   all.sort((a, b) => rank[a.status] - rank[b.status]
     || (a.status === 'upcoming' ? when(a).localeCompare(when(b)) : b.post.published - a.post.published));
-  const shown = opts.past ? all : all.filter((v) => v.status !== 'past');
+  const again = (v: NoticeView): boolean => (v.status === 'recorded' || v.status === 'past') && (v.replays.length > 0 || v.recaps.length > 0);
+  const shown = opts.replayable ? all.filter(again) : opts.past ? all : all.filter((v) => v.status !== 'past');
   const counts = new Map<string, number>();
   for (const v of shown) counts.set(v.kind, (counts.get(v.kind) ?? 0) + 1);
   const kinds = NOTICE_KINDS.filter((k) => counts.has(k)).map((k) => ({ label: k, n: counts.get(k)! }));
@@ -261,6 +275,15 @@ export function academicNotices(db: DB, opts: { kind: string; past: boolean; onl
       .map((id) => postLines((body.get(id) as { html: string | null } | undefined)?.html ?? '').join('\n')).join('\n');
     return { ...v, access: liveAccess(text, v.live, v.organizer) };
   };
-  const items = shown.filter((v) => (!opts.kind || v.kind === opts.kind) && (!opts.online || remote(v))).map(withAccess);
-  return { items, kinds, past: all.length - shown.length, online: shown.filter(remote).length };
+  // The time of day, for what is held still to come: read with the notice, else looked for in its posts.
+  const withTime = (v: NoticeView): NoticeView => {
+    if (v.status !== 'upcoming' || v.kind === '征稿' || !v.date || v.time) return v;
+    const text = (postsOf.get(v) ?? [v.post.id])
+      .map((id) => postLines((body.get(id) as { html: string | null } | undefined)?.html ?? '').join('\n')).join('\n');
+    const time = eventTime(text, v.date);
+    return time ? { ...v, time } : v;
+  };
+  const items = shown.filter((v) => (!opts.kind || v.kind === opts.kind) && (!opts.online || remote(v))).map(withAccess).map(withTime);
+  const live = all.filter((v) => v.status !== 'past');
+  return { items, kinds, past: all.length - live.length, online: live.filter(remote).length, replayable: all.filter(again).length };
 }

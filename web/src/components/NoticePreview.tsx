@@ -6,6 +6,7 @@ import { open, notify } from '../store.ts';
 import { daysUntil } from '../due.ts';
 import { cx, proxied, proxiedCover, safeLink, toneOf } from '../util.ts';
 import { Contact, FromPost, Live, Replays, md, shownName } from './Journals.tsx';
+import { Ranks } from './Ranks.tsx';
 import { Icon } from './Icon.tsx';
 import { loadLook, hashDistance, SAME_PICTURE_BITS } from '../picturehash.ts';
 
@@ -93,8 +94,10 @@ function Preview({ n }: { n: Notice }) {
       <div class="np-body">
         <p class="np-tags">
           <span class={`notice-kind ${toneOf(n.kind)}`}>{n.kind}</span>
+          <Ranks rank={n.rank} />
           {n.online && n.status === 'upcoming' && <span class="notice-onair">{n.online === '线上' ? '线上' : '直播'}</span>}
           {n.replays.length > 0 && <span class="notice-kind tone-teal">有录像</span>}
+          {(n.recaps?.length ?? 0) > 0 && <span class="notice-kind tone-teal">有纪要</span>}
         </p>
         <h2 class="np-title">{shownName(n.name)}</h2>
         <p class={cx('np-count', c.tone)}><b>{c.big}</b><span>{c.unit}</span></p>

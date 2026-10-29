@@ -3,7 +3,7 @@ import type { DB } from '../db.ts';
 import { indexEntry } from '../search.ts';
 import type { Settings, Secrets } from '../config.ts';
 import { chat, LlmError } from './llm.ts';
-import { fetchFullText } from '../content/readability.ts';
+import { fetchFullText, feedCopyBetter } from '../content/readability.ts';
 import { sanitize, plainText } from '../content/sanitize.ts';
 import { log } from '../log.ts';
 
@@ -113,6 +113,10 @@ export class Enricher {
       if ((force?.fulltext ?? job.fulltext) && !full && job.link) {
         try {
           full = await fetchFullText(job.link, s);
+          if (full && feedCopyBetter(job.content, full)) {
+            log.info(`[fulltext] ${job.link}: 网页里的图比订阅源少，留用订阅源原文`);
+            full = null;
+          }
           if (full) {
             this.db.prepare('UPDATE entry SET content_full = ? WHERE id = ?').run(full, id);
             indexEntry(this.db, id);

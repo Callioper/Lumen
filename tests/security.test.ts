@@ -8,7 +8,7 @@ import { proxied, safeLink } from '../web/src/util.ts';
 
 const SETTINGS: Settings = {
   host: '127.0.0.1', port: 8780, webLogin: false, defaultTtl: 3600, fetchConcurrency: 6, perHostConcurrency: 2, fetchTimeoutMs: 20000,
-  proxy: 'http://127.0.0.1:10808', noProxy: ['localhost'], rsshubBase: 'http://127.0.0.1:1200', wechat2rssBase: '', zoteroDb: '', ocrPython: '', ocrEngine: '', updateCheck: false,
+  proxy: 'http://127.0.0.1:10808', noProxy: ['localhost'], rsshubBase: 'http://127.0.0.1:1200', wechat2rssBase: '', wechat2rssLan: '', zoteroDb: '', ocrPython: '', ocrEngine: '', updateCheck: false,
   retention: { days: 90, keepMinPerFeed: 50, maxPerFeed: 400 },
   ai: { enabled: true, baseUrl: 'https://api.example.com/v1', model: 'm', concurrency: 2, maxInputChars: 6000, summaryMinChars: 200, tagPrefix: 'AI:', allowedTags: ['哲学'] },
   embedding: { enabled: false, baseUrl: 'https://api.example.com/v1', model: 'e', batchSize: 16, intervalMs: 2000 },

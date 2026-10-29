@@ -3,6 +3,7 @@ import { VIEWS, LAYOUTS } from '../db.ts';
 import { plainText } from '../content/sanitize.ts';
 import { unreadMarks, MARK_WHERE } from './marks.ts';
 import { commentSource } from '../comments/comments.ts';
+import { journalRank } from '../content/ranks.ts';
 import { parseQuery, allTerms, ftsMatch, SHORT_TERM_SQL, LIKE, likeArg, hitSnippet, SEARCH_BODY_CHARS, type ParsedQuery } from '../search.ts';
 
 export interface Scope {
@@ -178,7 +179,8 @@ export function getEntry(db: DB, id: number): Record<string, unknown> | undefine
     .get(id) as Record<string, unknown> | undefined;
   if (!e) return undefined;
   const tags = (db.prepare('SELECT name, source FROM tag WHERE entry_id = ?').all(id) as { name: string; source: string }[]);
-  return { ...e, tags, comment_source: commentSource(e.link as string | null) };
+  // A journal's own feed (知网 RSS, its 公众号) goes by the journal's name: its standing, by that name exactly.
+  return { ...e, tags, comment_source: commentSource(e.link as string | null), journal_rank: journalRank(String(e.feed_title ?? ''), { exact: true }) };
 }
 
 // Counts start from the few unread entries (entry_unread) rather than from every feed's or tag's

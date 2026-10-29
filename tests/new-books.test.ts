@@ -62,7 +62,7 @@ test('two posts listing one book differently make one tile that knows what both 
     { from: 'new', b: book({ title: '《银钱与家书》', publisher: '北城出版中心｜时刻者', date: '2026年8月' }) },
     { from: 'old', b: book({ title: '银钱与家书：旧港侨批商号的百年沉浮', publisher: '北城出版集团 北城出版中心', isbn: '9787000000117', blurb: '较长的推荐语' }) },
     // One short title, two publishers: two books.
-    { from: 'a', b: book({ title: '留白', publisher: '中信出版集团' }) },
+    { from: 'a', b: book({ title: '留白', publisher: '松溪出版集团' }) },
     { from: 'b', b: book({ title: '留白', publisher: '上海人民出版社' }) },
     // One place, two publishers: two books.
     { from: 'e', b: book({ title: '自由', publisher: '上海译文出版社' }) },

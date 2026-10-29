@@ -1,6 +1,6 @@
 import type { DB } from '../db.ts';
 import type { Settings } from '../config.ts';
-import { httpGet, decodeBody, describeError } from './http.ts';
+import { httpGet, decodeBody, describeError, type FetchOptions, type FetchResult } from './http.ts';
 import { parseFeed } from './parse.ts';
 import { ingest, BACKLOG_WINDOW, type FeedRow } from './ingest.ts';
 import { log } from '../log.ts';
@@ -13,6 +13,44 @@ const SLOW_FEED_TIMEOUT_MS = 120_000;
 
 export function resolveFeedUrl(url: string, settings: Settings): string {
   return url.startsWith('rsshub://') ? settings.rsshubBase.replace(/\/$/, '') + '/' + url.slice('rsshub://'.length) : url;
+}
+
+// The home-network address of a wechat2rss feed, when one is set and the feed is on the public
+// address (wechat2rssBase): the tunnel took 2–9 s a feed and often timed out, the NAS itself
+// answers in 0.2–0.4 s (10-27). null for every other feed.
+export function lanFeedUrl(url: string, settings: Settings): string | null {
+  if (!settings.wechat2rssLan || !settings.wechat2rssBase) return null;
+  try {
+    const u = new URL(url);
+    if (u.origin !== new URL(settings.wechat2rssBase).origin) return null;
+    const lan = new URL(settings.wechat2rssLan.replace(/\/*$/, '/'));
+    return new URL(u.pathname.replace(/^\//, '') + u.search, lan).href;
+  } catch { return null; }
+}
+// Away from home the home address fails; it is then not tried again for a while, so the feeds
+// do not each wait for it before going through the tunnel.
+const LAN_RETRY_MS = 5 * 60_000;
+const LAN_TIMEOUT_MS = 15_000;
+let lanDownUntil = 0;
+export const resetLanState = (): void => { lanDownUntil = 0; };
+
+async function getFeed(feed: FeedRow, settings: Settings, opts: FetchOptions & { timeoutMs: number }): Promise<FetchResult> {
+  const lan = Date.now() >= lanDownUntil ? lanFeedUrl(feed.url, settings) : null;
+  if (lan) {
+    try {
+      return await httpGet(lan, settings, { ...opts, timeoutMs: Math.min(opts.timeoutMs, LAN_TIMEOUT_MS) });
+    } catch (e) {
+      // Only a failed connection says the reader is away. A timeout may be Lumen's own: a stalled
+      // loop (memory full, 10-27) let the timer run out on a feed that had answered; that one round
+      // goes through the tunnel and the next tries home again.
+      const timedOut = (e as Error)?.name === 'TimeoutError' || (e as Error)?.name === 'AbortError';
+      if (!timedOut) {
+        lanDownUntil = Date.now() + LAN_RETRY_MS;
+        log.info(`[fetch] wechat2rss 局域网地址连不上（${describeError(e)}），${LAN_RETRY_MS / 60_000} 分钟内改走 ${settings.wechat2rssBase}`);
+      }
+    }
+  }
+  return httpGet(resolveFeedUrl(feed.url, settings), settings, opts);
 }
 
 const DUE_WINDOW = 200;
@@ -61,7 +99,7 @@ export async function fetchFeed(db: DB, feed: FeedRow, settings: Settings): Prom
     // through a slow tunnel, so the default is too short for it but fine for everything else.
     const timedOut = feed.error_count > 0 && /超时/.test(feed.last_error ?? '');
     const timeoutMs = Math.max(isRsshub ? RSSHUB_TIMEOUT_MS : settings.fetchTimeoutMs, timedOut ? SLOW_FEED_TIMEOUT_MS : 0);
-    const res = await httpGet(resolveFeedUrl(feed.url, settings), settings, { headers, timeoutMs });
+    const res = await getFeed(feed, settings, { headers, timeoutMs });
     if (res.status === 304) { done(true, null); return { ok: true, added: 0 }; }
     if (res.status >= 400) {
       // The bridge answers failures with a plain-text reason worth surfacing.

@@ -13,7 +13,9 @@ const FRESH_MS = 30 * 60_000;
 const MIN_TITLE = 2;
 const MIN_MAIN_TITLE = 4;    // a main title shorter than this (「悲剧」) matches too much on its own
 
-export interface Library { isbns: Set<string>; titles: Set<string> }
+// withPdf: the same keys for the items that carry a PDF of their own (an imported file, not a link
+// to one elsewhere, which can point at a disk long gone, and not in the bin).
+export interface Library { isbns: Set<string>; titles: Set<string>; withPdf: { isbns: Set<string>; titles: Set<string> } }
 
 let cached: { at: number; stamp: string; lib: Library } | null = null;
 
@@ -47,11 +49,12 @@ export function titleKeys(title: string): string[] {
   return [...new Set([full.length >= MIN_TITLE ? full : '', main.length >= MIN_MAIN_TITLE ? main : ''].filter(Boolean))];
 }
 
-export function buildLibrary(rows: readonly { field: string; value: string }[]): Library {
-  const lib: Library = { isbns: new Set(), titles: new Set() };
+export function buildLibrary(rows: readonly { field: string; value: string; pdf?: number | boolean }[]): Library {
+  const lib: Library = { isbns: new Set(), titles: new Set(), withPdf: { isbns: new Set(), titles: new Set() } };
   for (const r of rows) {
-    if (r.field === 'ISBN') for (const one of r.value.split(/[\s,;，；]+/)) { const d = isbn13(one); if (d.length === 13) lib.isbns.add(d); }
-    else for (const t of titleKeys(r.value)) lib.titles.add(t);
+    const sets = r.pdf ? [lib, lib.withPdf] : [lib];
+    if (r.field === 'ISBN') for (const one of r.value.split(/[\s,;，；]+/)) { const d = isbn13(one); if (d.length === 13) for (const x of sets) x.isbns.add(d); }
+    else for (const t of titleKeys(r.value)) for (const x of sets) x.titles.add(t);
   }
   return lib;
 }
@@ -79,9 +82,11 @@ export function zoteroLibrary(now = Date.now()): Library | null {
     else rmSync(copy + '-wal', { force: true });   // a stale -wal from last time must not be replayed
     const db = new DatabaseSync(copy, { readOnly: true });
     try {
-      const rows = db.prepare(`SELECT f.fieldName AS field, v.value FROM itemData d JOIN fields f ON f.fieldID = d.fieldID
+      const rows = db.prepare(`SELECT f.fieldName AS field, v.value, d.itemID IN (SELECT a.parentItemID FROM itemAttachments a
+          WHERE a.contentType = 'application/pdf' AND a.linkMode = 0 AND a.itemID NOT IN (SELECT itemID FROM deletedItems)) AS pdf
+        FROM itemData d JOIN fields f ON f.fieldID = d.fieldID
         JOIN itemDataValues v ON v.valueID = d.valueID
-        WHERE f.fieldName IN ('title', 'ISBN') AND d.itemID NOT IN (SELECT itemID FROM deletedItems)`).all() as { field: string; value: string }[];
+        WHERE f.fieldName IN ('title', 'ISBN') AND d.itemID NOT IN (SELECT itemID FROM deletedItems)`).all() as { field: string; value: string; pdf: number }[];
       cached = { at: now, stamp, lib: buildLibrary(rows) };
       return cached.lib;
     } finally { db.close(); }
@@ -92,7 +97,16 @@ export function zoteroLibrary(now = Date.now()): Library | null {
   }
 }
 
-export function inLibrary(lib: Library, book: { title: string; isbn: string }): boolean {
+export function inLibrary(lib: Pick<Library, 'isbns' | 'titles'>, book: { title: string; isbn: string }): boolean {
   if (book.isbn && lib.isbns.has(isbn13(book.isbn))) return true;
   return titleKeys(book.title).some((t) => lib.titles.has(t));
+}
+
+// A book's page: in the library with a PDF, in it without one, or not in it. The title is tried
+// with its subtitle too, since Zotero keeps 「失去：现代社会的基本问题」 and 豆瓣 the bare 「失去」.
+export type Owned = 'pdf' | 'nopdf' | 'none';
+export function ownedState(lib: Library, book: { title: string; subtitle: string; isbn: string }): Owned {
+  const tries = [book.title, ...(book.subtitle ? [`${book.title}：${book.subtitle}`] : [])].map((title) => ({ title, isbn: book.isbn }));
+  if (tries.some((b) => inLibrary(lib.withPdf, b))) return 'pdf';
+  return tries.some((b) => inLibrary(lib, b)) ? 'nopdf' : 'none';
 }

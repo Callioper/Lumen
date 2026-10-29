@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { parseDoulistPage, pickSuggestion, doulistIdOf, ogImageOf, subjectDetails } from '../server/content/douban.ts';
-import { buildLibrary, inLibrary, isbn13 } from '../server/content/library.ts';
+import { buildLibrary, inLibrary, isbn13, ownedState } from '../server/content/library.ts';
 
 const item = (id: string, title: string, abstract: string, host = 'book'): string => `<div class="doulist-item"><div class="post"><a href="x"><img src="https://img3.doubanio.com/${id}.jpg"/></a></div>
   <div class="title"> <a href="https://${host}.douban.com/subject/${id}/" target="_blank"> ${title} </a> </div>
@@ -57,4 +57,13 @@ test('a subject page: author, publisher and date from its info block', () => {
     <span class="pl">ISBN:</span> 9787000000131<br/>
   </div>`;
   assert.deepEqual(subjectDetails(html), { cover: 'https://img1.doubanio.com/l/s1.jpg', date: '2026年6月', authors: '[美] 史远民 / 某某', publisher: '北城书局' });
+});
+
+test('a book page tells the library copy with a PDF from one without, trying the title with its subtitle', () => {
+  const lib = buildLibrary([{ field: 'title', value: '失去：现代社会的基本问题', pdf: 1 }, { field: 'title', value: '中国科幻新浪潮', pdf: 0 },
+    { field: 'ISBN', value: '9787000000018', pdf: 1 }]);
+  assert.equal(ownedState(lib, { title: '失去', subtitle: '现代社会的基本问题', isbn: '' }), 'pdf');
+  assert.equal(ownedState(lib, { title: '中国科幻新浪潮', subtitle: '历史·诗学·文本', isbn: '' }), 'nopdf');
+  assert.equal(ownedState(lib, { title: '不相干', subtitle: '', isbn: '978-7-000-00001-8' }), 'pdf');
+  assert.equal(ownedState(lib, { title: '还没有入库的书', subtitle: '', isbn: '' }), 'none');
 });

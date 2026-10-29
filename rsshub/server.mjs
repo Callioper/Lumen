@@ -91,6 +91,14 @@ const patchDoubanTopicLink = () => patchRoute('douban-topic-link', 'status-', 'l
     'guid: `https://www.douban.com/people/${item.status.author.id}/status/${item.status.id}/`, link: item.status.card?.type === "topic" && item.status.card.url && !item.status.text && !item.status.activity ? item.status.card.url.replace(/\\?.*$/, "") : `https://www.douban.com/people/${item.status.author.id}/status/${item.status.id}/`,'],
 ]);
 
+// The same holds for a 书评/日记 put out as a status (a review card, no text), and for a plain 转发 of
+// such a post or of a 话题 (转发小组讨论; no comment of one's own): the link goes to the post, not to whoever shared it
+// (2026-10-28). Applied over douban-topic-link, which it widens.
+const patchDoubanCardLink = () => patchRoute('douban-card-link', 'status-', 'link: item.status.card?.type === "topic"', [
+  ['link: item.status.card?.type === "topic" && item.status.card.url && !item.status.text && !item.status.activity ? item.status.card.url.replace(/\\?.*$/, "") : `',
+    'link: ((s) => { const post = (x) => !x || x.text ? null : x.activity === "转发" ? post(x.reshared_status) : (!x.activity || x.activity === "转发小组讨论") && x.card?.url && /^(topic|review|note)$/.test(x.card.type) ? x.card.url.replace(/\\?.*$/, "") : null; return post(s); })(item.status) ?? `'],
+]);
+
 // Friends' timelines and statuses are public: asked without the login cookie (tried 2026-10-24, 200
 // with only a Referer, even for timelines that answered 403 with it). ~94 timelines a day, each with
 // a full-text request per status, went out logged in, and douban ended the session (ck and dbcl2
@@ -194,6 +202,7 @@ patchDouban();
 patchBilibiliCookieWait();
 patchDoubanDeleted();
 patchDoubanTopicLink();
+patchDoubanCardLink();
 patchDoubanAnon();
 patchSspaiUnknown();
 await relaxHeaderGenerator();

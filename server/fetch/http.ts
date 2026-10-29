@@ -1,7 +1,7 @@
 import { fetch, Agent, ProxyAgent, type Dispatcher } from 'undici';
 import iconv from 'iconv-lite';
 import type { Settings } from '../config.ts';
-import { assertPublicUrl, guardedAgent } from './guard.ts';
+import { assertPublicUrl, guardedAgent, isPrivateHostname } from './guard.ts';
 
 export const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0 Safari/537.36 Lumen/1.0';
 const MAX_BODY_BYTES = 20 * 1024 * 1024;
@@ -24,9 +24,12 @@ export function bypassesProxy(host: string, noProxy: string[]): boolean {
   return noProxy.some((s) => h === s || h.endsWith('.' + s.replace(/^\./, '')));
 }
 
+// A host on this machine or the home network is never reached through the proxy.
+const viaProxy = (url: URL, settings: Settings): boolean => !bypassesProxy(url.hostname, settings.noProxy) && !isPrivateHostname(url.hostname);
+
 export function dispatcherFor(url: URL, settings: Settings): Dispatcher {
   const p = proxyFor(settings);
-  return p && !bypassesProxy(url.hostname, settings.noProxy) ? p : direct;
+  return p && viaProxy(url, settings) ? p : direct;
 }
 
 // undici reports every network failure as "fetch failed"; the useful part is in .cause.
@@ -91,7 +94,7 @@ async function fetchOnce(url: URL, settings: Settings, opts: FetchOptions, signa
     return { status: res.status, headers: res.headers as unknown as Headers, body, url: res.url || url.toString() };
   };
   const p = proxyFor(settings);
-  const dispatcher = p && !bypassesProxy(url.hostname, settings.noProxy) ? p : directAgent;
+  const dispatcher = p && viaProxy(url, settings) ? p : directAgent;
   try {
     return await run(dispatcher);
   } catch (err) {

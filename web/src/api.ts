@@ -12,7 +12,7 @@ export interface Settings {
   host: string; webLogin: boolean;   // webLogin: devices other than this one sign in (server/auth.ts)
   defaultTtl: number; fetchConcurrency: number; perHostConcurrency: number; fetchTimeoutMs: number;
   proxy: string; noProxy: string[]; rsshubBase: string;
-  wechat2rssBase: string; zoteroDb: string; ocrPython: string; ocrEngine: string;   // '' = Zotero's default place; OCR off
+  wechat2rssBase: string; wechat2rssLan: string; zoteroDb: string; ocrPython: string; ocrEngine: string;   // '' = Zotero's default place; OCR off
   updateCheck: boolean;              // once a day, ask GitHub whether a newer Lumen is out
   retention: { days: number; keepMinPerFeed: number; maxPerFeed: number };
   ai: { enabled: boolean; baseUrl: string; model: string; concurrency: number; maxInputChars: number; summaryMinChars: number; tagPrefix: string; allowedTags: string[] };
@@ -83,7 +83,7 @@ export interface HotPage { book: { friends: HotItem[]; lists: HotItem[] }; movie
 export interface Edition { subject: string; publisher: string; year: string; rating: number | null; readers: number }
 // 书影音标记's foreign texts → their Chinese so far (server/ai/snippets.ts); trAt: the server's time then (s).
 export interface Translated { tr: Record<string, string>; trAt: number }
-export interface Editions { works: string | null; total: number; editions: Edition[]; wished: boolean; page: SubjectPage | null }
+export interface Editions { works: string | null; total: number; editions: Edition[]; wished: boolean; page: SubjectPage | null; owned?: 'pdf' | 'nopdf' | 'none' | null }
 // A 豆瓣 subject page as read (server/content/douban.ts).
 export interface ShortComment { who: string; stars: number | null; time: string; text: string; votes: number }
 export interface Similar { subject: string; title: string; cover: string | null; rating: number | null }
@@ -131,6 +131,7 @@ export interface EntryDetail extends ListItem {
   // server/ai/translate.ts: content_tr pairs each foreign block of the tr_of body with its translation.
   tr_state?: number | null; content_tr?: string | null; tr_of?: 'full' | 'feed' | null; tr_note?: string | null;
   comment_source?: string | null;   // which site's 评论区 this entry can show
+  journal_rank?: JournalRank | null;   // the feed is a journal's (知网 RSS, its 公众号): its standing
   loading?: boolean;        // client-side placeholder while the full entry is on its way
 }
 
@@ -162,23 +163,30 @@ export interface MonthCount extends Count { shelves?: Shelf[] }
 export interface Count { label: string; n: number; group?: string }
 // 期刊目录 and 学术动态: what the AI read out of a post (server/content/tocs.ts, notices.ts).
 export interface PostRef { id: number; title: string; feedId: number; feed: string; published: number; link: string | null; image?: string | null }
+// 期刊等级 (server/content/ranks.ts): the lists a journal is in, by edition, and the school's level for it.
+export type RankKind = 'cssci' | 'cssci-ext' | 'pku' | 'ami' | 'ami-jikan' | 'rdfy' | 'nssf';
+export interface JournalRank { in: { kind: RankKind; level?: string; edition: string; current: boolean }[]; school?: { short: string; level: string; from: string } }
+export type RankFilter = '' | 'cssci' | 'pku' | 'ami' | 'school';
 export interface TocArticle { title: string; subtitle: string; authors: string[]; translators: string[]; page: string; abstract: string; keywords: string[]; link?: string; lead?: boolean; abstractFrom?: 'cnki'; reprint?: string; reprintOf?: string }
 export interface TocIssue {
   key: string; source: 'post' | 'cnki' | 'reprint'; journal: string; issue: string; sections: { name: string; articles: TocArticle[] }[];
   at: number; post: PostRef | null; feed: { id: number; title: string } | null; link: string; inferred: boolean; partial: boolean; articles: number;
+  rank?: JournalRank | null;
 }
 export type TocSource = '' | 'post' | 'cnki' | 'reprint';
 export type NoticeKind = '会议' | '征稿' | '讲座' | '招聘' | '申报' | '征集' | '活动';
 export interface Replay { bvid: string; title: string; author: string; at: number; minutes: number }
 export interface Notice {
   kind: NoticeKind; name: string; date: string; end: string; deadline: string; place: string; organizer: string; speakers: string[];
-  contact: string; summary: string; online: '' | '线上' | '线上线下'; live: string; replays: Replay[];
+  contact: string; summary: string; online: '' | '线上' | '线上线下'; live: string; time?: string; replays: Replay[];
+  recaps?: PostRef[];
+  rank?: JournalRank | null;   // a journal's call for papers   // write-ups posted after it (server/content/recaps.ts); absent in an older demo snapshot
   status: 'upcoming' | 'open' | 'recorded' | 'past'; next: { what: '截止' | '举办' | '进行中'; date: string } | null; post: PostRef; posts: number;
   own?: { id: number; image: string | null } | null;   // the post about it alone, for its pictures; null: only roundups
   access?: { meeting: string; links: { label: string; url: string }[] };   // how to get in, for what is online and still to come
 }
 export interface UpdateInfo { current: string; latest: string | null; newer: boolean; url: string; error?: string }
-export interface NoticesPage { items: Notice[]; kinds: Count[]; past: number; online: number; reading: number; stalled: boolean }
+export interface NoticesPage { items: Notice[]; kinds: Count[]; past: number; online: number; replayable?: number; reading: number; stalled: boolean }
 // sorting: books whose 类型 and 主题 the AI is still working out; dating: books whose date is being looked up on 豆瓣.
 
 export class ApiError extends Error {}
@@ -260,10 +268,10 @@ export const api = {
   newBooks: (q: { offset: number; limit?: number; byDate: boolean; recentMonths: number; notOwned: boolean; topic: string; kind: string; shelves: boolean; reprintsAll?: boolean }) =>
     call<{ books: NewBook[]; total: number; posts: number; months?: MonthCount[]; topics: Count[]; kinds: Count[]; sorting: number; dating: number }>('GET',
       `/api/books?offset=${q.offset}${q.limit ? `&limit=${q.limit}` : ''}&sort=${q.byDate ? 'date' : 'post'}&recent=${q.recentMonths}&notOwned=${q.notOwned ? 1 : 0}&topic=${encodeURIComponent(q.topic)}&kind=${encodeURIComponent(q.kind)}${q.reprintsAll ? '&reprints=all' : ''}${q.shelves ? '&shelves=1' : ''}`),
-  tocs: (q: { offset: number; journal: string; group?: string; source?: TocSource; reprintsAll?: boolean }) =>
-    call<{ issues: TocIssue[]; total: number; journals: Count[]; sources: Count[]; reading: number; stalled: boolean }>('GET', `/api/tocs?offset=${q.offset}&journal=${encodeURIComponent(q.journal)}&group=${encodeURIComponent(q.group ?? '')}&source=${q.source ?? ''}${q.reprintsAll ? '&reprints=all' : ''}`),
-  notices: (q: { kind: string; past: boolean; online: boolean }) =>
-    call<NoticesPage>('GET', `/api/notices?kind=${encodeURIComponent(q.kind)}&past=${q.past ? 1 : 0}&online=${q.online ? 1 : 0}`),
+  tocs: (q: { offset: number; journal: string; group?: string; source?: TocSource; rank?: RankFilter; reprintsAll?: boolean }) =>
+    call<{ issues: TocIssue[]; total: number; journals: Count[]; sources: Count[]; ranks?: Count[]; school?: string; reading: number; stalled: boolean }>('GET', `/api/tocs?offset=${q.offset}&journal=${encodeURIComponent(q.journal)}&group=${encodeURIComponent(q.group ?? '')}&source=${q.source ?? ''}&rank=${q.rank ?? ''}${q.reprintsAll ? '&reprints=all' : ''}`),
+  notices: (q: { kind: string; past: boolean; online: boolean; replayable?: boolean }) =>
+    call<NoticesPage>('GET', `/api/notices?kind=${encodeURIComponent(q.kind)}&past=${q.past ? 1 : 0}&online=${q.online ? 1 : 0}&replayable=${q.replayable ? 1 : 0}`),
   bookDetails: (b: Pick<ListedBook, 'title' | 'isbn'>) =>
     call<Partial<Pick<ListedBook, 'cover' | 'date' | 'authors' | 'publisher' | 'subject'>> & { fetched?: boolean; error?: string }>('GET', `/api/books/details?title=${encodeURIComponent(b.title)}&isbn=${encodeURIComponent(b.isbn)}`),
   wish: (b: Pick<ListedBook, 'title' | 'isbn' | 'subject'>) => call<{ ok: boolean; subject: string; synced: boolean }>('POST', '/api/books/wish', { title: b.title, isbn: b.isbn, subject: b.subject }),

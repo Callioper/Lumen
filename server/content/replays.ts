@@ -6,6 +6,9 @@ import type { Settings } from '../config.ts';
 import { httpGet, decodeBody } from '../fetch/http.ts';
 import { log } from '../log.ts';
 import { academicNotices, localDay, replayKey, type Notice, type Replay } from './notices.ts';
+import { coreName, namedFor, speakerNames } from './eventname.ts';
+
+export { coreName };
 
 const DAY_S = 86_400;
 // Days after the event a search is due on; after the last, the event is let go.
@@ -27,30 +30,11 @@ const BROWSER = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (K
 export interface Video { bvid: string; title: string; author: string; pubdate: number; duration: string }
 
 const plain = (s: string): string => s.replace(/<[^>]+>/g, '').replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>');
-const squeeze = (s: string): string => s.replace(/[\s\p{P}\p{S}]/gu, '').toLowerCase();
 
 // 「121:52」 or 「1:02:03」 → seconds.
 export function seconds(duration: string): number {
   const parts = duration.split(':').map(Number);
   return parts.some((n) => !Number.isFinite(n)) ? 0 : parts.reduce((s, n) => s * 60 + n, 0);
-}
-
-// The title an event goes by, without its quotes, series and subtitle: 「“一生所念”——2026年第25场知名
-// 学者学术讲座（远川讲座第58讲）」 is 一生所念.
-export function coreName(name: string): string {
-  const bare = name.replace(/[“”"《》「」『』]/g, '').replace(/[（(][^）)]*[）)]/g, '').trim();
-  return bare.split(/——|—|：|:|｜|\|/).map((x) => x.trim()).find(Boolean) ?? bare;
-}
-const speakerNames = (n: Notice): string[] =>
-  [...new Set(n.speakers.map((s) => s.replace(/[（(][^）)]*[）)]/g, '').replace(/(教授|老师|博士|研究员|先生|女士)$/, '').trim()))]
-    .filter((s) => s.length >= MIN_NAME);
-
-// How much of the event's title a video title has: the share of its two-character pieces in it.
-function overlap(core: string, title: string): number {
-  const c = squeeze(core), t = squeeze(title);
-  if (c.length < MIN_NAME) return 0;
-  const pairs = [...c].slice(0, -1).map((ch, i) => ch + c[i + 1]);
-  return pairs.filter((p) => t.includes(p)).length / pairs.length;
 }
 
 // What to ask B站, best first: the title with the first speaker, the speakers, the title alone.
@@ -65,15 +49,9 @@ export function queries(n: Notice): string[] {
 // and named for it (two of its speakers, one and half its title, or nearly all its title).
 export function recordings(n: Notice, videos: readonly Video[]): Video[] {
   const start = new Date(`${n.date}T00:00:00`).getTime() / 1000;
-  const core = coreName(n.name);
-  const names = speakerNames(n);
-  return videos.map((v) => ({ ...v, title: plain(v.title) })).filter((v) => {
-    if (seconds(v.duration) < MIN_MINUTES * 60) return false;
-    if (v.pubdate < start - DAY_S || v.pubdate > start + UPLOADED_WITHIN_DAYS * DAY_S) return false;
-    const named = names.filter((s) => v.title.includes(s)).length;
-    const share = overlap(core, v.title);
-    return named >= 2 || (named >= 1 && share >= 0.5) || (squeeze(core).length >= 4 && share >= 0.8);
-  });
+  return videos.map((v) => ({ ...v, title: plain(v.title) })).filter((v) =>
+    seconds(v.duration) >= MIN_MINUTES * 60 && v.pubdate >= start - DAY_S && v.pubdate <= start + UPLOADED_WITHIN_DAYS * DAY_S
+    && namedFor(n, v.title));
 }
 
 // Due when a day in CHECK_ON_DAYS has come since it was last looked for, and nothing found yet.

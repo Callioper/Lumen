@@ -380,6 +380,7 @@ function FetchTab() {
         <label>HTTP 代理（留空直连；代理连不上会自动退回直连）<input class="input mono" value={form.proxy} onInput={(e) => setForm({ ...form, proxy: (e.currentTarget as HTMLInputElement).value })} /></label>
         <label>RSSHub 地址<input class="input mono" value={form.rsshubBase} onInput={(e) => setForm({ ...form, rsshubBase: (e.currentTarget as HTMLInputElement).value })} /></label>
         <label>wechat2rss 地址（粘贴公众号文章链接时据此找到订阅；留空则不识别）<input class="input mono" value={form.wechat2rssBase} onInput={(e) => setForm({ ...form, wechat2rssBase: (e.currentTarget as HTMLInputElement).value })} /></label>
+        <label>wechat2rss 的局域网地址（在家时这些订阅先走它，连不上自动改走上面的地址；留空不用）<input class="input mono" value={form.wechat2rssLan} placeholder="http://192.168.0.2:8080" onInput={(e) => setForm({ ...form, wechat2rssLan: (e.currentTarget as HTMLInputElement).value })} /></label>
       </div>
       <label class="block">这些域名不走代理<input class="input mono" value={form.noProxy} onInput={(e) => setForm({ ...form, noProxy: (e.currentTarget as HTMLInputElement).value })} /></label>
       <h4>本机的 Zotero 与 OCR</h4>

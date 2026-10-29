@@ -229,8 +229,11 @@ export class Translator {
     this.busy = true;
     try {
       const since = (Math.floor(Date.now() / 1000) - BACKFILL_DAYS * 86400) * 1_000_000;
+      // The recent and the unread, each found by its own index: as one OR the query read the whole table
+      // every PUMP_MS once nothing was left to translate (everything read, the last days done).
       const rows = this.db.prepare(`SELECT id, title, title_zh, content, content_full FROM entry
-        WHERE (id >= ? OR is_read = 0) AND tr_state IS NULL AND ai_state NOT IN (1, 5) ORDER BY id DESC LIMIT ?`).all(since, SCAN_LIMIT) as unknown as Row[];
+        WHERE id IN (SELECT id FROM entry WHERE id >= ? UNION SELECT id FROM entry WHERE is_read = 0)
+          AND tr_state IS NULL AND ai_state NOT IN (1, 5) ORDER BY id DESC LIMIT ?`).all(since, SCAN_LIMIT) as unknown as Row[];
       // Every Chinese entry in the batch is settled at once, so a long translation does not hold them up.
       let next: number | undefined;
       for (const r of rows) {

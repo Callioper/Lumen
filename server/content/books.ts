@@ -23,12 +23,17 @@ const BLURB_LINES = 3;
 const BLURB_CHARS = 400;
 const IMG = /^\[\[img:(.+)\]\]$/;
 // A whole line in 《》, perhaps after a note in brackets: （点击书封图，一键购买）《天桥艺人》
-const TITLE = /^(?:[（(][^）)]{1,20}[）)])?《([^《》]{1,80})》(?:[（(][^）)]{1,12}[）)])?$/;
+// 「01#《…》」「03｜《…》」: a list numbers its title lines (上海三联, 2026-10).
+const TITLE = /^(?:#?\d{1,3}\s*#?[.、．|｜丨]?\s*)?(?:[（(][^）)]{1,20}[）)])?《([^《》]{1,80})》(?:[（(][^）)]{1,12}[）)])?$/;
+// 「68.00元」「¥68」 on its own line: the price, never a title.
+const PRICE = /^(?:定\s*价\s*[:：]?\s*)?[¥￥]?\s*\d{1,4}(?:\.\d{1,2})?\s*元?$/;
+// 「1.《邹韬奋研究（第十三辑）》韬奋纪念馆 编上海三联书店 75.00元 9787542692924」: a list's book in one line.
+const ROW = /^(?:\d{1,3}\s*[.、．·]\s*)?《([^《》]{1,80})》\s*(.*?)\s*([¥￥]?\d{1,4}(?:\.\d{1,2})?元)?\s*(97[89]\d{10})$/;
 const ISBN = /^ISBN\s*[:：]?\s*([0-9Xx-]{10,17})/;
 const LABEL = /^(书名|作者|著者|编者|主编|译者|出版社|出版商|出品方|版本|出版年|出版时间|出版日期|定价|页数|装帧|丛书|副标题|原作名|ISBN)\s*[:：]\s*(.*)$/;
 const LABEL_ONLY = /^(?:书名|作者|著者|编者|主编|译者|出版社|出版商|出品方|出版年|定价|丛书|副标题|原作名)\s*[:：]$/;
 const TRANSLATOR = /(?:译|翻译|编译|译注|审校)$/;
-// 「段义孚 著周尚意译」「刘婷 译中信出版集团」: a role and what follows it run together on one line.
+// 「段义孚 著周尚意译」「刘婷 译松溪出版集团」: a role and what follows it run together on one line.
 // 译林、译文 are publishers, not a translator's role.
 const RUN_ON = /(\s(?:著|编著|主编|编|译(?![林文]))|(?:著|译(?![林文]))(?=\S.*(?:译|审校|出版社|书店|书局|集团|[|｜丨])))(?=[^\s；;，,、）)])/g;
 const PUBLISHER = /[|｜丨]|出版社|出版集团|出版公司|出版中心|书局|书店|印书馆|文献/;
@@ -55,7 +60,7 @@ export function postLines(html: string): string[] {
 const isTitle = (l: string): boolean => TITLE.test(l) || /^书名\s*[:：]/.test(l);
 const titleOf = (l: string): string => (TITLE.exec(l)?.[1] ?? l.replace(/^书名\s*[:：]\s*/, '').replace(/^《|》$/g, '')).trim();
 
-// 「中信出版集团 2026 年 9 月」: the date printed after the publisher goes to its own field.
+// 「松溪出版集团 2026 年 9 月」: the date printed after the publisher goes to its own field.
 function setPublisher(book: ListedBook, l: string, append = false): void {
   const m = /^(.*?)[\s,，]*(\d{4}\s*(?:年|[-./]).*)$/.exec(l);
   const date = m && m[1] ? dateOf(m[2]) : null;
@@ -81,6 +86,7 @@ function readMeta(book: ListedBook, l: string): void {
   }
   const date = dateOf(l);
   if (date) book.date ||= date;
+  else if (PRICE.test(l) && /\d/.test(l)) book.price ||= l;
   else if (TRANSLATOR.test(l)) book.translators ||= l;
   else if (PUBLISHER.test(l) && !/(?:著|编|撰|绘)$/.test(l)) setPublisher(book, l);
   else if (!book.authors) book.authors = l;
@@ -92,13 +98,37 @@ function readMeta(book: ListedBook, l: string): void {
 export const LIST_POST = /书单|好书榜|好书|新书(?!选读)|书讯|荐书|书目|选书|阅读指南/;   // 「新书选读」 is an excerpt with notes
 
 export function extractBooks(html: string, postTitle = ''): ListedBook[] {
-  const lines = postLines(html);
-  const byIsbn = isbnBooks(lines, postTitle);
+  const lines = joinedTitles(postLines(html));
+  const byIsbn = [...isbnBooks(lines, postTitle), ...rowBooks(lines)];
   const listed = byIsbn.length || !LIST_POST.test(postTitle) ? byIsbn : listedBooks(lines);
   const books = listed.length || !LIST_POST.test(postTitle) ? listed : namedBook(lines, postTitle);
   // The same book printed twice in one post (a quote, then its card) is listed once.
   const seen = new Set<string>();
   return books.filter((b) => { const k = b.isbn || b.title.replace(/\s+/g, ''); return !seen.has(k) && !!seen.add(k); });
+}
+
+// 「05#《国家为什么会成功：政府禀赋」 / 「与经济兴衰》」: a title the layout broke over two lines.
+function joinedTitles(lines: string[]): string[] {
+  const out: string[] = [];
+  for (let i = 0; i < lines.length; i++) {
+    const l = lines[i];
+    const next = lines[i + 1] ?? '';
+    const open = l.lastIndexOf('《') > l.lastIndexOf('》');
+    if (open && /^[^《]{1,40}》/.test(next) && l.length + next.length <= 90) { out.push(l + next); i++; } else out.push(l);
+  }
+  return out;
+}
+
+function rowBooks(lines: string[]): ListedBook[] {
+  return lines.map((l) => ROW.exec(l)).filter((m): m is RegExpExecArray => !!m).map(([, title, who, price, isbn]) => {
+    const book = blank(title.trim(), isbn);
+    book.price = price ?? '';
+    // 「韬奋纪念馆 编上海三联书店」「[荷]约翰·赫伊津哈 著 宋宗澳 译 上海三联书店」: a part ends at its role
+    const parts = who.replace(/(编著|主编|著|编|译)(?=\S*(?:出版社|书店|书局|出版集团|印书馆)$)/, '$1\n').replace(/(著|编|译)\s+/g, '$1\n').split('\n')
+      .flatMap((x) => x.split(/\s+(?=\S*(?:出版社|书店|书局|出版集团|印书馆)$)/)).map((x) => x.trim()).filter(Boolean);
+    for (const part of parts) readMeta(book, part);
+    return book;
+  });
 }
 
 const blank = (title: string, isbn = ''): ListedBook =>
@@ -142,7 +172,7 @@ function isbnBooks(lines: string[], postTitle: string): ListedBook[] {
     for (; j > Math.max(floor, at - LOOK_BACK); j--) {
       const l = lines[j - 1];
       const role = l.length <= BY_LINE_CHARS && ROLE_END.test(l) && !!l.replace(ROLE_END, '').trim();
-      if (!(LABEL.test(l) || IMG.test(l) || dateOf(l) || SPEC.test(l) || role)) break;
+      if (!(LABEL.test(l) || IMG.test(l) || dateOf(l) || SPEC.test(l) || PRICE.test(l) || role)) break;
       byLine ||= role;
     }
     const above = j > floor ? lines[j - 1] : '';
@@ -165,7 +195,7 @@ function isbnBooks(lines: string[], postTitle: string): ListedBook[] {
     const book = blank(title, ISBN.exec(lines[at])![1].replace(/-/g, '').toUpperCase());
     const end = n + 1 < blocks.length ? blocks[n + 1].start : lines.length;
     let after = at + 1;
-    const trailing = (l: string): boolean => LABEL.test(l) || /^定\s*价/.test(l) || !!dateOf(l) || SPEC.test(l)
+    const trailing = (l: string): boolean => LABEL.test(l) || /^定\s*价/.test(l) || PRICE.test(l) || !!dateOf(l) || SPEC.test(l)
       || (l.length <= BY_LINE_CHARS && PUBLISHER.test(l) && !/[。！？，]/.test(l));
     while (after < Math.min(end, at + 1 + LOOK_AHEAD) && trailing(lines[after])) after++;
     const meta = [...lines.slice(start + 1, at), ...lines.slice(at + 1, after)];

@@ -17,6 +17,7 @@ export interface Settings {
   noProxy: string[];             // host suffixes that bypass the proxy
   rsshubBase: string;
   wechat2rssBase: string;        // the reader's wechat2rss server, for WeChat links; '' = none
+  wechat2rssLan: string;         // the same server on the home network, tried first for its feeds; '' = none
   zoteroDb: string;              // '' = where Zotero keeps it by default (~/Zotero/zotero.sqlite)
   ocrPython: string;             // the Python the OCR engine runs on; '' = no OCR
   ocrEngine: string;             // the folder holding that engine's `ocr` module (scripts/ocr_images.py)
@@ -110,6 +111,7 @@ export function mergeSettings(cur: Settings, patch: unknown): Settings | string 
   if (next.proxy && !isHttpUrl(next.proxy)) return 'proxy 应为 http(s) 地址或留空';
   if (!isHttpUrl(next.rsshubBase)) return 'rsshubBase 应为 http(s) 地址';
   if (next.wechat2rssBase && !isHttpUrl(next.wechat2rssBase)) return 'wechat2rssBase 应为 http(s) 地址或留空';
+  if (next.wechat2rssLan && !isHttpUrl(next.wechat2rssLan)) return 'wechat2rssLan 应为 http(s) 地址或留空';
   if (!isHttpUrl(next.ai.baseUrl)) return 'ai.baseUrl 应为 http(s) 地址';
   if (!isHttpUrl(next.embedding.baseUrl)) return 'embedding.baseUrl 应为 http(s) 地址';
   if (!next.embedding.model.trim()) return 'embedding.model 不能为空';
@@ -146,6 +148,7 @@ const DEFAULTS: Settings = {
   noProxy: ['localhost', '127.0.0.1', 'cnki.net', 'minimaxi.com', 'hdslb.com', 'qpic.cn', 'qlogo.cn', 'doubanio.com'],   // WeChat's and Douban's image CDNs: 0.3 s direct, up to 12 s through the proxy (10-23)
   rsshubBase: 'http://127.0.0.1:1200',
   wechat2rssBase: '',
+  wechat2rssLan: '',
   zoteroDb: '',
   ocrPython: '',
   ocrEngine: '',

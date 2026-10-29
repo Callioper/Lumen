@@ -146,6 +146,9 @@ export class Embedder {
   private pausedUntil = 0;
   private backoff = BACKOFF_MS;
   private stoppedFor = '';             // key + model that failed for good; changing either resumes
+  // Every entry up to this id has a vector for this model: later rounds look only above it. Without it a
+  // round with nothing left still read the whole table (and the 豆瓣 marks' content) every 30 seconds.
+  private doneUpTo = { model: '', id: 0 };
 
   constructor(db: DB, getSettings: () => Settings, getSecrets: () => Secrets, embed: EmbedFn = embedTexts) {
     this.db = db;
@@ -176,13 +179,18 @@ export class Embedder {
   async runBatch(): Promise<number> {
     const settings = this.getSettings();
     const s = settings.embedding;
+    const above = this.doneUpTo.model === s.model ? this.doneUpTo.id : 0;
+    const newest = (this.db.prepare('SELECT MAX(id) AS id FROM entry').get() as { id: number | null }).id ?? 0;
     const rows = this.db.prepare(`SELECT e.id, e.title, e.title_zh, e.ai_summary, e.content, e.content_full ${PENDING_SQL}
-      ORDER BY e.id DESC LIMIT ?`).all(s.model, s.batchSize) as unknown as (TextRow & { id: number })[];
-    if (!rows.length) return 0;
+      AND e.id > ? ORDER BY e.id DESC LIMIT ?`).all(s.model, above, s.batchSize) as unknown as (TextRow & { id: number })[];
+    // A short batch is all that was left: once it is stored, everything up to `newest` is done.
+    const last = rows.length < s.batchSize;
+    if (!rows.length) { this.doneUpTo = { model: s.model, id: newest }; return 0; }
     const vecs = await this.embed(rows.map(entryText), s, settings, this.getSecrets().embeddingApiKey);
     const put = this.db.prepare('INSERT OR REPLACE INTO embedding (entry_id, model, vec, created) VALUES (?, ?, ?, ?)');
     const now = Math.floor(Date.now() / 1000);
     rows.forEach((r, i) => { put.run(r.id, s.model, toBlob(vecs[i]), now); this.index.add(s.model, r.id, vecs[i]); });
+    if (last) this.doneUpTo = { model: s.model, id: newest };
     return rows.length;
   }
 

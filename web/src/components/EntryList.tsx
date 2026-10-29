@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'preact/hooks';
+import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { items, hasMore, loading, selectedId, open, loadMore, feedsById, selection, tab, app, prefs, setPrefs,
   reloadList, markAllRead, newCount, query, toggleStar, isMarks, isReports, isBooks, isHot, isTocs, isNotices, isHome, layout, defaultLayout, setLayout, markItemsRead,
   scrollRead, setScrollRead, markIdsRead, markAboveRead, scope, notify, recAvailable, sortMode, setSortMode, recMeta, setSearchOrder, searchSince, searchKept, type SearchSince } from '../store.ts';
@@ -326,19 +326,40 @@ async function queuedDigest(ids: number[]): Promise<string> {
 }
 
 // 每日简报: one feed's day as a single block, titles folded. A block of a few lines or more is
-// summed up by AI once it scrolls into view (when AI is on); the others on request. Opened on one
-// feed (a podcast in the sidebar) every block shows in full; in a mixed list a block opens from its title.
+// summed up by AI once it scrolls into view (when AI is on); the others on request. Every block opens
+// in full; in a mixed list a block folds from its title (2026-10-28). A block read to the end while
+// on screen shrinks to its header line and keeps its place, so the list neither grows with what was
+// read nor shifts; it does so once the open entry is elsewhere, and opens again from that line.
 function DigestCard({ b, oneFeed }: { b: DigestBlock<ListItem>; oneFeed: boolean }) {
-  const [expanded, setExpanded] = useState(oneFeed);
+  const [expanded, setExpanded] = useState(true);
+  const [done, setDone] = useState(false);
   const [summary, setSummary] = useState<{ ids: string; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const ref = useRef<HTMLElement>(null);
   const f = b.feedId !== null ? feedsById.value.get(b.feedId) : undefined;
   const unread = b.items.filter((i) => !i.is_read).length;
+  const hadUnread = useRef(unread > 0);
+  useEffect(() => {
+    if (hadUnread.current && !unread) setDone(true);
+    hadUnread.current = unread > 0;
+  }, [unread]);
   const ids = b.items.slice(0, DIGEST_AI_MAX).map((i) => i.id);
   const idsKey = ids.join(',');
   // A block opens by itself when j/k move onto one of its folded entries.
   const holdsSelected = b.items.slice(DIGEST_PREVIEW).some((i) => i.id === selectedId.value);
+  const folded = done && !b.items.some((i) => i.id === selectedId.value);
+  // A block that folds or opens while its top is scrolled out of sight would pull what is being read
+  // up or down by the height it lost; the list scrolls by the same amount instead. Done here rather
+  // than left to the browser's scroll anchoring, which Safari lacks (.digests turns it off).
+  const height = useRef(0);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    const scroller = el?.closest<HTMLElement>('.list-scroll');
+    if (!el || !scroller || !height.current) return;
+    const delta = el.offsetHeight - height.current;
+    if (delta && el.getBoundingClientRect().top < scroller.getBoundingClientRect().top) scroller.scrollTop += delta;
+  }, [folded]);
+  useLayoutEffect(() => { height.current = ref.current?.offsetHeight ?? 0; });
   const shown = expanded || holdsSelected ? b.items : b.items.slice(0, DIGEST_PREVIEW);
   const summarize = async (auto: boolean): Promise<void> => {
     setBusy(true);
@@ -364,6 +385,16 @@ function DigestCard({ b, oneFeed }: { b: DigestBlock<ListItem>; oneFeed: boolean
     io.observe(el);
     return () => io.disconnect();
   }, [auto, idsKey]);
+  if (folded) return (
+    <section ref={ref} class="digest read folded">
+      <button class="digest-head" title="展开这一块" onClick={() => setDone(false)}>
+        {f && !oneFeed && <FeedIcon id={f.id} title={f.title} size={16} />}
+        <span class="digest-title">{oneFeed || !f ? b.day : f.title}</span>
+        {!oneFeed && <span class="digest-day">{b.day}</span>}
+        <span class="digest-count">{b.items.length} 条已读</span>
+      </button>
+    </section>
+  );
   return (
     <section ref={ref} class={cx('digest', unread ? 'unread' : 'read')}>
       <header class="digest-head">

@@ -6,6 +6,7 @@ import type { ChatMessage } from '../ai/llm.ts';
 import { extracted, str, strs, type Extractor, type Post } from './extract.ts';
 import { cnkiIssues, cnkiLinker } from './cnki.ts';
 import { reprintIndex, reprintIssues } from './reprints.ts';
+import { journalRank, rankIs, RANK_FILTERS, type JournalRank, type RankFilter } from './ranks.ts';
 
 // link: the article on CNKI, or a CNKI search for it; lead: the abstract is the opening of the text.
 // abstractFrom: the abstract is the CNKI feed's, the post printing none. reprint: the 人大复印 issue that
@@ -112,6 +113,7 @@ type PostRef = { id: number; title: string; feedId: number; feed: string; publis
 export interface TocIssue extends Toc {
   key: string; source: 'post' | 'cnki' | 'reprint'; at: number; post: PostRef | null; feed: { id: number; title: string } | null;
   link: string; inferred: boolean; partial: boolean; articles: number;
+  rank?: JournalRank | null;         // 期刊等级 (ranks.ts), set on the page's issues
 }
 export interface Count { label: string; n: number; group?: string }
 
@@ -143,7 +145,7 @@ const issueKey = (t: Toc, postId: number): string => (bare(t.issue) ? `${bare(t.
 // Every issue once (an account that posts the same contents twice, or two accounts that both post
 // them), where its newest post stands: the fullest of the copies, a teaser of three articles giving way
 // to the whole contents. Newest first, narrowed to one journal.
-export function journalTocs(db: DB, opts: { journal: string; group?: string; source?: TocSource; humanities?: boolean; offset: number; limit: number }): { issues: TocIssue[]; total: number; journals: Count[]; sources: Count[] } {
+export function journalTocs(db: DB, opts: { journal: string; group?: string; source?: TocSource; rank?: RankFilter; humanities?: boolean; offset: number; limit: number }): { issues: TocIssue[]; total: number; journals: Count[]; sources: Count[]; ranks: Count[] } {
   const link = cnkiLinker(db);
   const reprinted = reprintIndex(db);
   const at = new Map<string, number>();
@@ -185,6 +187,9 @@ export function journalTocs(db: DB, opts: { journal: string; group?: string; sou
   const counts = new Map<string, number>();
   for (const t of all) counts.set(t.journal, (counts.get(t.journal) ?? 0) + 1);
   const journals = [...counts].map(([label, n]) => ({ label, n, group: journalGroup(label) })).sort((a, b) => b.n - a.n || a.label.localeCompare(b.label, 'zh'));
-  const shown = opts.journal ? all.filter((t) => t.journal === opts.journal) : opts.group ? all.filter((t) => journalGroup(t.journal) === opts.group) : all;
-  return { issues: shown.slice(opts.offset, opts.offset + opts.limit), total: shown.length, journals, sources };
+  const rankOf = new Map([...counts.keys()].map((j) => [j, journalRank(j)]));
+  const ranks = RANK_FILTERS.map((f) => ({ label: f, n: all.filter((t) => rankIs(rankOf.get(t.journal) ?? null, f)).length })).filter((c) => c.n > 0);
+  const named = opts.journal ? all.filter((t) => t.journal === opts.journal) : opts.group ? all.filter((t) => journalGroup(t.journal) === opts.group) : all;
+  const shown = opts.rank ? named.filter((t) => rankIs(rankOf.get(t.journal) ?? null, opts.rank!)) : named;
+  return { issues: shown.slice(opts.offset, opts.offset + opts.limit).map((t) => ({ ...t, rank: rankOf.get(t.journal) ?? null })), total: shown.length, journals, sources, ranks };
 }

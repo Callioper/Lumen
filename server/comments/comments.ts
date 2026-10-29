@@ -72,6 +72,13 @@ const ADAPTERS: Adapter[] = [
       const r = obj(await rexxar(`status/${m[1]}/comments?count=${SHOWN}`));
       return { total: num(r.total), comments: list(r.comments).map(doubanComment) };
     } },
+  // A post in a 小组, or in a 话题: a broadcast that shares one links the post, and 豆瓣 keeps the replies there
+  // (the broadcast's own answer is 「该动态此操作已废」). Both are read as a 小组 post.
+  { source: '豆瓣回应', match: /^https?:\/\/www\.douban\.com\/(?:group\/)?topic\/(\d+)/,
+    fetch: async (m) => {
+      const r = obj(await rexxar(`group/topic/${m[1]}/comments?count=${SHOWN}`));
+      return { total: num(r.total), comments: list(r.comments).map(doubanComment) };
+    } },
   { source: '少数派评论', match: /^https?:\/\/sspai\.com\/post\/(\d+)/,
     fetch: async (m) => {
       const r = obj(await getJson(`https://sspai.com/api/v1/comment/user/article/hot/page/get?limit=${SHOWN}&offset=0&article_id=${m[1]}`, {}));

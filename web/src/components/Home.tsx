@@ -4,7 +4,7 @@
 // The Lumen name and the house button open it.
 import { useEffect, useState } from 'preact/hooks';
 import { api, type ListItem, type NewBook, type Notice } from '../api.ts';
-import { app, select, notify, open, detail, feedsById, settingsOpen } from '../store.ts';
+import { app, select, notify, open, detail, selectedId, feedsById, settingsOpen } from '../store.ts';
 import { DEMO_SITE, TOUR, INSTALL, RELEASE_NOTES } from '../links.ts';
 import { NoticeRow, usePoll, md, shownName } from './Journals.tsx';
 import { NoticePreview, ownCover } from './NoticePreview.tsx';
@@ -41,7 +41,17 @@ function useWide(): boolean {
   return wide;
 }
 
+// onPick: the page is wide enough for a preview beside the list (a click shows the row there); else a row
+// opens in place and a card opens its post, both on the page.
 interface Pick { picked: Notice | null; onPick?: (n: Notice) => void }
+
+async function readOwnPost(n: Notice): Promise<void> {
+  try {
+    await open(await api.entry(n.own?.id ?? n.post.id), { listScope: 'home', sortMode: 'latest', position: 0 });
+  } catch (e) {
+    notify((e as Error).message, true);
+  }
+}
 
 function DueList({ title, hint, items, empty, pick }: { title: string; hint: string; items: Notice[]; empty: string; pick: Pick }) {
   return (
@@ -58,14 +68,14 @@ function DueList({ title, hint, items, empty, pick }: { title: string; hint: str
 function TodayCards({ items, pick }: { items: Notice[]; pick: Pick }) {
   const [all, setAll] = useState(false);
   if (!items.length) return null;
-  const label = (n: Notice): string => (n.next!.what === '进行中' ? `进行中 · ${md(n.next!.date)}结束` : n.next!.what === '截止' ? '今天截止' : '今天举办');
+  const label = (n: Notice): string => (n.next!.what === '进行中' ? `进行中 · ${md(n.next!.date)}结束` : n.next!.what === '截止' ? '今天截止' : n.time ? `今天 ${n.time}` : '今天举办');
   return (
     <section class="home-today">
       <h3>今天<small>今天截止、今天举办和正在进行的</small><span class="home-count">{items.length}</span></h3>
       <div class="today-cards">
         {(all ? items : items.slice(0, TODAY_CARDS)).map((n) => (
           <button key={`${n.post.id}:${n.name}`} class={cx('today-card', pick.picked === n && 'picked', n.next!.what === '截止' && 'closing')}
-            onClick={() => (pick.onPick ? pick.onPick(n) : void select({ kind: 'notices' }))}>
+            onClick={() => (pick.onPick ? pick.onPick(n) : void readOwnPost(n))}>
             <span class="today-cover">
               {ownCover(n) ? <img src={proxiedCover(ownCover(n)!, 480)} alt="" loading="lazy" onError={(e) => { (e.currentTarget as HTMLElement).remove(); }} />
                 : <Icon name="calendar" size={22} />}
@@ -202,7 +212,10 @@ export function HomeView() {
   // A reload of the lists brings new objects; keep the pick by what it is.
   const same = picked && (notices ?? []).find((n) => n.post.id === picked.post.id && n.name === picked.name);
   const shown = previewing ? (same ?? first) : null;
-  const pick: Pick = { picked: shown, onPick: previewing ? setPicked : undefined };
+  // With an article open from the preview (读推文), a click on another row closes it and previews that row:
+  // what is picked on the page stays on the page.
+  const onPick = (n: Notice): void => { setPicked(n); if (detail.value) { detail.value = null; selectedId.value = null; } };
+  const pick: Pick = { picked: shown, onPick: wide && a.feeds.length > 0 ? onPick : undefined };
   const unread = a.feeds.reduce((n, f) => n + f.unread, 0);
   const sources = a.feeds.filter((f) => f.unread > 0).length;
   const now = new Date();

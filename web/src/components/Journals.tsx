@@ -1,12 +1,13 @@
 // 期刊目录 and 学术动态: what the AI read out of the academic accounts' posts — each issue's table of
 // contents, and the conferences, calls and talks still to come (server/content/tocs.ts, notices.ts).
 import { useEffect, useRef, useState } from 'preact/hooks';
-import { api, type Count, type Notice, type NoticesPage, type PostRef, type TocArticle, type TocIssue, type TocSource } from '../api.ts';
+import { api, type Count, type Notice, type NoticesPage, type PostRef, type RankFilter, type TocArticle, type TocIssue, type TocSource } from '../api.ts';
 import { open, notify, detail, prefs } from '../store.ts';
 import { FeedIcon } from './Icon.tsx';
 import { NeedsAi } from './NeedsAi.tsx';
 import { daysUntil } from '../due.ts';
 import { cx, safeLink, toneOf } from '../util.ts';
+import { Ranks } from './Ranks.tsx';
 
 const READING_POLL_MS = 20_000;
 const ARTICLES_FOLDED = 8;
@@ -141,6 +142,7 @@ function Issue({ t }: { t: TocIssue }) {
       <header class="toc-head">
         <h3>
           <span class="toc-journal">{t.journal}</span>
+          <Ranks rank={t.rank} />
           <span class="toc-number" title={t.inferred ? '知网 RSS 不写期号，按出刊间隔推算' : undefined}>{t.issue}{t.inferred && <small>推算</small>}</span>
         </h3>
         {link && <a class="btn small toc-issue-cnki" href={link} {...external} title={onJournalPage ? '知网刊物页，刊期浏览里选这一期' : '在知网按刊名检索'}>
@@ -162,6 +164,26 @@ function Issue({ t }: { t: TocIssue }) {
   );
 }
 
+// 期刊等级: only the issues of journals in the current CSSCI, the current 北大核心, AMI 核心 or above, or the
+// school's 权威 list.
+const RANK_LABEL: Record<Exclude<RankFilter, ''>, string> = { cssci: 'C刊', pku: '北核', ami: 'A刊', school: '权威' };
+const RANK_TITLE: Record<Exclude<RankFilter, ''>, string> = { cssci: '现行 CSSCI 来源期刊（不含扩展版）', pku: '现行北大核心',
+  ami: 'AMI 核心及以上（顶级、权威、核心）', school: '学校权威核心期刊目录里的' };
+function RankRow({ list, school, value, onPick }: { list: Count[]; school: string; value: RankFilter; onPick: (v: RankFilter) => void }) {
+  if (!list.length && !value) return null;
+  const label = (k: Exclude<RankFilter, ''>): string => (k === 'school' ? `${school}权威` : RANK_LABEL[k]);
+  return (
+    <nav class="book-topics toc-ranks" aria-label="期刊等级">
+      <span class="toc-ranks-name">等级</span>
+      {list.map((c) => {
+        const k = c.label as Exclude<RankFilter, ''>;
+        return <button key={k} class={cx('chip', value === k && 'active')} aria-pressed={value === k} onClick={() => onPick(value === k ? '' : k)}
+          title={RANK_TITLE[k]}>{label(k)}<small>{c.n}</small></button>;
+      })}
+    </nav>
+  );
+}
+
 const SOURCES: { key: TocSource; label: string }[] = [{ key: '', label: '全部' }, { key: 'post', label: '公众号' }, { key: 'cnki', label: '知网' }, { key: 'reprint', label: '人大复印' }];
 
 // 期刊目录: every issue once, from the accounts' posts and the CNKI feeds, newest first; perhaps of
@@ -170,26 +192,27 @@ export function TocsView() {
   const [journal, setJournal] = useState('');
   const [group, setGroup] = useState('');
   const [source, setSource] = useState<TocSource>('');
+  const [rank, setRank] = useState<RankFilter>('');
   const [issues, setIssues] = useState<TocIssue[]>([]);
-  const [page, setPage] = useState<{ total: number; journals: Count[]; sources: Count[]; reading: number; stalled: boolean } | null>(null);
+  const [page, setPage] = useState<{ total: number; journals: Count[]; sources: Count[]; ranks: Count[]; school: string; reading: number; stalled: boolean } | null>(null);
   const [loading, setLoading] = useState(false);
   const asked = useRef(0);
   const load = async (offset: number, quiet = false): Promise<void> => {
     const n = ++asked.current;
     if (!quiet) setLoading(true);
     try {
-      const r = await api.tocs({ offset, journal, group, source, reprintsAll: prefs.value.reprintsAll });
+      const r = await api.tocs({ offset, journal, group, source, rank, reprintsAll: prefs.value.reprintsAll });
       if (n !== asked.current) return;
       // A quiet ask refreshes the first page and leaves the pages loaded after it alone.
       setIssues((old) => (quiet ? [...r.issues, ...old.slice(r.issues.length)] : [...old.slice(0, offset), ...r.issues]));
-      setPage({ total: r.total, journals: r.journals, sources: r.sources, reading: r.reading, stalled: r.stalled });
+      setPage({ total: r.total, journals: r.journals, sources: r.sources, ranks: r.ranks ?? [], school: r.school ?? '', reading: r.reading, stalled: r.stalled });
     } catch (e) {
       notify((e as Error).message, true);
     } finally {
       if (n === asked.current) setLoading(false);
     }
   };
-  useEffect(() => { setIssues([]); setPage(null); void load(0); }, [journal, group, source]);
+  useEffect(() => { setIssues([]); setPage(null); void load(0); }, [journal, group, source, rank]);
   usePoll(!!(page?.reading || page?.stalled), () => void load(0, true));
   const reading = readingNote(page);
   const count = (k: TocSource): number | undefined => (k ? page?.sources.find((x) => x.label === SOURCES.find((s) => s.key === k)!.label)?.n : undefined);
@@ -211,6 +234,7 @@ export function TocsView() {
             </div>
           </header>
           <JournalRows list={page?.journals ?? []} journal={journal} group={group} onPick={(v) => { setJournal(v.journal); setGroup(v.group); }} />
+          <RankRow list={page?.ranks ?? []} school={page?.school ?? ''} value={rank} onPick={setRank} />
           {reading && <p class="muted small toc-reading">{reading}</p>}
           {page?.total === 0 && <p class="muted empty">{page.reading ? '正在从推文里读目录…' : '还没有期刊目录。'}</p>}
           {page?.total === 0 && <NeedsAi what="知网 RSS 的目录不用 AI；从公众号推文里读目录，" />}
@@ -279,14 +303,19 @@ export function Live({ n }: { n: Notice }) {
 }
 
 export function Replays({ n }: { n: Notice }) {
-  if (!n.replays.length) return null;
+  const recaps = n.recaps ?? [];
   return (
-    <p class="notice-replays"><b>B站录像</b>
+    <>
+      {n.replays.length > 0 && <p class="notice-replays"><b>B站录像</b>
       {n.replays.slice(0, 3).map((v) => (
         <a key={v.bvid} href={`https://www.bilibili.com/video/${v.bvid}`} target="_blank" rel="noopener noreferrer"
           title={`${v.author} · ${v.minutes} 分钟`}>{v.title}<small>{v.minutes} 分钟</small></a>
       ))}
-    </p>
+      </p>}
+      {recaps.length > 0 && <div class="notice-replays notice-recaps"><b>纪要</b>
+        {recaps.slice(0, 3).map((p) => <FromPost key={p.id} post={p} scope="notices" extra={p.title} />)}
+      </div>}
+    </>
   );
 }
 
@@ -296,7 +325,7 @@ export function Replays({ n }: { n: Notice }) {
 export function NoticeRow({ n, picked, onPick }: { n: Notice; picked?: boolean; onPick?: (n: Notice) => void }) {
   const [opened, setOpen] = useState(false);
   const open = opened && !onPick;
-  const dates = [n.date && `${md(n.date)}${n.end ? `–${md(n.end)}` : ''}举办`, n.deadline && `${md(n.deadline)}截止`].filter(Boolean).join('，');
+  const dates = [n.date && `${md(n.date)}${n.time && !n.end ? ` ${n.time}` : ''}${n.end ? `–${md(n.end)}` : ''}举办`, n.deadline && `${md(n.deadline)}截止`].filter(Boolean).join('，');
   const brief = [dates, n.place, n.organizer].filter(Boolean);
   const remote = !!n.online && n.status === 'upcoming';
   return (
@@ -307,8 +336,10 @@ export function NoticeRow({ n, picked, onPick }: { n: Notice; picked?: boolean; 
         <span class="notice-body">
           <span class="notice-head">
             <span class={`notice-kind ${toneOf(n.kind)}`}>{n.kind}</span>
+            <Ranks rank={n.rank} />
             {remote && <span class="notice-onair">{n.online === '线上' ? '线上' : '直播'}</span>}
             {n.replays.length > 0 && <span class="notice-kind tone-teal">有录像</span>}
+            {(n.recaps?.length ?? 0) > 0 && <span class="notice-kind tone-teal">有纪要</span>}
             <span class="notice-name">{shownName(n.name)}</span>
           </span>
           {brief.length > 0 && <span class="notice-facts">{brief.map((f) => <span key={f}>{f}</span>)}</span>}
@@ -354,18 +385,20 @@ export function NoticesView() {
   const [kind, setKind] = useState('');
   const [past, setPast] = useState(false);
   const [online, setOnline] = useState(false);
+  // 可回看: only what is over and has a recording or a write-up, however long ago; the other two then step aside.
+  const [again, setAgain] = useState(false);
   const [page, setPage] = useState<NoticesPage | null>(null);
   const asked = useRef(0);
   const load = async (): Promise<void> => {
     const n = ++asked.current;
     try {
-      const r = await api.notices({ kind, past, online });
+      const r = await api.notices({ kind, past: past && !again, online: online && !again, replayable: again });
       if (n === asked.current) setPage(r);
     } catch (e) {
       notify((e as Error).message, true);
     }
   };
-  useEffect(() => { void load(); }, [kind, past, online]);
+  useEffect(() => { void load(); }, [kind, past, online, again]);
   usePoll(!!(page?.reading || page?.stalled), () => void load());
   const reading = readingNote(page);
   return (
@@ -376,13 +409,15 @@ export function NoticesView() {
             <h2>学术动态</h2>
             {page && <span class="muted">{page.items.length} 项</span>}
             <span class="grow" />
-            <button class={cx('btn small', online && 'primary')} aria-pressed={online} onClick={() => setOnline(!online)}
+            <button class={cx('btn small', online && !again && 'primary')} aria-pressed={online && !again} onClick={() => { setOnline(!online || again); setAgain(false); }}
               title="线上举办或另有直播的，还没开始的">可线上看{page && !online && page.online > 0 ? ` ${page.online}` : ''}</button>
-            <button class={cx('btn small', past && 'primary')} aria-pressed={past} onClick={() => setPast(!past)}
+            <button class={cx('btn small', past && !again && 'primary')} aria-pressed={past && !again} onClick={() => { setPast(!past || again); setAgain(false); }}
               title="截止日和举办日都已过的">含已过{page && !past && page.past > 0 ? ` ${page.past}` : ''}</button>
+            {(again || (page?.replayable ?? 0) > 0) && <button class={cx('btn small', again && 'primary')} aria-pressed={again} onClick={() => setAgain(!again)}
+              title="已经结束、在 B站找到了录像或有公众号发了纪要的，不论多久以前">可回看{page && !again && page.replayable ? ` ${page.replayable}` : ''}</button>}
           </header>
           <Chips list={page?.kinds ?? []} value={kind} onPick={setKind} label="按类别" note={reading} />
-          {page?.items.length === 0 && <p class="muted empty">{page.reading ? '正在从推文里找会议、征稿和讲座…' : online ? '没有还没开始、能线上看的。' : '没有尚未到期的学术动态。'}</p>}
+          {page?.items.length === 0 && <p class="muted empty">{page.reading ? '正在从推文里找会议、征稿和讲座…' : again ? '还没有找到录像或纪要的。' : online ? '没有还没开始、能线上看的。' : '没有尚未到期的学术动态。'}</p>}
           {page?.items.length === 0 && !page.reading && <NeedsAi what="会议、征稿和讲座是 AI 从推文里读出来的，" />}
           {noticeSections(page?.items ?? []).map((sec) => (
             <section key={sec.key} class="notice-group">
