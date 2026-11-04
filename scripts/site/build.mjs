@@ -7,7 +7,7 @@
 import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { marked } from 'marked';
+import { changelogMain, latestBlock, parseChangelog } from './changelog.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const SITE = join(ROOT, 'site');
@@ -22,9 +22,11 @@ mkdirSync(out, { recursive: true });
 const changelog = readFileSync([join(ROOT, 'CHANGELOG.md'), join(ROOT, 'release', 'CHANGELOG.md')].find((p) => existsSync(p)), 'utf8');
 const versions = [...changelog.matchAll(/^## (v\d[^\s]*)\s*\n+<!-- news: (.+?) -->/gm)].map((m) => ({ tag: m[1], news: m[2].trim() }));
 if (versions[0]?.tag !== `v${version}`) throw new Error(`CHANGELOG.md 最上面一节应是 v${version}（带 <!-- news: … --> 一行），现在是 ${versions[0]?.tag ?? '空'}`);
-const html = readFileSync(join(SITE, 'index.html'), 'utf8').replaceAll('{{VERSION}}', version).replaceAll('{{NEWS}}', versions[0].news);
+const log = parseChangelog(changelog);
+const html = readFileSync(join(SITE, 'index.html'), 'utf8').replaceAll('{{VERSION}}', version).replaceAll('{{NEWS}}', versions[0].news)
+  .replace('{{LATEST}}', latestBlock(log));
 writeFileSync(join(out, 'index.html'), html);
-writeFileSync(join(out, 'releases.html'), releasesPage(html, changelog, versions));
+writeFileSync(join(out, 'releases.html'), releasesPage(html, log));
 for (const f of ['site.css', 'story.css', 'story.js']) cpSync(join(SITE, f), join(out, f));
 cpSync(join(ROOT, 'web/public/favicon.svg'), join(out, 'favicon.svg'));
 for (const dir of ['images', 'media']) cpSync(join(SITE, dir), join(out, dir), { recursive: true });
@@ -35,8 +37,8 @@ cpSync(demo, join(out, 'demo'), { recursive: true });
 console.log(`主页 v${version}＋演示站 → ${out}`);
 
 // The release notes in the home page's dress: its head, header and footer, the in-page links pointed
-// back at the home page, each version an anchor (releases.html#v0.2.0) listed down the side.
-function releasesPage(home, md, versions) {
+// back at the home page; each version an anchor (releases.html#v0.2.0). The page itself: changelog.mjs.
+function releasesPage(home, log) {
   const part = (re) => { const m = re.exec(home); if (!m) throw new Error(`主页里找不到 ${re}`); return m[0]; };
   const head = part(/^[\s\S]*?<\/head>/)
     .replace(/<title>[^<]*<\/title>/, '<title>更新日志 · Lumen</title>')
@@ -45,16 +47,10 @@ function releasesPage(home, md, versions) {
   const home_ = (s) => s.replace(/href="#/g, 'href="./#').replace('<a href="releases.html">', '<a href="releases.html" aria-current="page">');
   const header = home_(part(/<header class="top">[\s\S]*?<\/header>/));
   const footer = home_(part(/<footer class="foot">[\s\S]*?<\/footer>/));
-  const body = marked.parse(md).replace(/<h2>(v\d[^<]*)<\/h2>/g, '<h2 id="$1">$1</h2>');
-  const toc = versions.map((v) => `<li><a href="#${v.tag}">${v.tag}</a></li>`).join('');
   return `${head}
-<body>
+<body class="cl-page">
 ${header}
-<main class="notes-page">
-<nav class="notes-toc" aria-label="版本"><p>版本</p><ol>${toc}</ol></nav>
-<article class="notes">
-${body}</article>
-</main>
+${changelogMain(log)}
 ${footer}
 </body>
 </html>
