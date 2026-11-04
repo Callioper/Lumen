@@ -4,7 +4,7 @@ import { effect, signal } from '@preact/signals';
 import './styles.css';
 import { TOKEN_NAMES, tokensOf, paletteOf, DEFAULT_PALETTE } from './themes.ts';
 import { app, prefs, detail, isReports, isMarks, markGroups, selectedMark, subjectTrail, marksBack, marksHome, boardOpen, selectedId, items, toast, settingsOpen, viewMode, refreshState, reloadList, connectEvents, openFromHash,
-  step, setRead, toggleStar, toggleReaction, markAllRead, markAboveRead, runAi, clipToObsidian, quickShare, cycleTranslation, share, notify, navOpen } from './store.ts';
+  step, setRead, toggleStar, toggleReaction, markAllRead, markAboveRead, runAi, clipToObsidian, clipMenu, quickShare, cycleTranslation, share, notify, navOpen } from './store.ts';
 import { Icon } from './components/Icon.tsx';
 import { ShareDialog } from './share/ShareDialog.tsx';
 import { SharePage } from './share/SharePage.tsx';
@@ -70,6 +70,7 @@ function onKey(e: KeyboardEvent): void {
     case 'K': if (e.shiftKey) void markAboveRead(); break;
     case 'v': void runAi({ fulltext: true }); break;
     case 'c': void clipToObsidian(); break;
+    case 'C': if (e.shiftKey && detail.value) clipMenu.value = true; break;
     case 'l': void toggleReaction('like'); break;
     case 'x': void toggleReaction('less_topic'); break;
     case 'X': void toggleReaction('less_source'); break;

@@ -19,9 +19,11 @@ export interface Settings {
   embedding: { enabled: boolean; baseUrl: string; model: string; batchSize: number; intervalMs: number };
   translate: { enabled: boolean; model: string; minChars: number; maxChars: number; shareCards: boolean };
   clip: { vaultPath: string; pathTemplate: string; bodyTemplate: string; aiAnalysis: boolean; analysisModel: string; thinking: boolean;
-    aiMetadata: boolean; downloadImages: boolean; imageFolder: string; tagLibrary: string; nameLibrary: string; authorsFolder: string; reportFolder: string };
+    aiMetadata: boolean; downloadImages: boolean; imageFolder: string; tagLibrary: string; nameLibrary: string; authorsFolder: string; reportFolder: string;
+    lectureFolder: string; meetingFolder: string; eventBodyTemplate: string };
 }
-export interface ClipResult { path: string; relPath: string; existed: boolean; analysis: 'queued' | 'off' | 'no-key' | 'skipped' }
+export type ClipMode = 'auto' | 'article' | 'lecture' | 'meeting';
+export interface ClipResult { path: string; relPath: string; existed: boolean; analysis: 'queued' | 'off' | 'no-key' | 'skipped' | 'event'; template?: 'article' | '讲座' | '会议'; notes?: string[]; added?: boolean }
 export interface Job {
   id: number; kind: 'clip' | 'ai'; entryId: number; title: string; state: 'running' | 'done' | 'failed';
   step: string; startedAt: number; finishedAt?: number; error?: string; notePath?: string;
@@ -228,7 +230,7 @@ export const api = {
   markAll: (s: Scope, upTo?: number) => call<{ count: number }>('POST', '/api/entries/mark-all', { ...s, upTo }),
   translate: (id: number, source: 'full' | 'feed') => call<EntryDetail>('POST', `/api/entries/${id}/translate`, { source }),
   ai: (id: number, tasks: { summary?: boolean; title?: boolean; classify?: boolean; fulltext?: boolean }) => call<EntryDetail>('POST', `/api/entries/${id}/ai`, tasks),
-  clip: (id: number, selectedText: string) => call<ClipResult>('POST', `/api/entries/${id}/clip`, { selectedText }),
+  clip: (id: number, selectedText: string, mode: ClipMode = 'auto') => call<ClipResult>('POST', `/api/entries/${id}/clip`, { selectedText, mode }),
   discover: (url: string) => call<{ candidates: DiscoverCandidate[] }>('POST', '/api/feeds/discover', { url }),
   addFeed: (f: { url: string; title?: string; category_id?: number | null; view?: View }) => call<{ id: number; fetch: { ok: boolean; added: number; error?: string } }>('POST', '/api/feeds', f),
   updateFeed: (id: number, patch: Partial<Feed>) => call('PATCH', `/api/feeds/${id}`, patch),

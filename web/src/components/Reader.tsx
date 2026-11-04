@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef } from 'preact/hooks';
-import { detail, selectedId, markAboveRead, setRead, toggleStar, toggleReaction, runAi, open, openShare, prefs, setPrefs, app, feedsById, select, viewMode, clipToObsidian, clipping, isMarks, isReports,
+import { detail, selectedId, markAboveRead, setRead, toggleStar, toggleReaction, runAi, open, openShare, prefs, setPrefs, app, feedsById, select, viewMode, clipToObsidian, clipping, clipMenu, isMarks, isReports,
   showFull, translating, hasTranslation, cycleTranslation, translateEntry, translateOnOpen, items as listItems, sortMode, selection, tab, recAvailable, scope, type TrView } from '../store.ts';
 import { effectiveLayout } from '../layout.ts';
 import { MarkDetail, actionLine } from './Marks.tsx';
 import { reportKind } from '../reports.ts';
 import { cnkiTitleUrl } from '../cnki.ts';
-import { api, type ListItem, type EntryDetail, type Reaction, type RelatedItem, type SubjectMarks, type Comment, type Comments } from '../api.ts';
+import { api, type ListItem, type EntryDetail, type Reaction, type RelatedItem, type SubjectMarks, type Comment, type Comments, type ClipMode } from '../api.ts';
 import { PageTags } from './PageTags.tsx';
 import { TopFeeds, AiTags, RecList, topFeeds, topAiTags } from './Overview.tsx';
 import { BookList } from './Books.tsx';
@@ -100,6 +100,46 @@ function Reactions({ d }: { d: EntryDetail }) {
         )}
       </div>
     </>
+  );
+}
+
+// 存档: a click archives with the template the post calls for (a 讲座 or 会议 学术动态 read, else an
+// article); right click or Shift+C picks one.
+const CLIP_CHOICES: { mode: ClipMode; label: string; hint: string; kbd?: string }[] = [
+  { mode: 'auto', label: '自动判断', hint: '学术动态读出的讲座、会议按对应模板，其他按文章', kbd: 'c' },
+  { mode: 'article', label: '按文章存', hint: '存进剪藏，后台写 AI 分析' },
+  { mode: 'lecture', label: '按讲座存', hint: '主讲人｜题目（日期），存进讲座文件夹' },
+  { mode: 'meeting', label: '按会议存', hint: '题目（日期），存进会议文件夹' },
+];
+
+function ClipButton({ archived }: { archived: boolean }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const isOpen = clipMenu.value;
+  useEffect(() => {
+    if (!isOpen) return;
+    const close = (e: MouseEvent): void => { if (!ref.current?.contains(e.target as Node)) clipMenu.value = false; };
+    const esc = (e: KeyboardEvent): void => { if (e.key === 'Escape') clipMenu.value = false; };
+    document.addEventListener('mousedown', close);
+    document.addEventListener('keydown', esc);
+    return () => { document.removeEventListener('mousedown', close); document.removeEventListener('keydown', esc); };
+  }, [isOpen]);
+  return (
+    <div class="layout-pick" ref={ref}>
+      <button class={cx('icon-btn', archived && 'on')} title="存档到 Obsidian (c 自动判断模板 · 右键或 Shift+C 选模板)" aria-haspopup="menu" aria-expanded={isOpen}
+        onClick={() => void clipToObsidian()} onContextMenu={(e) => { e.preventDefault(); clipMenu.value = true; }} disabled={clipping.value}>
+        {clipping.value ? <span class="spinner sm" /> : <Icon name="archive" />}
+      </button>
+      {isOpen && (
+        <div class="menu" role="menu">
+          {CLIP_CHOICES.map((o) => (
+            <button key={o.mode} role="menuitem" class="menu-item" onClick={() => { clipMenu.value = false; void clipToObsidian(o.mode); }}>
+              <span class="menu-text"><b>{o.label}</b><small>{o.hint}</small></span>
+              {o.kbd && <kbd>{o.kbd}</kbd>}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -369,9 +409,7 @@ function EntryReader() {
         <button class={cx('icon-btn', showFull.value && 'on')} title={d.content_full ? '切换全文 / 摘录' : '抓取全文'} onClick={() => void toggleFull()} disabled={fetchingFull || !link}>
           {fetchingFull ? <span class="spinner sm" /> : <Icon name="doc" />}
         </button>
-        <button class={cx('icon-btn', d.tags.some((t) => t.source === 'clip') && 'on')} title="存档到 Obsidian (c)" onClick={() => void clipToObsidian()} disabled={clipping.value}>
-          {clipping.value ? <span class="spinner sm" /> : <Icon name="archive" />}
-        </button>
+        <ClipButton archived={d.tags.some((t) => t.source === 'clip')} />
         {foreign && <TranslateButton d={d} view={trView} />}
         <button class="icon-btn" title="分享图（p 直接复制）" disabled={d.loading} onClick={openShare}><Icon name="share" /></button>
         <button class={cx('icon-btn', prefs.value.serif && 'on')} title="衬线字体" onClick={() => setPrefs({ serif: !prefs.value.serif })}>

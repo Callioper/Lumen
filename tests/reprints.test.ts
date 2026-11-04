@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { openDb } from '../server/db.ts';
 import { boxesToLines, postImages, type OcrBox } from '../server/content/ocr.ts';
-import { readReprints, reprintIndex, reprintBookIndex, bookAuthorNames, isHumanities, REPRINT_VERSION } from '../server/content/reprints.ts';
+import { readReprints, reprintIndex, reprintBookIndex, bookAuthorNames, isHumanities, REPRINT_VERSION, monthOfPost } from '../server/content/reprints.ts';
 import { journalTocs, journalGroup, TOC_VERSION } from '../server/content/tocs.ts';
 
 const box = (x0: number, y0: number, x1: number, text: string, h = 24): OcrBox =>
@@ -96,4 +96,9 @@ test('a book shows 人大复印 for an article naming it, or one by its author; 
   assert.equal(all({ title: '课堂', authors: '赵六 著' })?.author?.label, '人大复印《初中语文教与学》2026年第9期');
   assert.equal(reprintBookIndex(db, true)({ title: '课堂', authors: '赵六 著' }), undefined);
   assert.equal(all({ title: '无关', authors: '钱七' }), undefined);
+});
+
+test('a contents page with no issue printed is dated by its post\'s month, not given a 期', () => {
+  assert.equal(monthOfPost('关注 | 人大复印报刊资料2026年10月全文转载文章目录'), '2026年10月');
+  assert.equal(monthOfPost('抢鲜看 | 人大复印报刊资料最新目录与文章摘要'), '');
 });

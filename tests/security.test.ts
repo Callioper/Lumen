@@ -14,7 +14,8 @@ const SETTINGS: Settings = {
   embedding: { enabled: false, baseUrl: 'https://api.example.com/v1', model: 'e', batchSize: 16, intervalMs: 2000 },
   translate: { enabled: false, model: 't', minChars: 300, maxChars: 30000, shareCards: false },
   clip: { ...DEFAULT_CLIP, aiAnalysis: false, analysisModel: '', thinking: false, aiMetadata: false, downloadImages: false,
-    imageFolder: 'img', tagLibrary: 'tags.md', nameLibrary: 'names.md', authorsFolder: 'authors', reportFolder: 'reports' },
+    imageFolder: 'img', tagLibrary: 'tags.md', nameLibrary: 'names.md', authorsFolder: 'authors', reportFolder: 'reports',
+    lectureFolder: 'lectures', meetingFolder: 'meetings', eventBodyTemplate: 'x' },
 };
 
 test('private IPv4 ranges are blocked, public ones are not', () => {

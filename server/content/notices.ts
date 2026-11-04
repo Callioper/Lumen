@@ -60,6 +60,9 @@ ${text}`;
 
 // An article titled as a notice (LIKE ignores ASCII case, so CFP is cfp), or a post that speaks of
 // one (豆瓣's 想读 / 看过 marks aside), and not said to be over.
+// An article title 学术动态 reads: one that names a notice and does not say it is over.
+export const looksLikeNotice = (title: string): boolean => TITLE_HINTS.some((w) => title.toLowerCase().includes(w.toLowerCase())) && !OVER.test(title);
+
 function candidates(db: DB, since: number): Post[] {
   const like = (col: string, words: readonly string[]): string => words.map(() => `${col} LIKE ?`).join(' OR ');
   const args = (words: readonly string[]): string[] => words.map((w) => `%${w}%`);
@@ -131,6 +134,7 @@ export interface NoticeView extends Notice {
   // The post that is about this notice alone, for its cover and pictures; null when every post it was
   // read from is a roundup, whose pictures belong to none of the notices in it.
   own: { id: number; image: string | null } | null;
+  postIds?: number[];                // every post it was read from
 }
 export interface Count { label: string; n: number }
 
@@ -253,7 +257,7 @@ export function academicNotices(db: DB, opts: { kind: string; past: boolean; onl
     const own = ownId === undefined ? null : { id: ownId, image: posts.get(ownId)!.image };
     // 「《文艺研究》2027年征稿」 is the journal's; a call named for the journal alone is too.
     const rank = v.kind === '征稿' ? (calledJournal(v.name) ? journalRank(calledJournal(v.name)) : journalRank(v.name, { exact: true })) : undefined;
-    const out: NoticeView = { ...v, own, next, rank, replays: found, recaps: written, status: (next ? 'upcoming' : recorded ? 'recorded' : dated ? 'past' : 'open') as NoticeStatus };
+    const out: NoticeView = { ...v, own, next, rank, replays: found, recaps: written, postIds: ids, status: (next ? 'upcoming' : recorded ? 'recorded' : dated ? 'past' : 'open') as NoticeStatus };
     postsOf.set(out, ids);
     return out;
   });
@@ -286,4 +290,12 @@ export function academicNotices(db: DB, opts: { kind: string; past: boolean; onl
   const items = shown.filter((v) => (!opts.kind || v.kind === opts.kind) && (!opts.online || remote(v))).map(withAccess).map(withTime);
   const live = all.filter((v) => v.status !== 'past');
   return { items, kinds, past: all.length - live.length, online: live.filter(remote).length, replayable: all.filter(again).length };
+}
+
+// The events a post is about: read from it (role 'own'), or written up in it after the day ('recap').
+export interface PostEvent { view: NoticeView; role: 'own' | 'recap' }
+export function eventsOfPost(db: DB, id: number, now = new Date()): PostEvent[] {
+  return academicNotices(db, { kind: '', past: true, now }).items.flatMap((view): PostEvent[] =>
+    (view.postIds ?? [view.post.id]).includes(id) ? [{ view, role: 'own' }]
+      : view.recaps.some((r) => r.id === id) ? [{ view, role: 'recap' }] : []);
 }

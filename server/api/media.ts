@@ -7,6 +7,7 @@ import { isPrivateHostname, BlockedAddressError } from '../fetch/guard.ts';
 import { ImageCache } from './imgcache.ts';
 import { EFFECTIVE_LAYOUT_SQL } from './queries.ts';
 import { log } from '../log.ts';
+import { backgroundDoubanTurn, isRefusal, doubanRefused, doubanAnswered } from '../fetch/doubanpace.ts';
 
 export const ICON_DIR = join(DATA_DIR, 'icons');
 const NEGATIVE_TTL_MS = 86_400_000;
@@ -201,11 +202,14 @@ const DOUBAN_PERSON = /^rsshub:\/\/douban\/people\/(\d+)\//;
 const MOBILE_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1';
 async function doubanAvatar(feedUrl: string, settings: Settings): Promise<string | null> {
   const id = DOUBAN_PERSON.exec(feedUrl)?.[1];
-  if (!id) return null;
+  // A background ask: it waits its turn among the requests of 豆瓣, and none while 豆瓣 refuses (doubanpace.ts).
+  if (!id || !(await backgroundDoubanTurn())) return null;
   try {
     const res = await httpGet(`https://m.douban.com/rexxar/api/v2/user/${id}?for_mobile=1`, settings, {
       timeoutMs: 10000, publicOnly: true, headers: { referer: `https://m.douban.com/people/${id}/`, 'user-agent': MOBILE_UA } });
+    if (isRefusal(res.status)) doubanRefused();
     if (res.status !== 200) return null;
+    doubanAnswered();
     const u = JSON.parse(res.body.toString('utf8')) as { avatar?: string; large_avatar?: string };
     return u.avatar || u.large_avatar || null;
   } catch {

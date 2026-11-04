@@ -136,3 +136,82 @@ test('the same list\'s one-line rows: 「N.《书名》作者 出版社 定价 I
   assert.deepEqual([c.authors, c.publisher, c.price, c.isbn], ['松溪纪念馆 编', '松溪书店', '75.00元', '9787000000087']);
   assert.deepEqual([d.authors, d.isbn], ['杨秋 著', '9787000000094']);
 });
+
+test('a weekly list whose covers sit between each title and its labels', () => {
+  const html = ['01', '《林中之狼》', '[[img:https://x/1]]', '作者: 卡尔·维克', '出版社: 松溪书店', '出版年: 2026-10', '一部小说。',
+    '02', '《小出游》', '[[img:https://x/2]]', '作者: 伊夫·沃', '出版社: 海峡出版社', '03', '《水泥地》', '[[img:https://x/3]]', '作者: 托马·伯恩', '出版社: 松溪人民出版社']
+    .map((l) => (l.startsWith('[[img:') ? `<img src="${l.slice(6, -2)}">` : `<p>${l}</p>`)).join('');
+  const books = extractBooks(html, '一周新书精选（10.22—10.28）');
+  assert.deepEqual(books.map((b) => [b.title, b.authors, b.publisher, b.cover]), [
+    ['林中之狼', '卡尔·维克', '松溪书店', 'https://x/1'], ['小出游', '伊夫·沃', '海峡出版社', 'https://x/2'], ['水泥地', '托马·伯恩', '松溪人民出版社', 'https://x/3']]);
+});
+
+test('a review titled 「某某评《书名》」 gives the book its card under the title', () => {
+  const html = p('导语一句。', '《双影记》', '[俄]费·陀氏著', '李春译', '松溪译文出版社', '2026年3月出版', '256页，48.00元', '━━━━', '文︱孙某', '一段很长的书评正文，说的是这本小说怎样写一个人分裂成两个人的故事。');
+  const [b] = extractBooks(html, '孙某评《双影记》丨如何与另外一个自己共处？');
+  assert.deepEqual([b.title, b.authors, b.translators, b.publisher, b.date, b.price], ['双影记', '[俄]费·陀氏著', '李春译', '松溪译文出版社', '2026年3月', '48.00元']);
+});
+
+test('a review\'s card with its title bare and broken at the colon; a web novel\'s card is no book', () => {
+  const html = p('导语。', '海湾五千年：', '全球史视野下的海湾', '[美]艾伦·弗洛著', '马百译', '松溪出版社', '2026年1月出版', '320页，79.00元', '━━━━', '文︱张某');
+  assert.deepEqual(extractBooks(html, '张某评《海湾五千年》｜风从海上来').map((b) => [b.title, b.publisher, b.price]), [['海湾五千年：全球史视野下的海湾', '松溪出版社', '79.00元']]);
+  const novel = p('《泼墨行》', '作者：张某西', '标签：民俗志异', '点评人：何某');
+  assert.deepEqual(extractBooks(novel, '双年榜｜评《泼墨行》：小修士还能做大侠吗？'), []);
+});
+
+test('a book\'s preface posted on its own: the byline 「某某主编：《书名》」 and the publisher under it', () => {
+  const html = p('导语一句。', '赵某 吴某主编：《精读范例：跨文化视野》', '松溪大学出版社，2026年', '传播学的未来', '本书是两季读书会讨论内容的精编，很长很长的一段序言正文从这里开始。');
+  assert.deepEqual(extractBooks(html, '赵某 吴某｜旧事物正在消亡').map((b) => [b.title, b.authors, b.publisher, b.date]),
+    [['精读范例：跨文化视野', '赵某 吴某主编', '松溪大学出版社', '2026年']]);
+  // the same byline deep in an essay is a book it cites, not the post's
+  const essay = p(...Array.from({ length: 12 }, (_, i) => `第${i}段正文，说了很多话。`), '某某著：《别的书》', '松溪出版社，2020年');
+  assert.deepEqual(extractBooks(essay, '一篇随笔'), []);
+});
+
+test('「新书速递 | 《书名》」: the book its title names, with what a citation line in the post says of it', () => {
+  const html = p('新书速递 | 《鼎革之风：巴黎，1748—1789》', '[1] 书籍信息', '[美]罗伯特·达某，《鼎革之风：巴黎，1748—1789》，张某 译，松溪大学出版社，2026年9月', '[2] 作者简介', '罗伯特·达某，当代新文化史巨擘。');
+  assert.deepEqual(extractBooks(html, '新书速递 | 《鼎革之风》').map((b) => [b.title, b.authors, b.translators, b.publisher, b.date]),
+    [['鼎革之风：巴黎，1748—1789', '[美]罗伯特·达某', '张某 译', '松溪大学出版社', '2026年9月']]);
+  // only the name, where the post says nothing more of it
+  assert.deepEqual(extractBooks(p('一段导语。'), '新书荐读｜《人性之镜：简明人类学》').map((b) => b.title), ['人性之镜：简明人类学']);
+  // a talk about a new book is not one
+  assert.deepEqual(extractBooks(p('一段导语。'), '《世界的一日》新书分享会'), []);
+});
+
+test('「每日一书 | 书名」: a labelled card with no title line takes the name after the column\'s bar', () => {
+  const html = p('基本信息', '作者：【斯洛文尼亚】 某某·某某', '译者：林某', '出版社：松溪出版集团', '出版时间：2026.10', 'ISBN：9787521772395', '页数：328', '主要内容', '一段介绍。');
+  assert.deepEqual(extractBooks(html, '每日一书 | 自由是一种没治的病').map((b) => [b.title, b.publisher, b.isbn]),
+    [['自由是一种没治的病', '松溪出版集团', '9787521772395']]);
+  // a bar in a title that is not a book column names nothing
+  assert.deepEqual(extractBooks(html, '学术活动 | 自由是一种没治的病').map((b) => b.title), []);
+});
+
+test('豆瓣\'s card copied with spaces for colons: 「出版年 2026-9」 above the ISBN is not the title', () => {
+  const html = p('每日一书', '基本信息', '作者 林某', '出版社 松溪出版集团', '出版年 2026-9', 'ISBN 9787108084422', '页数 576页', '内容简介', '一段介绍。', '目录', '向下滑动查看更多', '第一章');
+  const [book] = extractBooks(html, '每日一书｜“批评”的想象力：两个人与一个时代');
+  assert.deepEqual([book.title, book.authors, book.publisher, book.date], ['“批评”的想象力：两个人与一个时代', '林某', '松溪出版集团', '2026年9月']);
+  assert.equal(book.blurb, '一段介绍。');
+  // a post's own byline 「作者 / 某某」 is not a label
+  assert.equal(extractBooks(p('作者 / 牧某', '正文一段。'), '随笔').length, 0);
+});
+
+test('a book\'s card at the top of a post whose title does not say 新书', () => {
+  const html = p('民族志拓边：现代大都市中的权力与抵抗', '[英]某某·某某等 著', '林某 译', '32开 520页', '2026.9', '松溪文景｜松溪出版集团', '109.90元',
+    '编辑推荐', '✪一句', '内容简介', '这是一段足够长的内容简介，讲这本书写了什么、怎么写的，以及它为什么值得一读，再多写几个字凑够长度。', '作者简介', '某某，教授。这一段也写得足够长足够长足够长足够长足够长足够长。');
+  const [book] = extractBooks(html, '著名社会学家领衔著作，讲述现代大都市中的权力与抵抗');
+  assert.deepEqual([book.title, book.authors, book.translators, book.publisher, book.price, book.date],
+    ['民族志拓边：现代大都市中的权力与抵抗', '[英]某某·某某等 著', '林某 译', '松溪文景｜松溪出版集团', '109.90元', '2026年9月']);
+  assert.ok(book.blurb.startsWith('这是一段') && !book.blurb.includes('教授'));
+  // a title line with no Chinese (the original's) is not taken
+  assert.equal(extractBooks(p('Recherches d’anthropologie politique', '[法]某某 著', '松溪出版集团', '2026年10月'), '随笔').length, 0);
+});
+
+test('a 豆瓣 书评 names its book and subject at its head, in the feed\'s new and old ways', () => {
+  const now = '<div><a href="https://www.douban.com/people/someone/">某人</a> 评论 <a href="https://book.douban.com/subject/38923473/">松溪的动物</a><p>读这本书的时候……</p></div>';
+  assert.deepEqual(extractBooks(now, '人类还太年轻了 (评论: 松溪的动物)').map((b) => [b.title, b.subject]), [['松溪的动物', '38923473']]);
+  const old = '<img src="https://img1.doubanio.com/view/subject/m/public/s1.jpg" /><a href="https://www.douban.com/people/x/">某人</a>评论: <a href="https://book.douban.com/subject/37536825//">松溪政治研究</a><br />评价: 推荐';
+  assert.deepEqual(extractBooks(old, '书评丨某某 (评论: 松溪政治研究)').map((b) => [b.title, b.subject, b.cover]),
+    [['松溪政治研究', '37536825', 'https://img1.doubanio.com/view/subject/m/public/s1.jpg']]);
+  // a podcast's index linking a book is not a review
+  assert.equal(extractBooks('<h2>相关索引</h2><ul><li><a href="https://book.douban.com/subject/36463571/">《巴别塔》</a></li></ul>', 'E22 走进《巴别塔》').length, 0);
+});

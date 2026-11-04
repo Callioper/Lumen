@@ -333,7 +333,7 @@ function EmbeddingSection() {
 function ClipTab() {
   const clip = app.value!.settings.clip;
   const [form, setForm] = useState({ ...clip });
-  const text = (k: 'vaultPath' | 'pathTemplate' | 'bodyTemplate' | 'imageFolder' | 'tagLibrary' | 'nameLibrary' | 'authorsFolder' | 'reportFolder') => (e: Event): void =>
+  const text = (k: 'vaultPath' | 'pathTemplate' | 'bodyTemplate' | 'imageFolder' | 'tagLibrary' | 'nameLibrary' | 'authorsFolder' | 'reportFolder' | 'lectureFolder' | 'meetingFolder' | 'eventBodyTemplate') => (e: Event): void =>
     setForm({ ...form, [k]: (e.currentTarget as HTMLInputElement | HTMLTextAreaElement).value });
   const save = (): void => void act(() => api.saveSettings({ settings: { clip: form } }), '已保存');
   return (
@@ -352,7 +352,12 @@ function ClipTab() {
         <label>标签库笔记<input class="input mono" value={form.tagLibrary} onInput={text('tagLibrary')} /></label>
         <label>人名库笔记<input class="input mono" value={form.nameLibrary} onInput={text('nameLibrary')} /></label>
         <label>日报、周报、论文周报存到<input class="input mono" value={form.reportFolder} onInput={text('reportFolder')} /></label>
+        <label>讲座存到（下面再按年分）<input class="input mono" value={form.lectureFolder} onInput={text('lectureFolder')} /></label>
+        <label>会议存到（下面再按年分）<input class="input mono" value={form.meetingFolder} onInput={text('meetingFolder')} /></label>
       </div>
+      <p class="small muted">学术动态读出是讲座或会议的推文，按 <kbd>c</kbd> 会用下面的讲座模板存，文件名「主讲人｜题目（举办日期）」，不写 AI 分析；同一场的回顾、录像后来再存，补进同一篇笔记。想换模板，在存档按钮上点右键或按 <kbd>Shift</kbd>+<kbd>C</kbd>。</p>
+      <label class="block">讲座、会议的笔记模板
+        <textarea class="input mono" rows={14} value={form.eventBodyTemplate} onInput={text('eventBodyTemplate')} /></label>
       <p class="small muted">标签库和人名库第一次存档时从库里现有的标签、作者页和剪藏自动生成，之后可在 Obsidian 里直接改；新遇到的标签和人名会追加到文末「待整理」「待确认」一节。</p>
       <Toggle on={form.aiAnalysis} label="存档后用 AI 生成深度分析，写进笔记的「# AI」一节（在后台进行）" onChange={(v) => setForm({ ...form, aiAnalysis: v })} />
       <label class="block">分析用的模型（留空则与「AI」页的模型相同）

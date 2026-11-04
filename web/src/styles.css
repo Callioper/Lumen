@@ -741,6 +741,9 @@ label.block { margin: 12px 0; }
 .menu-item.toggle + .menu-item.reset { margin-top: 0; }
 
 /* 每日简报 */
+/* The blocks keep the list still themselves (DigestCard); the browser's anchoring on the scroller, on
+   top of that, moved it by part of each change. */
+.layout-digest .list-scroll { overflow-anchor: none; }
 .digests { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; padding: 4px 10px 12px; overflow-anchor: none; }
 .digest { padding: 12px 6px 8px; border-radius: 12px; background: var(--raised); box-shadow: var(--shadow-1); }
 .digest.read { opacity: 0.8; }

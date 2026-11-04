@@ -33,10 +33,11 @@ const prompt = (title: string, text: string): string => `推文标题：${title}
 推文正文：
 ${text}`;
 
-// Posts titled as a table of contents; 豆瓣 broadcasts and the like are not.
+// Posts titled as a table of contents; 豆瓣 broadcasts and the like are not. A journal's own account may
+// say 「新刊速递：《松溪书评》2026.10」 instead (2026-10-29); the AI leaves out one that lists no issue.
 function candidates(db: DB, since: number): Post[] {
   return db.prepare(`SELECT e.id, e.title, e.published FROM entry e JOIN feed f ON f.id = e.feed_id
-    WHERE e.published > ? AND f.view = 'article' AND (e.title LIKE '%目录%' OR e.title LIKE '%要目%')
+    WHERE e.published > ? AND f.view = 'article' AND (e.title LIKE '%目录%' OR e.title LIKE '%要目%' OR e.title LIKE '%新刊速递%')
     AND e.title NOT LIKE '%复印报刊资料%' AND e.title NOT LIKE '%全文转载%' ORDER BY e.published DESC`).all(since) as unknown as Post[];
 }
 

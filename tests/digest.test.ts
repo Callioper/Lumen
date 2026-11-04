@@ -49,11 +49,13 @@ test('a cached digest is returned without calling the AI', async () => {
   assert.deepEqual(out, { summary: '· 已缓存', cached: true });
 });
 
-test('每日简报 splits each day into one block per feed, a single feed into one block per day', () => {
+test('每日简报 makes one block per feed across the days it posted on, a single feed one block per day', () => {
   const now = new Date(2026, 9, 21, 15).getTime();
   const at = (d: number, h: number, feed_id: number) => ({ published: new Date(2026, 9, d, h).getTime() / 1000, feed_id });
   const list = [at(21, 12, 1), at(21, 11, 2), at(21, 9, 1), at(20, 8, 2)];
-  assert.deepEqual(groupDigest(list, false, now).map((b) => [b.day, b.feedId, b.items.length]), [['今天', 1, 2], ['今天', 2, 1], ['昨天', 2, 1]]);
+  assert.deepEqual(groupDigest(list, false, now).map((b) => [b.day, b.feedId, b.items.length]), [['今天', 1, 2], ['昨天–今天', 2, 2]]);
+  const older = [...list, at(18, 9, 2)];
+  assert.equal(groupDigest(older, false, now)[1].day, '10月18日–今天');
   assert.deepEqual(groupDigest(list, true, now).map((b) => [b.day, b.items.length]), [['今天', 3], ['昨天', 1]]);
 });
 

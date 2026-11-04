@@ -13,7 +13,8 @@ import { cleanMarkdown, fixEmphasisSpacing, type CleanResult } from './clean.ts'
 import { localizeImages } from './images.ts';
 import { Libraries, type Person } from './library.ts';
 import { seedPeople, seedTags } from './seed.ts';
-import { safeFilename } from './obsidian.ts';
+import { safeFilename, NO_EVENT } from './obsidian.ts';
+import { eventsToArchive, eventPage, eventPath, writeEventNote, type ClipMode, type EventKind, type EventPick } from './event.ts';
 import {
   extractMetadata, ruleMetadata, resolveName, displayTitle, originalAlias, wordCount,
   type ArticleMeta, type MetaInput, type ResolvedName,
@@ -36,7 +37,9 @@ export interface ClipDeps {
   translator: Translator;
 }
 
-export interface ClipOutcome extends ClipResult { analysis: 'queued' | 'off' | 'no-key' | 'skipped' }
+// template: what the post was archived as; notes: every note written or added to (a post listing
+// several talks makes one for each).
+export interface ClipOutcome extends ClipResult { analysis: 'queued' | 'off' | 'no-key' | 'skipped' | 'event'; template: 'article' | EventKind; notes: string[]; added?: boolean }
 
 type Entry = Record<string, unknown> & { tags: { name: string; source: string }[] };
 
@@ -76,7 +79,8 @@ export function pushHeadline(headline: string, title: string): string {
   return squash(headline).includes(squash(title)) ? '' : headline.trim();
 }
 
-interface Prepared { clean: CleanResult; meta: ArticleMeta; authors: ResolvedName[]; translators: ResolvedName[]; content: string }
+interface Prepared { clean: CleanResult; meta: ArticleMeta; authors: ResolvedName[]; translators: ResolvedName[]; content: string;
+  resolve: (names: string[]) => ResolvedName[] }
 
 function toPage(e: Entry, selectedText: string, prefix: string, p: Prepared): ClipPage {
   const summary = e.ai_summary ? fixEmphasisSpacing(htmlToMarkdown(String(e.ai_summary))) : '';
@@ -106,6 +110,7 @@ function toPage(e: Entry, selectedText: string, prefix: string, p: Prepared): Cl
     tagLine: p.meta.tags.map((t) => `#${t}`).join(' '),
     words: wordCount(p.content),
     citation: p.clean.facts.citation,
+    ...NO_EVENT,
   };
 }
 
@@ -238,38 +243,61 @@ async function prepare(d: ClipDeps, id: number, job: number, e: Entry): Promise<
     content = await saveImages(s, id, content, meta.title, Number(e.published) || 0);
   }
   log.info(`[clip] cleaned ${id}: ${clean.stats.charsBefore}→${clean.stats.charsAfter} chars, tail ${clean.stats.tailCut ? 'cut' : 'kept'}, metadata by ${meta.source}`);
-  return { clean, meta, authors, translators, content };
+  // A talk's speakers go through the name library as an article's authors do.
+  const resolve = (names: string[]): ResolvedName[] => {
+    const out = names.map((zh) => resolveName({ zh, original: '' }, people, pages));
+    libs.addPeople(out.filter((r) => r.isNew).map((r) => ({ zh: r.zh, original: r.original, aliases: [] })));
+    return out;
+  };
+  return { clean, meta, authors, translators, content, resolve };
 }
 
-async function writeNote(d: ClipDeps, id: number, job: number, e: Entry, selectedText: string): Promise<{ res: ClipResult; page: ClipPage }> {
+interface Written { res: ClipResult & { added?: boolean }; page: ClipPage; picks: EventPick[]; notes: string[] }
+
+async function writeNote(d: ClipDeps, id: number, job: number, e: Entry, selectedText: string, mode: ClipMode): Promise<Written> {
   const s = d.getSettings();
+  if (mode !== 'article') d.jobs.update(job, { step: '看是不是讲座或会议' });
+  const picks = await eventsToArchive(d.db, { id, title: String(e.title ?? ''), published: Number(e.published) || 0 }, mode, s, d.getSecrets());
   const prepared = await prepare(d, id, job, e);
-  d.jobs.update(job, { step: '写入 Obsidian 笔记' });
+  d.jobs.update(job, { step: picks.length ? `按${picks[0].kind}模板写入 Obsidian` : '写入 Obsidian 笔记' });
   const page = toPage(e, selectedText.slice(0, MAX_SELECTION_CHARS), s.ai.tagPrefix, prepared);
-  const res = writeClip(s.clip, page);
-  d.db.prepare("INSERT OR IGNORE INTO tag (entry_id, name, source) VALUES (?, ?, 'clip')").run(id, CLIP_TAG);
-  return { res, page };
+  const done = (res: ClipResult & { added?: boolean }, notes: string[], shown = page): Written => {
+    d.db.prepare("INSERT OR IGNORE INTO tag (entry_id, name, source) VALUES (?, ?, 'clip')").run(id, CLIP_TAG);
+    return { res, page: shown, picks, notes };
+  };
+  if (!picks.length) { const res = writeClip(s.clip, page); return done(res, [res.relPath]); }
+  const written = picks.map((pick) => {
+    const ev = eventPage({ pick, count: picks.length, base: page, content: prepared.content, postUrl: page.url, resolveSpeakers: prepared.resolve });
+    const folder = pick.kind === '讲座' ? s.clip.lectureFolder : s.clip.meetingFolder;
+    return { ev, res: writeEventNote(s.clip.vaultPath, eventPath(folder, ev.displayTitle, pick.event.date, page.published), s.clip.eventBodyTemplate, ev, page.url) };
+  });
+  return done(written[0].res, written.map((w) => w.res.relPath), written[0].ev);
 }
 
-export async function clipEntry(d: ClipDeps, id: number, selectedText: string): Promise<ClipOutcome> {
+export async function clipEntry(d: ClipDeps, id: number, selectedText: string, mode: ClipMode = 'auto'): Promise<ClipOutcome> {
   if (!d.getSettings().clip.vaultPath) throw new Error('还没设置 Obsidian 库的位置：在 设置 → 存档 里填上就能存档');
   const job =d.jobs.start('clip', id, `#${id}`, '读取文章');
-  let written: { res: ClipResult; page: ClipPage };
+  let written: Written;
   try {
     const e = await loadWithText(d, id, job);
-    written = await writeNote(d, id, job, e, selectedText);
+    written = await writeNote(d, id, job, e, selectedText, mode);
   } catch (err) {
     d.jobs.finish(job, 'failed', '存档失败', (err as Error).message);
     throw err;
   }
-  const { res, page } = written;
+  const { res, page, picks, notes } = written;
   d.jobs.update(job, { notePath: res.path });
   const s = d.getSettings();
+  // A talk's note is for the reader's own notes of it: no AI analysis is written into it.
+  if (picks.length) {
+    d.jobs.finish(job, 'done', res.existed ? '已存档过，未重复写入' : res.added ? `已补进这场${picks[0].kind}的笔记` : `已按${picks[0].kind}模板存档`);
+    return { ...res, analysis: 'event', template: picks[0].kind, notes };
+  }
   const skip = res.existed ? 'skipped' : !s.clip.aiAnalysis ? 'off' : !d.getSecrets().aiApiKey ? 'no-key' : null;
   if (skip) {
     d.jobs.finish(job, 'done', SKIP_STEP[skip]);
-    return { ...res, analysis: skip };
+    return { ...res, analysis: skip, template: 'article', notes };
   }
   void analyseInBackground(d, id, job, res.path, page);
-  return { ...res, analysis: 'queued' };
+  return { ...res, analysis: 'queued', template: 'article', notes };
 }

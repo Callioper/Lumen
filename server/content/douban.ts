@@ -7,6 +7,7 @@ import { extras } from '../extras.ts';
 import { log } from '../log.ts';
 import { normTitle } from '../report/ngram.ts';
 import { dateOf, type ListedBook } from './books.ts';
+import { readerDoubanTurn, doubanRefused, doubanAnswered, offMessage, doubanWaitMs } from '../fetch/doubanpace.ts';
 
 export const DOUBAN_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36';
 export const DOUBAN_TIMEOUT_MS = 12_000;
@@ -33,11 +34,15 @@ async function visitorCookie(): Promise<string> {
 }
 
 async function get(url: string, extra: Record<string, string> = {}, redirect: RequestRedirect = 'follow'): Promise<Response> {
+  // In turn with every other request of 豆瓣, and none while it refuses this address (doubanpace.ts).
+  const off = await readerDoubanTurn();
+  if (off) throw new DoubanError(offMessage(off));
   const jar = await visitorCookie();
   // A dropped connection or a timeout reads as 豆瓣 being unreachable, not as a server error.
   const r = await fetch(url, { headers: { ...(jar ? { Cookie: jar } : {}), 'User-Agent': UA, ...extra }, redirect, signal: AbortSignal.timeout(TIMEOUT_MS) })
     .catch((err: Error) => { throw new DoubanError(`豆瓣没连上（${err.name === 'TimeoutError' ? '超时' : err.message}），稍后再试`); });
-  if (r.status === 403) throw new DoubanError('豆瓣拒绝了请求（403），可能是请求太频，稍后再试');
+  if (r.status === 403 || r.status === 429) { doubanRefused(); throw new DoubanError(offMessage(doubanWaitMs())); }
+  doubanAnswered();
   return r;
 }
 
@@ -308,6 +313,12 @@ const pageOf = (raw: string | null): SubjectPage | null => {
   const p = raw ? JSON.parse(raw) as SubjectPage : null;
   return p?.v === PAGE_VERSION ? p : null;
 };
+
+// Whether a book's page is kept and fresh, so opening it asks 豆瓣 nothing (markpages.ts asks ahead).
+export function bookPageFresh(db: DB, subject: string, now = Math.floor(Date.now() / 1000)): boolean {
+  const row = db.prepare('SELECT editions_at, page FROM douban_subject WHERE subject = ?').get(subject) as { editions_at: number | null; page: string | null } | undefined;
+  return !!row?.editions_at && now - row.editions_at < EDITIONS_FRESH_S && !!pageOf(row.page);
+}
 
 export async function editionsOf(db: DB, subject: string): Promise<Editions> {
   const now = Math.floor(Date.now() / 1000);

@@ -3,7 +3,7 @@ import { startView, endView, type ViewContext } from './reading.ts';
 import { entryShare, type ShareData } from './share/data.ts';
 import type { CardStyle } from './share/ShareCard.tsx';
 import { cardPng, copyPng } from './share/render.ts';
-import { api, type Reaction, type JobsState, type AppState, type EntryDetail, type ListItem, type RecMeta, type Scope, type Feed, type MarkGroup, type Layout } from './api.ts';
+import { api, type Reaction, type JobsState, type AppState, type EntryDetail, type ListItem, type RecMeta, type Scope, type Feed, type MarkGroup, type Layout, type ClipMode, type ClipResult } from './api.ts';
 import { resolveLayout, inheritedLayout, layoutTarget, resolveScrollRead, scrollReadKey, displayOrder, effectiveLayout, OPEN_BESIDE_LAYOUTS, type Tab } from './layout.ts';
 import { keepReadTrail, noteRead, isForeignText } from './util.ts';
 import type { PaletteKey } from './themes.ts';
@@ -729,8 +729,20 @@ export async function quickShare(): Promise<void> {
 }
 
 export const clipping = signal(false);
+// The menu of templates to archive with (Shift+C, or the archive button's right click).
+export const clipMenu = signal(false);
 
-export async function clipToObsidian(): Promise<void> {
+// What a clip says it did: the note, or the notes of a post listing several talks.
+export function clipMessage(r: ClipResult): string {
+  const notes = r.notes?.length ? r.notes : [r.relPath];
+  const what = r.template && r.template !== 'article' ? `按${r.template}模板` : '';
+  if (r.existed) return `已存档过：${r.relPath}`;
+  if (r.added) return `已补进这场${r.template}的笔记：${r.relPath}`;
+  const tail = r.analysis === 'queued' ? '，AI 分析生成中' : r.analysis === 'no-key' ? '（未配置 AI 密钥，跳过分析）' : '';
+  return notes.length > 1 ? `已${what}存入 ${notes.length} 篇：${notes.join('；')}` : `已${what}存入 Obsidian：${r.relPath}${tail}`;
+}
+
+export async function clipToObsidian(mode: ClipMode = 'auto'): Promise<void> {
   const d = detail.value;
   if (!d || clipping.value) return;
   // The demo has no vault either; its clip is answered by the mock.
@@ -740,12 +752,11 @@ export async function clipToObsidian(): Promise<void> {
   }
   clipping.value = true;
   try {
-    const r = await api.clip(d.id, readerSelection());
+    const r = await api.clip(d.id, readerSelection(), mode);
     if (detail.value?.id === d.id && !d.tags.some((t) => t.source === 'clip')) {
       detail.value = { ...detail.value, tags: [...detail.value.tags, { name: '已存档', source: 'clip' }] };
     }
-    const tail = r.analysis === 'queued' ? '，AI 分析生成中' : r.analysis === 'no-key' ? '（未配置 AI 密钥，跳过分析）' : '';
-    notify(r.existed ? `已存档过：${r.relPath}` : `已存入 Obsidian：${r.relPath}${tail}`);
+    notify(clipMessage(r));
   } catch (e) {
     notify((e as Error).message, true);
   } finally {

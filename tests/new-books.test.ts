@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { openDb } from '../server/db.ts';
 import { newBooks } from '../server/content/booklists.ts';
+import { keyOf } from '../server/content/douban.ts';
 
 process.env.LUMEN_ZOTERO_DB = 'Z:/no/such/zotero.sqlite';   // Zotero unread: inZotero null, nothing hidden
 
@@ -39,6 +40,8 @@ test('新书 by date: sections by month, books from before the last two years to
   const last = new Date(now.getFullYear(), now.getMonth() - 1, 1);
   assert.deepEqual(r.books.map((x) => x.month), [`${now.getFullYear()}年${now.getMonth() + 1}月`, `${last.getFullYear()}年${last.getMonth() + 1}月`, '更早出版', '出版时间待查']);
   assert.deepEqual(r.undated.map((b) => b.title), ['无日期']);
+  // dated but with no cover or 豆瓣 subject yet: looked up after the undated (bookdates.ts)
+  assert.deepEqual(r.lacking.map((b) => b.title).sort(), ['旧书', '近书', '重出的书'].sort());
 });
 
 test('新书 of the last three months keeps a book whose date is not known yet', () => {
@@ -107,4 +110,22 @@ test('a 书单 that comes in after 新书 was shown is on the next look, in its 
   db.prepare('INSERT INTO entry (id, feed_id, guid, title, content, published, is_read) VALUES (5, 1, ?, ?, ?, 1500, 0)')
     .run('g5', '书讯', card('补来的书', '2020-1', '9787000000066'));
   assert.deepEqual(titles(newBooks(db, q)), ['旧书', '重出的书', '补来的书', '近书', '无日期']);
+});
+
+test('a 豆瓣 书评\'s book joins 新书 only once it is known to have come out in the last year', () => {
+  const db = setup();
+  const review = (subject: string, title: string) => `<a href="https://www.douban.com/people/x/">某人</a> 评论 <a href="https://book.douban.com/subject/${subject}/">${title}</a><p>正文。</p>`;
+  const add = db.prepare("INSERT INTO entry (id, feed_id, guid, title, content, published, is_read) VALUES (?, 1, ?, ?, ?, 3000, 0)");
+  add.run(3, 'g3', '好读 (评论: 新出的书)', review('101', '新出的书'));
+  add.run(4, 'g4', '重读 (评论: 老书)', review('102', '老书'));
+  add.run(5, 'g5', '未知 (评论: 不知何时的书)', review('103', '不知何时的书'));
+  const now = new Date();
+  const put = db.prepare('INSERT INTO douban_book (key, subject, title, looked_at, date, cover_at) VALUES (?, ?, ?, ?, ?, ?)');
+  const t = Math.floor(Date.now() / 1000);
+  put.run(keyOf({ isbn: '', title: '新出的书' }), '101', '新出的书', t, `${now.getFullYear()}年${now.getMonth() + 1}月`, t);
+  put.run(keyOf({ isbn: '', title: '老书' }), '102', '老书', t, '2009年3月', t);
+  const r = newBooks(db, q);
+  assert.ok(titles(r).includes('新出的书'));
+  assert.ok(!titles(r).includes('老书') && !titles(r).includes('不知何时的书'));
+  assert.ok(r.undated.some((b) => b.title === '不知何时的书'), 'looked up meanwhile');
 });

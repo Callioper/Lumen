@@ -27,8 +27,8 @@ import { tocExtractor, journalTocs } from '../content/tocs.ts';
 import { RANK_FILTERS, schoolShort, type RankFilter } from '../content/ranks.ts';
 import { noticeExtractor, academicNotices } from '../content/notices.ts';
 import { reprintExtractor, reprintIndex } from '../content/reprints.ts';
-import { markWish, detailsFor, editionsOf, markInterest, DoubanError, type SubjectPage } from '../content/douban.ts';
-import { fillDates } from '../content/bookdates.ts';
+import { markWish, detailsFor, needsDetails, editionsOf, markInterest, DoubanError, type SubjectPage } from '../content/douban.ts';
+import { fillDetails } from '../content/bookdates.ts';
 import { moviePage } from '../content/doubanmovie.ts';
 import { extras } from '../extras.ts';
 import { hotPage, refreshLists } from '../report/hot.ts';
@@ -37,6 +37,7 @@ import type { Enricher } from '../ai/enrich.ts';
 import type { Translator } from '../ai/translate.ts';
 import { recommendPage, reasonsFor, profileView, updateCluster } from '../rec/recommend.ts';
 import { clipEntry } from '../clip/service.ts';
+import { CLIP_MODES, type ClipMode } from '../clip/event.ts';
 import { validatePage, saveWebPage } from '../clip/web.ts';
 import { log } from '../log.ts';
 import { listModels } from '../ai/llm.ts';
@@ -108,6 +109,9 @@ function listContext(b: Record<string, unknown>): ListContext {
 }
 
 const MIN_FEED_TTL = 300;
+
+// 存档's template: auto unless the reader chose one (clip/event.ts).
+const clipMode = (v: unknown): ClipMode => ((CLIP_MODES as readonly unknown[]).includes(v) ? v as ClipMode : 'auto');
 
 function bad(msg: string): Response {
   return Response.json({ error: msg }, { status: 400 });
@@ -241,11 +245,12 @@ export function apiApp(d: Deps): Hono {
     const kind = (c.req.query('kind') ?? '').slice(0, 8);
     // A jump to a month further down asks for everything up to it at once.
     const limit = Math.min(BOOK_PAGE_MAX, Math.max(1, Math.trunc(Number(c.req.query('limit'))) || BOOK_PAGE));
-    const { unsorted, undated, ...page } = newBooks(db, { offset, limit, byDate: c.req.query('sort') === 'date',
+    const { unsorted, undated, lacking, ...page } = newBooks(db, { offset, limit, byDate: c.req.query('sort') === 'date',
       recentMonths: RECENT_MONTHS.includes(months) ? months : 0, notOwned: c.req.query('notOwned') === '1', topic, kind,
       humanities: c.req.query('reprints') !== 'all', shelves: c.req.query('shelves') === '1' });
-    // Books with no date yet are looked up on 豆瓣 in the background, a few seconds apart.
-    const dating = fillDates(db, undated);
+    // Books with no date yet, then those lacking a cover and the like, are looked up on 豆瓣 in the
+    // background at its pace (main.ts also asks without the page open); the page counts the undated.
+    const dating = fillDetails(db, [...undated, ...lacking]) && undated.filter((b) => needsDetails(db, b)).length;
     // Books not sorted by 类型 and 主题 yet are, by the AI, a batch at a time; the page shows them unsorted meanwhile.
     const willSort = unsorted.length > 0 && canSortKinds(d.getSettings(), d.getSecrets());
     if (willSort) void sortKinds(db, unsorted, d.getSettings(), d.getSecrets());
@@ -490,7 +495,7 @@ export function apiApp(d: Deps): Hono {
 
   // From the browser extension: the rendered page, archived like a feed entry.
   app.post('/clip/page', async (c) => {
-    const b = (await c.req.json().catch(() => null)) as { selectedText?: unknown } | null;
+    const b = (await c.req.json().catch(() => null)) as { selectedText?: unknown; mode?: unknown } | null;
     const page = validatePage(b);
     if (typeof page === 'string') return bad(page);
     try {
@@ -500,7 +505,7 @@ export function apiApp(d: Deps): Hono {
         // The note's summary line comes from the entry's AI summary; a failure only leaves it empty.
         await d.enricher.process(saved.id, { summary: true, classify: true }).catch((e: Error) => log.warn(`[clip] web summary ${saved.id}: ${e.message}`));
       }
-      const r = await clipEntry(d, saved.id, typeof b?.selectedText === 'string' ? b.selectedText : '');
+      const r = await clipEntry(d, saved.id, typeof b?.selectedText === 'string' ? b.selectedText : '', clipMode(b?.mode));
       changed();
       return c.json({ ...r, entryId: saved.id });
     } catch (e) {
@@ -528,9 +533,9 @@ export function apiApp(d: Deps): Hono {
   app.post('/entries/:id/clip', async (c) => {
     const id = idParam(c.req.param('id'));
     if (id === undefined) return bad('缺少 id');
-    const b = await c.req.json<{ selectedText?: unknown }>().catch(() => ({} as { selectedText?: unknown }));
+    const b = await c.req.json<{ selectedText?: unknown; mode?: unknown }>().catch(() => ({} as { selectedText?: unknown; mode?: unknown }));
     try {
-      const r = await clipEntry(d, id, typeof b?.selectedText === 'string' ? b.selectedText : '');
+      const r = await clipEntry(d, id, typeof b?.selectedText === 'string' ? b.selectedText : '', clipMode(b?.mode));
       if (!r.existed) logEvent(db, id, 'clip');
       changed();
       return c.json(r);

@@ -101,13 +101,22 @@ export interface Reprinted { issue: ReprintIssue; post: { id: number; title: str
 const HUMANITIES = /哲学|美学|逻辑|宗教|文艺理论|文学|语言文字|文化研究|艺术|新闻与传播|出版业|档案学|考古|(?:古代|近代|现代|世界|明清|宋辽金元|魏晋南北朝隋唐|先秦、秦汉|经济)史/;
 export const isHumanities = (name: string): boolean => HUMANITIES.test(name);
 
+// A contents page that prints no issue (企业管理研究, 体制改革: only 「出版日期：每月…日」, 2026-11-04) is
+// dated by its post, 「2026年10月全文转载文章目录」 → 2026年10月: a month, not a 期, which bimonthlies
+// (造型艺术 2026年第5期 in October's) would get wrong.
+export const monthOfPost = (title: string): string => {
+  const m = /(\d{4})年(\d{1,2})月/.exec(title);
+  return m ? `${m[1]}年${+m[2]}月` : '';
+};
+
 // Each 复印 issue once, from its newest post (the account posts each month's contents twice);
 // humanities: only the humanities' journals.
 export function reprintIssues(db: DB, humanities = false): Reprinted[] {
   const seen = new Set<string>();
   const out: Reprinted[] = [];
   for (const { data, post } of extracted<ReprintIssue[]>(db, 'reprint', REPRINT_VERSION)) {
-    for (const issue of data) {
+    for (const read of data) {
+      const issue = read.issue ? read : { ...read, issue: monthOfPost(post.title) };
       const k = `${bare(issue.name)}|${bare(issue.issue)}`;
       if (seen.has(k) || humanities && !isHumanities(issue.name)) continue;
       seen.add(k);

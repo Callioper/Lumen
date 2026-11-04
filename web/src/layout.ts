@@ -144,13 +144,18 @@ export function displayOrder<T extends { published: number; feed_id: number }>(i
 
 export interface DigestBlock<T> { key: string; day: string; feedId: number | null; items: T[] }
 
-// 每日简报: within each day, one block per feed in order of first appearance. Inside a single
-// feed's list a day is one block.
+// 每日简报: one block per feed, where its newest entry is, however many days its entries span
+// (a game podcast posting on three days was three blocks between the others', 2026-11-01); its day is then a
+// span, 「10月30日–今天」. Inside a single feed's list a day is one block.
 export function groupDigest<T extends { published: number; feed_id: number }>(items: readonly T[], oneFeed: boolean, now = Date.now()): DigestBlock<T>[] {
-  return groupByDay(items, now).flatMap((day) => {
-    if (oneFeed) return [{ key: day.key, day: day.label, feedId: day.items[0]?.feed_id ?? null, items: day.items }];
-    const byFeed = new Map<number, T[]>();
-    for (const it of day.items) byFeed.set(it.feed_id, [...(byFeed.get(it.feed_id) ?? []), it]);
-    return [...byFeed].map(([feedId, list]) => ({ key: `${day.key}/${feedId}`, day: day.label, feedId, items: list }));
-  });
+  if (oneFeed) return groupByDay(items, now).map((day) => ({ key: day.key, day: day.label, feedId: day.items[0]?.feed_id ?? null, items: day.items }));
+  const byFeed = new Map<number, T[]>();
+  for (const it of items) byFeed.set(it.feed_id, [...(byFeed.get(it.feed_id) ?? []), it]);
+  return [...byFeed].map(([feedId, list]) => ({ key: `feed/${feedId}`, day: daySpan(list, now), feedId, items: list }));
+}
+
+// The days a block's entries were published on: one day's label, or the first and the last.
+function daySpan(items: readonly { published: number }[], now: number): string {
+  const labels = [...new Set(groupByDay([...items].sort((a, b) => a.published - b.published), now).map((g) => g.label.replace(/ 周.$/, '')))];
+  return labels.length === 1 ? groupByDay(items, now)[0].label : `${labels[0]}–${labels[labels.length - 1]}`;
 }

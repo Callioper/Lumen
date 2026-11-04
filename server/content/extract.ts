@@ -90,6 +90,38 @@ const strikes = new Map<string, number>();
 // The account cannot be used (a revoked key, no balance left): stop now, read nothing as not one.
 const accountRefused = (e: unknown): boolean => e instanceof LlmError && !e.retryable && !e.perPost;
 
+// One post read and set down; what was found (null: not one). A post the model will not read is
+// set down as not one; an answer with no JSON in it is a PostFailed.
+async function readOne<T>(db: DB, ex: Extractor<T>, post: Post, settings: Settings, secrets: Secrets): Promise<T | null> {
+  const html = (db.prepare('SELECT COALESCE(content_full, content) AS html FROM entry WHERE id = ?').get(post.id) as { html: string | null } | undefined)?.html;
+  const text = ex.text ? await ex.text(html ?? '', settings) : html ? postLines(html).join('\n') : '';
+  const store = (data: T | null): T | null => {
+    db.prepare('INSERT OR REPLACE INTO extract (entry_id, kind, version, data, at) VALUES (?, ?, ?, ?, ?)')
+      .run(post.id, ex.kind, ex.version, data === null ? null : JSON.stringify(data), Math.floor(Date.now() / 1000));
+    return data;
+  };
+  if (!text) return store(null);
+  let out: string;
+  try {
+    out = await chat(ex.ask(post, text.slice(0, ex.textChars ?? TEXT_CHARS)), settings, secrets.aiApiKey, ex.maxTokens, TIMEOUT_MS, modelBody(settings.translate.model));
+  } catch (e) {
+    if (e instanceof LlmError && e.perPost) { log.warn(`[extract] #${post.id} 模型不肯读这篇，记为无内容：${e.message}`); return store(null); }
+    throw e;
+  }
+  const raw = parseJson(out);
+  if (raw === null) throw new PostFailed('AI 的回答读不出 JSON（可能被截断）');
+  try { return store(ex.read(raw, text)); } catch (e) { throw new PostFailed((e as Error).message); }
+}
+
+// What one post holds, read now if it has not been (存档 asks of a post the pass has not reached, or
+// of a web page saved from the browser): undefined when it has not been and cannot be now.
+export async function readPostNow<T>(db: DB, ex: Extractor<T>, post: Post, settings: Settings, secrets: Secrets): Promise<T | null | undefined> {
+  const kept = db.prepare('SELECT data FROM extract WHERE entry_id = ? AND kind = ? AND version = ?').get(post.id, ex.kind, ex.version) as { data: string | null } | undefined;
+  if (kept) return kept.data === null ? null : JSON.parse(kept.data) as T;
+  if (!canExtract(settings, secrets)) return undefined;
+  return readOne(db, ex, post, settings, secrets);
+}
+
 // Reads the candidates not read yet, one at a time; one pass per kind at a time. A post refused for
 // what it says, or with no text, is set down as not one; a rate limit or an outage is waited out a few
 // times and then stops the pass, as a refused account does at once, and the next waits 10 minutes.
@@ -100,31 +132,12 @@ export function runExtract<T>(db: DB, ex: Extractor<T>, settings: Settings, secr
   const todo = unread(db, ex, now);
   db.prepare('DELETE FROM extract WHERE kind = ? AND entry_id NOT IN (SELECT id FROM entry)').run(ex.kind);
   if (!todo.length) return Promise.resolve(0);
-  const put = db.prepare('INSERT OR REPLACE INTO extract (entry_id, kind, version, data, at) VALUES (?, ?, ?, ?, ?)');
-  const store = (post: Post, data: T | null): void => {
-    put.run(post.id, ex.kind, ex.version, data === null ? null : JSON.stringify(data), Math.floor(Date.now() / 1000));
-    if (data !== null) found++;
-  };
-  const model = modelBody(settings.translate.model);
   let found = 0;
-  const body = db.prepare('SELECT COALESCE(content_full, content) AS html FROM entry WHERE id = ?');
-  const one = async (post: Post): Promise<void> => {
-    const html = (body.get(post.id) as { html: string | null } | undefined)?.html;
-    const text = ex.text ? await ex.text(html ?? '', settings) : html ? postLines(html).join('\n') : '';
-    if (!text) { store(post, null); return; }
-    let out: string;
-    try {
-      out = await chat(ex.ask(post, text.slice(0, ex.textChars ?? TEXT_CHARS)), settings, secrets.aiApiKey, ex.maxTokens, TIMEOUT_MS, model);
-    } catch (e) {
-      if (e instanceof LlmError && e.perPost) { log.warn(`[extract] #${post.id} 模型不肯读这篇，记为无内容：${e.message}`); store(post, null); return; }
-      throw e;
-    }
-    const raw = parseJson(out);
-    if (raw === null) throw new PostFailed('AI 的回答读不出 JSON（可能被截断）');
-    let data: T | null;
-    try { data = ex.read(raw, text); } catch (e) { throw new PostFailed((e as Error).message); }
-    store(post, data);
+  const store = (post: Post, data: T | null): void => {
+    db.prepare('INSERT OR REPLACE INTO extract (entry_id, kind, version, data, at) VALUES (?, ?, ?, ?, ?)')
+      .run(post.id, ex.kind, ex.version, data === null ? null : JSON.stringify(data), Math.floor(Date.now() / 1000));
   };
+  const one = async (post: Post): Promise<void> => { if ((await readOne(db, ex, post, settings, secrets)) !== null) found++; };
   // A rate limit or an outage is waited out a few times; a refused account or an unreadable answer is not.
   const patiently = async (job: () => Promise<void>): Promise<void> => {
     for (let i = 0; ; i++) {

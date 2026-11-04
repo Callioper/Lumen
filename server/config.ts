@@ -1,6 +1,6 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync, renameSync } from 'node:fs';
 import { join, resolve, isAbsolute } from 'node:path';
-import { DEFAULT_CLIP, LEGACY_BODY_TEMPLATE, type ClipSettings } from './clip/obsidian.ts';
+import { DEFAULT_CLIP, LEGACY_BODY_TEMPLATE, EVENT_BODY_TEMPLATE, type ClipSettings } from './clip/obsidian.ts';
 
 export const ROOT = resolve(import.meta.dirname, '..');
 export const DATA_DIR = process.env.LUMEN_DATA ?? join(ROOT, 'data');
@@ -58,6 +58,9 @@ export interface Settings {
     nameLibrary: string;         // vault-relative note mapping names to their Chinese form
     authorsFolder: string;       // author pages, linked as [[page|中文名]]
     reportFolder: string;        // 日报、周报、论文周报 are written under it
+    lectureFolder: string;       // talks archived as such (clip/event.ts), a yyyy folder below it
+    meetingFolder: string;       // conferences, likewise
+    eventBodyTemplate: string;
   };
 }
 
@@ -120,8 +123,8 @@ export function mergeSettings(cur: Settings, patch: unknown): Settings | string 
   for (const k of ['zoteroDb', 'ocrPython', 'ocrEngine'] as const) {
     if (next[k] && !isAbsolute(next[k])) return `${k} 应为绝对路径或留空`;
   }
-  if (!next.clip.pathTemplate.trim() || !next.clip.bodyTemplate.trim()) return '存档模板不能为空';
-  for (const k of ['imageFolder', 'tagLibrary', 'nameLibrary', 'authorsFolder', 'reportFolder'] as const) {
+  if (!next.clip.pathTemplate.trim() || !next.clip.bodyTemplate.trim() || !next.clip.eventBodyTemplate.trim()) return '存档模板不能为空';
+  for (const k of ['imageFolder', 'tagLibrary', 'nameLibrary', 'authorsFolder', 'reportFolder', 'lectureFolder', 'meetingFolder'] as const) {
     const v = next.clip[k].trim();
     if (!v || isAbsolute(v) || /(^|[\\/])\.\.([\\/]|$)/.test(v)) return `clip.${k} 应为库内的相对路径`;
   }
@@ -169,7 +172,7 @@ const DEFAULTS: Settings = {
   translate: { enabled: true, model: 'MiniMax-M3.1-Flash', minChars: 300, maxChars: 30000, shareCards: true },
   clip: { ...DEFAULT_CLIP, aiAnalysis: true, analysisModel: '', thinking: false, aiMetadata: true, downloadImages: true,
     imageFolder: 'WebClips/图片', tagLibrary: 'Lumen/标签库.md', nameLibrary: 'Lumen/人名库.md', authorsFolder: 'Authors',
-    reportFolder: 'Lumen/报告' },
+    reportFolder: 'Lumen/报告', lectureFolder: 'Lectures', meetingFolder: 'Meetings', eventBodyTemplate: EVENT_BODY_TEMPLATE },
 };
 
 const SETTINGS_FILE = join(DATA_DIR, 'settings.json');

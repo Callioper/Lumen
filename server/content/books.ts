@@ -87,6 +87,7 @@ function readMeta(book: ListedBook, l: string): void {
   const date = dateOf(l);
   if (date) book.date ||= date;
   else if (PRICE.test(l) && /\d/.test(l)) book.price ||= l;
+  else if (PAGES_PRICE.test(l)) book.price ||= PAGES_PRICE.exec(l)![1];
   else if (TRANSLATOR.test(l)) book.translators ||= l;
   else if (PUBLISHER.test(l) && !/(?:著|编|撰|绘)$/.test(l)) setPublisher(book, l);
   else if (!book.authors) book.authors = l;
@@ -96,15 +97,129 @@ function readMeta(book: ListedBook, l: string): void {
 // A post that prints no ISBN can still be a list (《书名》 lines, each followed by who wrote it), but
 // only one that says so in its title: essays' notes and podcasts' show notes read the same way.
 export const LIST_POST = /书单|好书榜|好书|新书(?!选读)|书讯|荐书|书目|选书|阅读指南/;   // 「新书选读」 is an excerpt with notes
+// 「孙竹评《双重人格》」: a review, which prints the book's card under its title (a review weekly, 2026-10).
+export const REVIEW_POST = /评《[^《》]+》/;
+// 「256页，48.00元」
+const PAGES_PRICE = /^\d{1,4}\s*页\s*[，,、/\s]\s*([¥￥]?\d{1,4}(?:\.\d{1,2})?\s*元)$/;
+
+// A 豆瓣 书评 (a 豆瓣 review feed, a friend's review): 「isaachan 评论 <a book.douban.com/subject/38923473>动物为什么
+// 不得现代病</a>」 at its head names the book and its subject, with no card in the text (2026-11-04).
+// The feed's older posts: 「评论: <a …/subject/38480546//>」, the cover's picture ahead of it.
+const REVIEW_HEAD = /评论\s*[:：]?\s*<a\s+href="https?:\/\/book\.douban\.com\/subject\/(\d{1,12})\/*"[^>]*>([^<]{1,80})<\/a>/;
+const REVIEW_COVER = /<img\s+src="(https?:\/\/img\d*\.doubanio\.com\/view\/subject\/[^"]+)"/;
+const REVIEW_HEAD_CHARS = 1200;
+function reviewedBook(html: string): ListedBook[] {
+  const m = REVIEW_HEAD.exec(html.slice(0, REVIEW_HEAD_CHARS));
+  if (!m) return [];
+  const book = blank(m[2].trim());
+  book.subject = m[1];
+  book.cover = REVIEW_COVER.exec(html.slice(0, m.index))?.[1] ?? null;
+  return [book];
+}
+
+// 「作者 高华鑫」「出版年 2026-9」: 豆瓣's card copied with a space for the colon. Read as 「作者：高华鑫」,
+// or the line above the ISBN, 「出版年 2026-9」, was taken for the title (an account's 「每日一书」, 2026-11-01).
+const SPACED_LABEL = /^(书名|作者|著者|编者|主编|译者|出版社|出品方|出版年|出版时间|出版日期|定价|页数|装帧|丛书|副标题|原作名)\s+([^\s：:。，/／|｜][^，,]{0,59})$/;
+const spacedLabel = (l: string): string => (/[。！？]/.test(l) ? l : l.replace(SPACED_LABEL, '$1：$2'));
 
 export function extractBooks(html: string, postTitle = ''): ListedBook[] {
-  const lines = joinedTitles(postLines(html));
+  const lines = joinedTitles(postLines(html)).map(spacedLabel);
   const byIsbn = [...isbnBooks(lines, postTitle), ...rowBooks(lines)];
   const listed = byIsbn.length || !LIST_POST.test(postTitle) ? byIsbn : listedBooks(lines);
-  const books = listed.length || !LIST_POST.test(postTitle) ? listed : namedBook(lines, postTitle);
+  const named = listed.length || !(LIST_POST.test(postTitle) || REVIEW_POST.test(postTitle)) ? listed
+    : namedBook(lines, postTitle, !LIST_POST.test(postTitle));
+  const byline = named.length ? named : bylineBook(lines);
+  const card = byline.length ? byline : cardBook(lines);
+  const titled = card.length ? card : titledBook(lines, postTitle);
+  const books = titled.length ? titled : reviewedBook(html);
   // The same book printed twice in one post (a quote, then its card) is listed once.
   const seen = new Set<string>();
   return books.filter((b) => { const k = b.isbn || b.title.replace(/\s+/g, ''); return !seen.has(k) && !!seen.add(k); });
+}
+
+// A book's preface or introduction posted by itself (a reading account, 2026-10): near the top, 「赵月枝 吴畅畅主编：《新闻
+// 传播学精读范例》」 and under it 「中国传媒大学出版社，2026年」. Only there: deeper in, such a line is a book cited.
+export const BYLINE_BOOK = /^(.{1,40}?(?:主编|编著|著|编|译))\s*[:：]\s*《([^《》]{1,80})》$/;
+const BYLINE_HEAD = 6;
+function bylineBook(lines: string[]): ListedBook[] {
+  for (let i = 0; i < Math.min(lines.length - 1, BYLINE_HEAD); i++) {
+    const m = BYLINE_BOOK.exec(lines[i]);
+    const under = lines[i + 1];
+    if (!m || under.length > BY_LINE_CHARS || !PUBLISHER.test(under) || /[。！？]/.test(under)) continue;
+    const book = blank(m[2].trim());
+    book.authors = m[1].trim();
+    setPublisher(book, under);
+    book.cover = coverAbove(lines, i, 0);
+    book.blurb = lines.slice(i + 2).filter((l) => !IMG.test(l)).filter((l) => l.length > META_CHARS / 2)
+      .slice(0, BLURB_LINES).join('').slice(0, BLURB_CHARS);
+    return [book];
+  }
+  return [];
+}
+
+// 「民族志拓边：现代大都市中的权力与抵抗」 / 「[英]麦克·布洛维等 著」 / 「周潇 译」 / 「32开 520页」 / 「2026.9」 /
+// 「世纪文景｜上海人民出版社」 / 「109.90元」: a book's card at the top of a post with no ISBN and a title
+// that does not say 新书 (a philosophy account, 2026-11-01). Only with an author's line under the title and a
+// publisher and a price or a date among the lines after it: an essay does not open so.
+// A blurb ends where the post moves on to the author or the contents (「目录」「向下滑动查看更多」 was read into it).
+const NEXT_PART = /^(?:目\s*录|作者简介|作者介绍|关于作者|著者简介|译者简介)$/;
+const untilHeading = (ls: string[]): string[] => { const k = ls.findIndex((l) => NEXT_PART.test(l)); return k < 0 ? ls : ls.slice(0, k); };
+const CARD_HEAD = 6;
+const CARD_LINES = 7;
+function cardBook(lines: string[]): ListedBook[] {
+  for (let i = 0; i < Math.min(lines.length - 2, CARD_HEAD); i++) {
+    const title = lines[i];
+    const by = lines[i + 1];
+    // A line with no Chinese is the original's title under the Chinese one: the card is not this simple.
+    if (title.length > BARE_TITLE_CHARS || /[。，！？]/.test(title) || IMG.test(title) || LABEL.test(title) || !/\p{Script=Han}/u.test(title)) continue;
+    if (by.length > BY_LINE_CHARS || !ROLE_END.test(by.replace(/\s*\/\s*/g, ' '))) continue;
+    const run: string[] = [];
+    for (const l of lines.slice(i + 2, i + 2 + CARD_LINES)) {
+      if (l.length > BY_LINE_CHARS || /[。！？，]/.test(l)) break;
+      if (!(TRANSLATOR.test(l) || SPEC.test(l) || dateOf(l) || PRICE.test(l) || PUBLISHER.test(l) || LABEL.test(l))) break;
+      run.push(l);
+    }
+    if (!run.some((l) => PUBLISHER.test(l)) || !run.some((l) => PRICE.test(l) || !!dateOf(l))) continue;
+    const book = blank(title.replace(/^《([^《》]+)》$/, '$1').trim());
+    book.authors = by.trim();
+    for (const l of run) if (!SPEC.test(l)) readMeta(book, l);
+    book.cover = coverAbove(lines, i, 0);
+    const after = lines.slice(i + 2 + run.length);
+    const intro = after.findIndex((l) => /^(?:内容简介|内容提要|图书简介|简介)$/.test(l));
+    book.blurb = untilHeading(after.slice(intro + 1)).filter((l) => !IMG.test(l) && l.length > META_CHARS / 2)
+      .slice(0, BLURB_LINES).join('').slice(0, BLURB_CHARS);
+    return [book];
+  }
+  return [];
+}
+
+// 「新书速递 | 《鼎革之气》」「新书荐读｜《纸路》：中文首译……」: the title names the new book, though the post
+// prints no card the rules above can read (2026-10-29). Taken by that name, with what a citation line
+// (「[美]罗伯特·达恩顿，《鼎革之气：……》，张弛 译，……出版社，2026年」) or labels in the post say of it.
+// 「新书速递 | 《…》」「《社会反对国家》新书出版」: the marker next to the name; 「关于《奥兰多》……｜新书·文学」 is not.
+const NEW_BOOK_TITLE = /(?:新书|新刊书|书讯)[^《]{0,12}《|》[^《]{0,8}(?:新书|新刊书|书讯)/;
+const BOOK_EVENT = /分享会|发布会|首发式|座谈|讲座|签售|对谈|沙龙|活动|资讯|一周|周报|书展|赠书|收到/;
+const TITLED_LOOK = 60;
+const CITATION_CHARS = 160;
+function titledBook(lines: string[], postTitle: string): ListedBook[] {
+  if (!NEW_BOOK_TITLE.test(postTitle) || BOOK_EVENT.test(postTitle)) return [];
+  const named = /《([^《》]{1,80})》/.exec(postTitle.replace(/</g, '〈').replace(/>/g, '〉'))?.[1]?.trim();
+  if (!named) return [];
+  const key = named.replace(/\s+/g, '');
+  const head = lines.slice(0, TITLED_LOOK);
+  // the full title, subtitle and all, as the post prints it
+  const full = head.map((l) => /《([^《》]{1,80})》/.exec(l)?.[1]?.trim()).find((t) => !!t && t.replace(/\s+/g, '').startsWith(key)) ?? named;
+  const book = blank(full);
+  const cited = head.find((l) => l.length <= CITATION_CHARS && l.includes(`《${full}》`) && !/。/.test(l) && /出版社|出版集团|出版公司|出版中心|书局|书店|印书馆/.test(l));
+  if (cited) {
+    let rest = cited.replace(`《${full}》`, ' ');
+    // 「本文为《……》（程亚丽 著，商务印书馆，2026年）导言」: what is in the brackets
+    if (/^\s*(?:本文|选自|摘自|节选自)/.test(rest)) rest = rest.replace(/^[^（(]*[（(]/, '').replace(/[）)][^（(]*$/, '');
+    readListMeta(book, rest.replace(/^\s*[，,]\s*|\s*[，,]\s*(?=[，,])/g, ''));
+  }
+  else for (const l of head) if (LABEL.test(l) && !/^(?:书名|ISBN)/.test(l)) readMeta(book, l);
+  book.cover = head.map((l) => IMG.exec(l)?.[1]).find(Boolean) ?? null;
+  return [book];
 }
 
 // 「05#《国家为什么会成功：政府禀赋」 / 「与经济兴衰》」: a title the layout broke over two lines.
@@ -161,7 +276,9 @@ const normName = (s: string): string => s.replace(/[\s'’·.]/g, '').toLowerCas
 
 function isbnBooks(lines: string[], postTitle: string): ListedBook[] {
   const anchors = lines.map((l, i) => (ISBN.test(l) ? i : -1)).filter((i) => i >= 0);
-  const named = /《([^《》]{1,80})》/.exec(postTitle)?.[1];
+  // 「每日一书 | 自由是一种没治的病」: a book column names its one book after the bar, without 《》.
+  const named = /《([^《》]{1,80})》/.exec(postTitle)?.[1]
+    ?? /^[^|｜丨]{0,8}书[^|｜丨]{0,8}\s*[|｜丨]\s*([^|｜丨《》]{2,40})$/.exec(postTitle)?.[1].trim();
   const blocks = anchors.map((at, n) => {
     const floor = n ? anchors[n - 1] + 1 : 0;
     for (let j = at - 1; j >= Math.max(floor, at - LOOK_BACK); j--) if (isTitle(lines[j])) return { at, start: j, title: titleOf(lines[j]) };
@@ -201,7 +318,7 @@ function isbnBooks(lines: string[], postTitle: string): ListedBook[] {
     const meta = [...lines.slice(start + 1, at), ...lines.slice(at + 1, after)];
     for (const l of meta.flatMap((x) => (LABEL.test(x) ? [x] : x.replace(RUN_ON, '$1\n').split('\n')))) readMeta(book, l.replace(/^定\s*价\s*[:：]/, '定价：'));
     book.cover ??= coverAbove(lines, start, n ? blocks[n - 1].at + 1 : 0);
-    book.blurb = lines.slice(after, end).filter((l) => !IMG.test(l) && !LABEL.test(l))
+    book.blurb = untilHeading(lines.slice(after, end)).filter((l) => !IMG.test(l) && !LABEL.test(l))
       .map((l) => l.replace(BLURB_HEAD, '')).filter(Boolean).slice(0, BLURB_LINES).join('').slice(0, BLURB_CHARS);
     return book;
   });
@@ -244,21 +361,27 @@ function bareTitleAt(lines: string[], i: number): string | null {
 
 // One book a post recommends without an ISBN (「好书推荐 | 杨枫著《知识翻译学》」): the line that
 // gives the 《》 name of the post's title, with who wrote it or a publisher's label just under it.
-const NAMED_META = 4;
-function namedBook(lines: string[], postTitle: string): ListedBook[] {
+const NAMED_META = 6;
+// review: a review's card must name a publisher; a web novel's (作者、标签、点评人) is not a book out.
+function namedBook(lines: string[], postTitle: string, review = false): ListedBook[] {
   const named = /《([^《》]{1,80})》/.exec(postTitle)?.[1]?.trim();
   if (!named) return [];
   const key = named.replace(/\s+/g, '');
   for (let i = 0; i < lines.length; i++) {
-    if (titleOf(lines[i]).replace(/\s+/g, '') !== key) continue;
-    const meta = lines.slice(i + 1, i + 1 + NAMED_META);
-    const n = meta.findIndex((l) => !(LABEL.test(l) || (l.length <= BY_LINE_CHARS && (ROLE_END.test(l) || TRANSLATOR.test(l))) || dateOf(l)));
+    // A review weekly prints the card's title bare, broken at its colon: 「波斯湾五千年：」 / 「全球史视野下的中东海湾地区」.
+    const bare = lines[i].replace(/\s+/g, '');
+    const broken = !isTitle(lines[i]) && (bare === `${key}：` || bare === `${key}:`);
+    if (titleOf(lines[i]).replace(/\s+/g, '') !== key && !broken) continue;
+    const from = i + 1 + (broken ? 1 : 0);
+    const meta = lines.slice(from, from + NAMED_META);
+    const n = meta.findIndex((l) => !(LABEL.test(l) || (l.length <= BY_LINE_CHARS && (ROLE_END.test(l) || TRANSLATOR.test(l) || (PUBLISHER.test(l) && !/[。！？，]/.test(l)))) || dateOf(l) || PAGES_PRICE.test(l) || PRICE.test(l)));
     const run = n < 0 ? meta : meta.slice(0, n);
     if (!run.some((l) => ROLE_END.test(l) || /^(?:作者|著者|出版社)\s*[:：]/.test(l))) continue;
-    const book = blank(named);
+    const book = blank(broken ? `${lines[i].trim()}${lines[i + 1].trim()}` : named);
     for (const l of run) readMeta(book, l);
+    if (review && !book.publisher) continue;
     book.cover = coverAbove(lines, i, 0);
-    const after = i + 1 + run.length;
+    const after = from + run.length;
     book.blurb = lines.slice(after).filter((l) => !IMG.test(l) && !LABEL.test(l)).map((l) => l.replace(BLURB_HEAD, ''))
       .filter((l) => l.length > META_CHARS / 2).slice(0, BLURB_LINES).join('').slice(0, BLURB_CHARS);
     return [book];
@@ -280,6 +403,8 @@ function listedBooks(lines: string[]): ListedBook[] {
     let j = t + 1 + skip;
     for (; j < Math.min(end, t + 1 + skip + META_LINES); j++) {
       const l = lines[j];
+      // 豆瓣's weekly list: the title, its cover, then the labels.
+      if (IMG.test(l) && j === t + 1 + skip && !book.cover) { book.cover = IMG.exec(l)![1]; continue; }
       if (IMG.test(l) || LIST_NUMBER.test(l) || l.length > META_CHARS || /[。！？]$/.test(l)) break;
       readListMeta(book, l);
     }

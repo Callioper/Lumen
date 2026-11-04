@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { formatDate, safeFilename, render, resolveClipPath, writeClip, htmlToMarkdown, DEFAULT_CLIP, type ClipPage } from '../server/clip/obsidian.ts';
+import { formatDate, safeFilename, render, resolveClipPath, writeClip, htmlToMarkdown, DEFAULT_CLIP, NO_EVENT, type ClipPage } from '../server/clip/obsidian.ts';
 import type { Settings } from '../server/config.ts';
 import { bylineAuthor } from '../server/clip/service.ts';
 import { buildAnalysisInput, tidyAnalysis, fillAiSection, normalizeQuotes, unitsWithoutQuote, analysisRequest, ANALYSIS_MAX_CHARS, THINKING_MAX_TOKENS } from '../server/clip/analysis.ts';
@@ -13,7 +13,7 @@ const PAGE: ClipPage = {
   selectedText: '', author: '张三', feed: '某公众号', published: Date.UTC(2026, 0, 5, 12) / 1000,
   summary: '一句话概括。\n\n- 要点', summaryLead: '一句话概括。', tags: ['哲学'],
   displayTitle: '张三｜A/B: 测试?标题（20260105）', headline: '', alias: '', authorLinks: '[[张三]]', translatorLinks: '', origin: '',
-  type: '评论', keywords: '测试、标题', tagLine: '#哲学', words: 10, citation: '',
+  type: '评论', keywords: '测试、标题', tagLine: '#哲学', words: 10, citation: '', ...NO_EVENT,
 };
 
 test('date tokens follow Luxon: LL/MM month, mm minutes', () => {

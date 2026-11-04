@@ -2,6 +2,9 @@
 const LUMEN = 'http://127.0.0.1:8780';
 const MENU_ID = 'lumen-archive';
 const SHARE_MENU_ID = 'lumen-share';
+// 存档's templates: auto lets Lumen tell a 讲座 or 会议 from an article; the others say which.
+const ARCHIVE_MODES = [['auto', '自动判断模板'], ['article', '按文章存'], ['lecture', '按讲座存'], ['meeting', '按会议存']];
+const modeOfMenu = (id) => (typeof id === 'string' && id.startsWith(`${MENU_ID}:`) ? id.slice(MENU_ID.length + 1) : null);
 const BADGE_CLEAR_MS = 4000;
 const busyTabs = new Set();
 
@@ -103,9 +106,18 @@ function badge(tabId, text, color) {
   if (text && text !== '…') setTimeout(() => chrome.action.setBadgeText({ tabId, text: '' }), BADGE_CLEAR_MS);
 }
 
-const ANALYSIS_NOTE = { queued: '，AI 分析在后台生成', 'no-key': '（未配置 AI 密钥，跳过分析）', off: '', skipped: '' };
+const ANALYSIS_NOTE = { queued: '，AI 分析在后台生成', 'no-key': '（未配置 AI 密钥，跳过分析）', off: '', skipped: '', event: '' };
 
-async function archive(tab) {
+function archivedMessage(data) {
+  const what = data.template && data.template !== 'article' ? `按${data.template}模板` : '';
+  if (data.existed) return `已存档过：${data.relPath}`;
+  if (data.added) return `已补进这场${data.template}的笔记：${data.relPath}`;
+  const notes = data.notes?.length ? data.notes : [data.relPath];
+  if (notes.length > 1) return `已${what}存入 ${notes.length} 篇：${notes.join('；')}`;
+  return `已${what}存入 Obsidian：${data.relPath}${ANALYSIS_NOTE[data.analysis] ?? ''}`;
+}
+
+async function archive(tab, mode = 'auto') {
   if (!tab?.id || busyTabs.has(tab.id)) return;
   busyTabs.add(tab.id);
   badge(tab.id, '…', '#6366f1');
@@ -115,12 +127,12 @@ async function archive(tab) {
     const res = await fetch(`${LUMEN}/api/clip/page`, {
       method: 'POST',
       headers: { 'content-type': 'application/json', 'x-lumen': '1' },
-      body: JSON.stringify(page),
+      body: JSON.stringify({ ...page, mode }),
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.error || `Lumen 返回 ${res.status}`);
     badge(tab.id, '✓', '#16a34a');
-    await toast(tab.id, data.existed ? `已存档过：${data.relPath}` : `已存入 Obsidian：${data.relPath}${ANALYSIS_NOTE[data.analysis] ?? ''}`);
+    await toast(tab.id, archivedMessage(data));
   } catch (e) {
     const offline = e instanceof TypeError;
     badge(tab.id, '!', '#dc2626');
@@ -158,10 +170,12 @@ async function share(tab) {
 
 chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.create({ id: MENU_ID, title: '存档到 Obsidian（Lumen）', contexts: ['page', 'selection'] });
+  for (const [mode, title] of ARCHIVE_MODES) chrome.contextMenus.create({ id: `${MENU_ID}:${mode}`, parentId: MENU_ID, title, contexts: ['page', 'selection'] });
   chrome.contextMenus.create({ id: SHARE_MENU_ID, title: '生成分享图（Lumen）', contexts: ['page', 'selection'] });
 });
 chrome.contextMenus.onClicked.addListener((info, tab) => {
-  if (info.menuItemId === MENU_ID) void archive(tab);
+  const mode = modeOfMenu(info.menuItemId);
+  if (mode) void archive(tab, mode);
   if (info.menuItemId === SHARE_MENU_ID) void share(tab);
 });
 chrome.action.onClicked.addListener((tab) => void archive(tab));

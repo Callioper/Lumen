@@ -26,7 +26,11 @@ import { pruneImageCache, warmUnreadImages } from './api/media.ts';
 import { runExtract } from './content/extract.ts';
 import { tocExtractor } from './content/tocs.ts';
 import { noticeExtractor } from './content/notices.ts';
+import { reprintExtractor } from './content/reprints.ts';
 import { findReplays } from './content/replays.ts';
+import { prefetchMarkPages } from './content/markpages.ts';
+import { fillDetails } from './content/bookdates.ts';
+import { newBooks } from './content/booklists.ts';
 import { bookPostIds } from './content/booklists.ts';
 import { log } from './log.ts';
 import { loadExtras } from './extras.ts';
@@ -169,11 +173,13 @@ function main(): void {
   const warmImages = (): void => { warmUnreadImages(db, settings).catch((e) => log.warn(`[img] 预取文章图片：${(e as Error).message}`)); };
   const warmTimer = setInterval(warmImages, WARM_IMAGES_MS);
   const firstWarm = setTimeout(warmImages, 90_000);
-  // 期刊目录 and 学术动态 (server/content/extract.ts): the posts that came in since, read by the AI.
+  // 期刊目录, 学术动态 and 人大复印 (server/content/extract.ts): the posts that came in since, read by the AI.
+  // 人大复印 was read only while 期刊目录 was open, so a month's 全文转载目录 waited days (2026-11-04).
   const EXTRACT_MS = 10 * 60_000;
   // Then the pictures of the notices still listed, read for 首页's preview (content/pictures.ts).
   const extractPosts = (): void => {
     void runExtract(db, tocExtractor, settings, secrets).then(() => runExtract(db, noticeExtractor, settings, secrets))
+      .then(() => runExtract(db, reprintExtractor, settings, secrets))
       .then(() => warmNoticePictures(db, settings)).catch((e) => log.warn(`[ocr] 首页配图预读：${(e as Error).message}`));
   };
   const extractTimer = setInterval(extractPosts, EXTRACT_MS);
@@ -189,6 +195,17 @@ function main(): void {
   const lookForReplays = (): void => { void findReplays(db, settings); };
   const replayTimer = setInterval(lookForReplays, REPLAYS_MS);
   const firstReplays = setTimeout(lookForReplays, 180_000);
+  // 豆瓣 asked ahead, at the feeds' pace, so what the reader opens is there: 标记's cards' pages (content/markpages.ts).
+  const MARK_PAGES_MS = 15 * 60_000;
+  // Then 新书's books a post left the date, cover, author or publisher of, and 想读's subject (content/bookdates.ts).
+  const fetchMarkPages = (): void => {
+    prefetchMarkPages(db).then(() => {
+      const { undated, lacking } = newBooks(db, { offset: 0, limit: 1, byDate: false, recentMonths: 0, notOwned: false });
+      fillDetails(db, [...undated, ...lacking]);
+    }).catch((e) => log.warn(`[douban] 预取：${(e as Error).message}`));
+  };
+  const markPagesTimer = setInterval(fetchMarkPages, MARK_PAGES_MS);
+  const firstMarkPages = setTimeout(fetchMarkPages, 240_000);
 
   serve({ fetch: app.fetch, hostname: settings.host, port }, () => {
     log.info(`Lumen 已启动 http://127.0.0.1:${port}/`);
@@ -198,7 +215,7 @@ function main(): void {
   // A restart once went unexplained (nothing in stderr, no crash event), so every way out is logged.
   const shutdown = (signal: string): void => {
     log.warn(`收到 ${signal}，正在退出`);
-    unwatch(); scheduler.stop(); enricher.stop(); embedder.stop(); translator.stop(); snippets.stop(); clearInterval(nameTimer); clearTimeout(firstNaming); clearInterval(warmTimer); clearTimeout(firstWarm); clearInterval(extractTimer); clearTimeout(firstExtract); clearInterval(replayTimer); clearTimeout(firstReplays); clearInterval(updateTimer); clearTimeout(firstUpdate); db.close(); process.exit(0);
+    unwatch(); scheduler.stop(); enricher.stop(); embedder.stop(); translator.stop(); snippets.stop(); clearInterval(nameTimer); clearTimeout(firstNaming); clearInterval(warmTimer); clearTimeout(firstWarm); clearInterval(extractTimer); clearTimeout(firstExtract); clearInterval(replayTimer); clearTimeout(firstReplays); clearInterval(markPagesTimer); clearTimeout(firstMarkPages); clearInterval(updateTimer); clearTimeout(firstUpdate); db.close(); process.exit(0);
   };
   process.on('SIGINT', () => shutdown('SIGINT'));
   process.on('SIGTERM', () => shutdown('SIGTERM'));

@@ -4,6 +4,7 @@
 // requests, a little apart, kept a month in douban_subject.page like a book's page.
 import type { DB } from '../db.ts';
 import { DoubanError, type ShortComment, type Similar } from './douban.ts';
+import { readerDoubanTurn, doubanRefused, doubanAnswered, offMessage, doubanWaitMs } from '../fetch/doubanpace.ts';
 
 const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1';
 const TIMEOUT_MS = 12_000;
@@ -50,15 +51,28 @@ export function readMovie(subject: Json, interests: Json, recs: unknown): MovieP
 }
 
 async function rexxar(path: string, subject: string): Promise<unknown> {
+  const off = await readerDoubanTurn();
+  if (off) throw new DoubanError(offMessage(off));
   const r = await fetch(`https://m.douban.com/rexxar/api/v2/movie/${subject}${path}`, {
     headers: { 'User-Agent': UA, Referer: `https://m.douban.com/movie/subject/${subject}/` }, signal: AbortSignal.timeout(TIMEOUT_MS),
   }).catch((err: Error) => { throw new DoubanError(`豆瓣没连上（${err.name === 'TimeoutError' ? '超时' : err.message}），稍后再试`); });
-  if (!r.ok) throw new DoubanError(r.status === 403 || r.status === 429 ? '豆瓣拒绝了请求，可能是请求太频，稍后再试' : `豆瓣条目打不开（HTTP ${r.status}）`);
+  if (r.status === 403 || r.status === 429) { doubanRefused(); throw new DoubanError(offMessage(doubanWaitMs())); }
+  if (!r.ok) throw new DoubanError(`豆瓣条目打不开（HTTP ${r.status}）`);
+  doubanAnswered();
   return r.json();
 }
 
 const PARTIAL_KEEP_S = 3600;
 const sleep = (ms: number): Promise<void> => new Promise((ok) => setTimeout(ok, ms));
+
+// Whether a film's page is kept and fresh (markpages.ts asks ahead for the ones that are not).
+export function moviePageFresh(db: DB, subject: string, now = Math.floor(Date.now() / 1000)): boolean {
+  const row = db.prepare('SELECT page, editions_at FROM douban_subject WHERE subject = ?').get(subject) as { page: string | null; editions_at: number | null } | undefined;
+  const kept = row?.page ? JSON.parse(row.page) as Partial<MoviePage> : null;
+  return kept?.kind === 'movie' && kept.v === MOVIE_VERSION && !!row?.editions_at && now - row.editions_at < FRESH_S;
+}
+// Its requests: the subject, its comments, its recommendations.
+export const MOVIE_REQUESTS = 3;
 
 export async function moviePage(db: DB, subject: string): Promise<{ page: MoviePage; wished: boolean }> {
   const now = Math.floor(Date.now() / 1000);

@@ -2,7 +2,7 @@
 // each marked with whether Zotero has it and whether 想读 was marked from here; and 新书, every such
 // post's books once, by post or by date.
 import type { DB } from '../db.ts';
-import { extractBooks, dateOf, LIST_POST, type ListedBook } from './books.ts';
+import { extractBooks, dateOf, LIST_POST, REVIEW_POST, type ListedBook } from './books.ts';
 import { doulistBooks, doulistIdOf, knownBooks, keyOf, wishedSubjects, ownMarks } from './douban.ts';
 import { zoteroLibrary, inLibrary } from './library.ts';
 import { normTitle } from '../report/ngram.ts';
@@ -56,12 +56,22 @@ export async function postBooks(db: DB, row: { title: string; html: string | nul
   return { books: viewBooks(db, extractBooks(html, row.title)), pending: false };
 }
 
-interface ScannedPost { row: PostRow; doulist: boolean; books: ListedBook[] }
+// review: a 豆瓣 书评, whose book joins 新书 only when it came out lately (REVIEW_MONTHS).
+interface ScannedPost { row: PostRow; doulist: boolean; books: ListedBook[]; review?: boolean }
 let feedCache: { db: DB; at: number; top: number; posts: ScannedPost[] } | null = null;
 
+// A preface posted on its own names its book in a byline (books.ts BYLINE_BOOK).
+const BYLINE_HTML = /(?:主编|编著|著|编|译)\s*[:：]\s*《/;
+// 「(评论: 动物为什么不得现代病)」 and the link to the book at its head (books.ts reviewedBook).
+const REVIEW_HTML = /评论\s*[:：]?\s*<a\s+href="https?:\/\/book\.douban\.com\/subject\//;
 const scanPost = (row: PostRow): ScannedPost[] => {
   if (DOULIST_POST.test(row.title) && doulistIdOf(row.html ?? '')) return [{ row, doulist: true, books: [] }];
-  if (MARK_POST.test(row.title) || !/ISBN/.test(row.html ?? '') && !LIST_POST.test(row.title)) return [];
+  if (REVIEW_HTML.test((row.html ?? '').slice(0, 1200))) {
+    const books = extractBooks(row.html ?? '', row.title);
+    return books.length ? [{ row, doulist: false, books, review: true }] : [];
+  }
+  const named = LIST_POST.test(row.title) || REVIEW_POST.test(row.title) || BYLINE_HTML.test(row.html ?? '');
+  if (MARK_POST.test(row.title) || !/ISBN/.test(row.html ?? '') && !named) return [];
   const books = extractBooks(row.html ?? '', row.title);
   return books.length ? [{ row, doulist: false, books }] : [];
 };
@@ -74,7 +84,7 @@ function bookPosts(db: DB): ScannedPost[] {
   if (fresh && fresh.top === top) return fresh.posts;
   const rows = db.prepare(`SELECT e.id, e.title, COALESCE(e.content_full, e.content) AS html, f.title AS feed, f.id AS feed_id, e.published, e.link
     FROM entry e JOIN feed f ON f.id = e.feed_id
-    WHERE e.id > ? AND (e.title LIKE '%书%' OR COALESCE(e.content_full, e.content) LIKE '%ISBN%') ORDER BY e.published DESC, e.id DESC`)
+    WHERE e.id > ? AND (e.title LIKE '%书%' OR e.title LIKE '%评《%' OR COALESCE(e.content_full, e.content) LIKE '%：《%' OR COALESCE(e.content_full, e.content) LIKE '%ISBN%' OR e.title LIKE '%(评论: %') ORDER BY e.published DESC, e.id DESC`)
     .all(fresh?.top ?? 0) as unknown as PostRow[];
   const scanned = rows.flatMap(scanPost);
   const posts = fresh
@@ -85,7 +95,8 @@ function bookPosts(db: DB): ScannedPost[] {
 }
 
 // The posts 新书 lists books from, 豆列 among them: retention spares them (retention.ts).
-export const bookPostIds = (db: DB): number[] => bookPosts(db).map((p) => p.row.id);
+// A 书评 only while its book is listed (an old book's review ages out as any post does).
+export const bookPostIds = (db: DB): number[] => recentReviewed(db, bookPosts(db), new Date()).posts.map((p) => p.row.id);
 
 export interface BookFrom { id: number; title: string; feed: string; feedId: number; published: number }
 // posts: how many 书单 listed it; month: its section when by date; topic: its 主题, null until classified;
@@ -94,7 +105,7 @@ export interface NewBook { book: BookView; from: BookFrom; posts: number; month?
 export interface NewBooksQuery { offset: number; limit: number; byDate: boolean; recentMonths: number; notOwned: boolean; topic?: string; kind?: string; humanities?: boolean; shelves?: boolean }
 export interface MonthCount { label: string; n: number; shelves?: Shelf[] }
 export interface NewBooksPage { books: NewBook[]; total: number; posts: number; months?: MonthCount[];
-  topics: { label: string; n: number }[]; kinds: { label: string; n: number }[]; unsorted: { key: string; b: ListedBook }[]; undated: ListedBook[] }
+  topics: { label: string; n: number }[]; kinds: { label: string; n: number }[]; unsorted: { key: string; b: ListedBook }[]; undated: ListedBook[]; lacking: ListedBook[] }
 
 // 「2026年4月」 → months since year 0. A year alone counts as its last month when deciding what is
 // recent, so it is never cut too soon, and as before its first when ordering, so it follows the
@@ -185,8 +196,29 @@ export function monthLabel(date: string, now = new Date()): string {
   return m[2] ? `${m[1]}年${+m[2]}月` : `${m[1]}年（月份不详）`;
 }
 
+// A 豆瓣 书评 is as often of a book years old as of a new one (2026-11-04: the reader keeps 新书 for new
+// books): its book is listed only once its date is known and within this many months; until then it
+// is looked up (bookdates.ts) but not shown.
+const REVIEW_MONTHS = 12;
+function recentReviewed(db: DB, posts: ScannedPost[], now: Date): { posts: ScannedPost[]; pending: ListedBook[] } {
+  const cutoff = now.getFullYear() * 12 + now.getMonth() - REVIEW_MONTHS;
+  const pending: ListedBook[] = [];
+  const kept = posts.flatMap((p) => {
+    if (!p.review) return [p];
+    const views = viewBooks(db, p.books);
+    const books = p.books.filter((b, i) => {
+      const m = monthOf(views[i].date, 'last');
+      if (m === null) pending.push(b);
+      return m !== null && m >= cutoff;
+    });
+    return books.length ? [{ ...p, books }] : [];
+  });
+  return { posts: kept, pending };
+}
+
 export function newBooks(db: DB, q: NewBooksQuery): NewBooksPage {
-  const listed = mergeListings(bookPosts(db).filter((p) => !p.doulist).flatMap(({ row, books }) => {
+  const reviewed = recentReviewed(db, bookPosts(db).filter((p) => !p.doulist), new Date());
+  const listed = mergeListings(reviewed.posts.flatMap(({ row, books }) => {
     const from: BookFrom = { id: row.id, title: row.title, feed: row.feed, feedId: row.feed_id, published: row.published };
     // One post listing a book twice (a cover line and a details line) is still one listing.
     const seen = new Set<string>();
@@ -217,7 +249,12 @@ export function newBooks(db: DB, q: NewBooksQuery): NewBooksPage {
   if (q.topic) all = all.filter((x) => x.topic === q.topic);
   // Books whose date no post gave and 豆瓣 was not asked for yet (bookdates.ts looks them up).
   const undated = listed.flatMap((x, i) => (views[i].date ? [] : [x.b]));
-  const page = { topics: topicList, kinds: kindList, unsorted, undated };
+  // Dated, but with no cover, author, publisher or 豆瓣 subject (which 想读 needs): looked up after those.
+  const lacking = listed.flatMap((x, i) => {
+    const v = views[i];
+    return v.date && (!v.cover || !v.authors || !v.publisher || !v.subject) ? [x.b] : [];
+  });
+  const page = { topics: topicList, kinds: kindList, unsorted, undated: [...undated, ...reviewed.pending], lacking };
   if (q.byDate) {
     // Undated last; otherwise newest first, the post order kept among books of one month.
     const order = all.map((x, i) => ({ x, i, m: monthOf(x.book.date, 'before') ?? -1 }));

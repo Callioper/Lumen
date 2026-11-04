@@ -325,7 +325,7 @@ async function queuedDigest(ids: number[]): Promise<string> {
   try { return (await api.digest(ids)).summary; } finally { digestRunning--; digestQueue.shift()?.(); }
 }
 
-// 每日简报: one feed's day as a single block, titles folded. A block of a few lines or more is
+// 每日简报: one feed's entries as a single block, titles folded. A block of a few lines or more is
 // summed up by AI once it scrolls into view (when AI is on); the others on request. Every block opens
 // in full; in a mixed list a block folds from its title (2026-10-28). A block read to the end while
 // on screen shrinks to its header line and keeps its place, so the list neither grows with what was
@@ -348,18 +348,24 @@ function DigestCard({ b, oneFeed }: { b: DigestBlock<ListItem>; oneFeed: boolean
   // A block opens by itself when j/k move onto one of its folded entries.
   const holdsSelected = b.items.slice(DIGEST_PREVIEW).some((i) => i.id === selectedId.value);
   const folded = done && !b.items.some((i) => i.id === selectedId.value);
-  // A block that folds or opens while its top is scrolled out of sight would pull what is being read
-  // up or down by the height it lost; the list scrolls by the same amount instead. Done here rather
-  // than left to the browser's scroll anchoring, which Safari lacks (.digests turns it off).
-  const height = useRef(0);
+  // A block whose top is scrolled out of sight and that changes height (it folds or opens, its AI
+  // summary or 「归纳中…」 comes in) would pull what is being read up or down by that much; the list
+  // scrolls by the same amount instead. Only folding was covered before, so a summary arriving in a
+  // block above made the list jump (2026-11-01). Done here rather than left to the browser's scroll
+  // anchoring, which Safari lacks (.digests turns it off).
   useLayoutEffect(() => {
     const el = ref.current;
     const scroller = el?.closest<HTMLElement>('.list-scroll');
-    if (!el || !scroller || !height.current) return;
-    const delta = el.offsetHeight - height.current;
-    if (delta && el.getBoundingClientRect().top < scroller.getBoundingClientRect().top) scroller.scrollTop += delta;
-  }, [folded]);
-  useLayoutEffect(() => { height.current = ref.current?.offsetHeight ?? 0; });
+    if (!el || !scroller) return;
+    let height = el.offsetHeight;
+    const ro = new ResizeObserver(() => {
+      const delta = el.offsetHeight - height;
+      height = el.offsetHeight;
+      if (delta && el.getBoundingClientRect().top < scroller.getBoundingClientRect().top) scroller.scrollTop += delta;
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
   const shown = expanded || holdsSelected ? b.items : b.items.slice(0, DIGEST_PREVIEW);
   const summarize = async (auto: boolean): Promise<void> => {
     setBusy(true);

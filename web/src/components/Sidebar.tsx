@@ -164,6 +164,10 @@ export function Sidebar() {
           </ul>
         )}
 
+        {/* Without a heading, the one category left with unread (反斗限免, 10-29) read as part of 友邻 above it. */}
+        {v === 'all' && (uncategorized.length > 0 || a.categories.some((c) => byCat.get(c.id)?.length)) && (
+          <ul class="nav-group"><li class="nav-label" title="订阅源，按分类">订阅</li></ul>
+        )}
         {a.categories.map((c) => {
           const list = byCat.get(c.id);
           if (!list?.length) return null;

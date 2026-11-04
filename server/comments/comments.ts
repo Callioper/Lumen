@@ -5,6 +5,7 @@
 // section costs one.
 import type { DB } from '../db.ts';
 import { log } from '../log.ts';
+import { readerDoubanTurn, doubanRefused, doubanAnswered, offMessage } from '../fetch/doubanpace.ts';
 
 export interface Comment { who: string; text: string; time: number; likes: number; rating?: number; replies: Comment[] }
 export interface Comments { source: string; url: string; total: number; comments: Comment[]; fetchedAt: number;
@@ -37,8 +38,19 @@ const list = (v: unknown): Raw[] => (Array.isArray(v) ? v.map(obj) : []);
 const str = (v: unknown): string => (typeof v === 'string' ? v.trim() : '');
 const num = (v: unknown): number => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
 
-const rexxar = (path: string): Promise<unknown> =>
-  getJson(`https://m.douban.com/rexxar/api/v2/${path}`, { Referer: 'https://m.douban.com/' });
+// In turn with every other request of 豆瓣 (doubanpace.ts).
+async function rexxar(path: string): Promise<unknown> {
+  const off = await readerDoubanTurn();
+  if (off) throw new CommentsError(offMessage(off));
+  try {
+    const out = await getJson(`https://m.douban.com/rexxar/api/v2/${path}`, { Referer: 'https://m.douban.com/' });
+    doubanAnswered();
+    return out;
+  } catch (err) {
+    if (err instanceof CommentsError && /（(?:403|429)）/.test(err.message)) doubanRefused();
+    throw err;
+  }
+}
 
 // Replies to a review or a broadcast, each with the replies under it.
 export function doubanComment(c: Raw): Comment {

@@ -5,6 +5,7 @@ import { parseFeed } from './parse.ts';
 import { ingest, BACKLOG_WINDOW, type FeedRow } from './ingest.ts';
 import { log } from '../log.ts';
 import { warmFeedCovers, warmUnreadImages } from '../api/media.ts';
+import { isDoubanUrl, isRefusal, takeDoubanTurn, doubanRefused, doubanAnswered, deferredFetchAt } from './doubanpace.ts';
 
 const TICK_MS = 30_000;
 const MAX_BACKOFF = 86_400;
@@ -100,11 +101,20 @@ export async function fetchFeed(db: DB, feed: FeedRow, settings: Settings): Prom
     const timedOut = feed.error_count > 0 && /超时/.test(feed.last_error ?? '');
     const timeoutMs = Math.max(isRsshub ? RSSHUB_TIMEOUT_MS : settings.fetchTimeoutMs, timedOut ? SLOW_FEED_TIMEOUT_MS : 0);
     const res = await getFeed(feed, settings, { headers, timeoutMs });
+    const douban = isDoubanUrl(feed.url);
+    if (douban && res.status < 400) doubanAnswered();
     if (res.status === 304) { done(true, null); return { ok: true, added: 0 }; }
     if (res.status >= 400) {
       // The bridge answers failures with a plain-text reason worth surfacing.
       const reason = isRsshub ? decodeBody(res.body, res.headers.get('content-type')).split('\n')[0].slice(0, 160) : '';
       const err = `HTTP ${res.status}${reason ? ' ' + reason : ''}`;
+      // 豆瓣 refusing this address is not the feed's fault: all of 豆瓣 waits (doubanpace.ts), and the
+      // feed is tried again some time after, without its error count growing.
+      if (douban && isRefusal(res.status, reason)) {
+        doubanRefused();
+        db.prepare('UPDATE feed SET last_fetch_at = ?, next_fetch_at = ?, last_error = ? WHERE id = ?').run(now, deferredFetchAt(), err, feed.id);
+        return { ok: false, added: 0, error: err };
+      }
       done(false, err, res.status === 429 || res.status === 503 ? parseRetryAfter(res.headers.get('retry-after')) : undefined);
       return { ok: false, added: 0, error: err };
     }
@@ -166,6 +176,8 @@ export class Scheduler {
       if (this.running.has(feed.id)) continue;
       const host = this.host(feed);
       if ((this.hostLoad.get(host) ?? 0) >= settings.perHostConcurrency) continue;
+      // 豆瓣 feeds one at a time, spaced out with every other request of 豆瓣 (doubanpace.ts).
+      if (isDoubanUrl(feed.url) && !takeDoubanTurn()) continue;
       started++;
       void this.run(feed, host);
     }

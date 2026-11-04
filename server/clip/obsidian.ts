@@ -37,7 +37,62 @@ export interface ClipPage {
   tagLine: string;          // #媒介研究 #文学理论/叙事学
   words: number;
   citation: string;
+  // A talk or a conference archived as one (clip/event.ts); empty for an article.
+  eventKind: string;        // 讲座, 会议
+  eventDate: string;        // 2026-10-22
+  eventTime: string;        // 14:00
+  place: string;
+  organizer: string;
+  speakerLinks: string;     // [[季进]]
+  poster: string;           // the post's first picture, as the note links it
+  postLinks: string;        // [预告](…) · [回顾](…)
+  replay: string;           // [B站 · 松溪人文](…)
+  eventSummary: string;
 }
+
+export const NO_EVENT = { eventKind: '', eventDate: '', eventTime: '', place: '', organizer: '', speakerLinks: '', poster: '', postLinks: '', replay: '', eventSummary: '' } as const;
+
+// A talk or a conference: the vault's Lecture Note template, filled from what 学术动态 read of the post.
+export const EVENT_BODY_TEMPLATE = `---
+UID: {{uuid}}
+status: unfinished
+aliases:
+---
+# Metadata
+- title:: [{{page.displayTitle}}]({{page.url}})
+- created:: [[{{date "yyyy-LL-dd"}}]]
+- date:: {{#if page.eventDate}}[[{{page.eventDate}}]]{{/if}}
+- time:: {{page.eventTime}}
+- place:: {{page.place}}
+- published:: {{date "yyyy-LL-dd" page.published}}
+- type:: {{page.eventKind}}
+- author:: {{page.speakerLinks}}
+- organizer:: {{page.organizer}}
+- source:: {{page.feed}}
+- keywords:: {{page.keywords}}
+- tags:: {{#if page.tagLine}}{{page.tagLine}}{{else}}#{{/if}}
+- 海报:: {{page.poster}}
+- 公众号:: {{page.postLinks}}
+- 录屏:: {{page.replay}}
+- 飞书:: 
+
+>[!summary]
+>summary:: {{#if page.eventSummary}}{{page.eventSummary}}{{else}}✍️{{/if}}
+
+---
+# {{page.displayTitle}}
+
+{{page.content}}
+{{#if page.selectedText}}
+
+---
+# 摘录
+
+{{quote page.selectedText}}
+{{/if}}
+
+# Notes
+`;
 
 // The body template Lumen shipped before metadata was filled in; settings still holding it
 // unchanged are moved to the current default (config.ts).
