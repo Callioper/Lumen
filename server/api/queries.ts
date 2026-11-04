@@ -1,5 +1,5 @@
 import type { DB } from '../db.ts';
-import { VIEWS, LAYOUTS } from '../db.ts';
+import { VIEWS, LAYOUTS, tx } from '../db.ts';
 import { plainText } from '../content/sanitize.ts';
 import { unreadMarks, MARK_WHERE } from './marks.ts';
 import { commentSource } from '../comments/comments.ts';
@@ -112,15 +112,36 @@ function withHits(rows: HitRow[], long: boolean, terms: string[]): ListItem[] {
   });
 }
 
-export function listEntries(db: DB, scope: Scope, before: Cursor | undefined, limit: number): ListItem[] {
+// oldest: 最旧 first, and `before` is then the entry the next page goes on after.
+export function listEntries(db: DB, scope: Scope, before: Cursor | undefined, limit: number, oldest = false): ListItem[] {
   const w = scopeWhere(scope);
   const long = scope.snippet === 'long';
   const p = searchOf(scope);
-  const cursor = before ? (w.sql ? ' AND ' : 'WHERE ') + '(e.published < ? OR (e.published = ? AND e.id < ?))' : '';
+  const [cmp, dir] = oldest ? ['>', 'ASC'] : ['<', 'DESC'];
+  const cursor = before ? (w.sql ? ' AND ' : 'WHERE ') + `(e.published ${cmp} ? OR (e.published = ? AND e.id ${cmp} ?))` : '';
   const rows = db.prepare(`SELECT ${itemColumns(long)}${p ? HIT_COLUMNS : ''}
-    FROM entry e JOIN feed f ON f.id = e.feed_id ${w.sql}${cursor} ORDER BY e.published DESC, e.id DESC LIMIT ?`)
+    FROM entry e JOIN feed f ON f.id = e.feed_id ${w.sql}${cursor} ORDER BY e.published ${dir}, e.id ${dir} LIMIT ?`)
     .all(...w.args, ...(before ? [before.published, before.published, before.id] : []), limit) as unknown as HitRow[];
   return p ? withHits(rows, long, allTerms(p)) : toItems(rows, long);
+}
+
+// 以下已读 and 超过 N 天: the unread entries of a list past an entry (older than it, or newer when the list
+// runs 最旧 first), or published more than `days` ago, marked read; their ids, so the reader can undo.
+// Done here rather than on the page's entries, since the list holds only the pages scrolled to.
+export type ReadBound = { side: 'older' | 'newer'; published: number; id: number } | { days: number };
+const DAY = 86400;
+export function markReadBeyond(db: DB, scope: Scope, bound: ReadBound, now = Math.floor(Date.now() / 1000)): number[] {
+  const w = scopeWhere({ ...scope, filter: 'unread' });
+  const [cond, args] = 'days' in bound
+    ? ['e.published < ?', [now - bound.days * DAY]]
+    : bound.side === 'older'
+      ? ['(e.published < ? OR (e.published = ? AND e.id < ?))', [bound.published, bound.published, bound.id]]
+      : ['(e.published > ? OR (e.published = ? AND e.id > ?))', [bound.published, bound.published, bound.id]];
+  const ids = (db.prepare(`SELECT e.id FROM entry e JOIN feed f ON f.id = e.feed_id ${w.sql} AND ${cond}`)
+    .all(...w.args, ...args) as { id: number }[]).map((r) => r.id);
+  const mark = db.prepare('UPDATE entry SET is_read = 1, read_at = ? WHERE id = ?');
+  tx(db, () => { for (const id of ids) mark.run(now, id); });
+  return ids;
 }
 
 // Weights of entry_fts's columns: a term in a title counts most, then author and summary, then text.

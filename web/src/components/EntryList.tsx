@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { items, hasMore, loading, selectedId, open, loadMore, feedsById, selection, tab, app, prefs, setPrefs,
   reloadList, markAllRead, newCount, query, toggleStar, isMarks, isReports, isBooks, isHot, isTocs, isNotices, isHome, layout, defaultLayout, setLayout, markItemsRead,
-  scrollRead, setScrollRead, markIdsRead, markAboveRead, scope, notify, recAvailable, sortMode, setSortMode, recMeta, setSearchOrder, searchSince, searchKept, type SearchSince } from '../store.ts';
+  scrollRead, setScrollRead, markIdsRead, markAboveRead, markBelowRead, markOlderThan, scope, notify, recAvailable, sortMode, setSortMode, recMeta, setSearchOrder, searchSince, searchKept, type SearchSince } from '../store.ts';
 import { LAYOUTS, WIDE_LAYOUTS, groupByDay, groupDigest, layoutLabel, type DigestBlock } from '../layout.ts';
 import { MarksList } from './Marks.tsx';
 import { ReportsView } from './Reports.tsx';
@@ -85,6 +85,7 @@ function SortToggle() {
   return (
     <div class="seg" role="group" aria-label="排序">
       <button class={cx(m === 'latest' && 'on')} onClick={() => setSortMode('latest')} title="按发布时间">最新</button>
+      <button class={cx(m === 'oldest' && 'on')} onClick={() => setSortMode('oldest')} title="最早的在上，按顺序补读">最旧</button>
       <button class={cx(m === 'rec' && 'on')} onClick={() => setSortMode('rec')} title="按你的阅读偏好排，兼顾新鲜度与多样性">推荐</button>
     </div>
   );
@@ -126,14 +127,59 @@ function StarToggle({ it, size = 13, class: cls = 'card-star' }: { it: ListItem;
   );
 }
 
-// 上面已读 on the card itself, for the lists that have no reader beside them (时间线, 瀑布流, 大卡片):
-// there the reader's own button is out of sight until an article is opened. Shown on hover, as the star.
+// 上面已读 on the entry itself, in every layout: shown on hover, as the star, and kept in sight on the
+// selected entry, so selecting one and clicking it is enough (asked for twice; the reader's button was missed).
+// 以下已读 beside it on the selected entry (not on a picture tile, whose corner has room for one).
 function ReadAbove({ it, class: cls = 'card-above' }: { it: ListItem; class?: string }) {
+  const below = cls === 'card-above' && it.id === selectedId.value;
   return (
-    <button class={cls} onClick={(e) => { e.stopPropagation(); void markAboveRead(it.id); }}
-      aria-label="把这篇上面的都标为已读" title="把这篇上面的都标为已读，5 秒内可撤销（选中时也可按 Shift+K）">
-      <Icon name="readAbove" size={13} />
-    </button>
+    <>
+      <button class={cls} onClick={(e) => { e.stopPropagation(); void markAboveRead(it.id); }}
+        aria-label="把这篇上面的都标为已读" title="把这篇上面的都标为已读，5 秒内可撤销（选中时也可按 Shift+K）">
+        <Icon name="readAbove" size={13} /><span class="above-label">以上已读</span>
+      </button>
+      {below && (
+        <button class="card-above card-below" onClick={(e) => { e.stopPropagation(); void markBelowRead(it.id); }}
+          aria-label="把这篇下面的都标为已读" title="把这篇下面的都标为已读（按时间排时连没加载的也算），5 秒内可撤销（Shift+J）">
+          <Icon name="readAbove" size={13} /><span class="above-label">以下已读</span>
+        </button>
+      )}
+    </>
+  );
+}
+
+// 全部已读, and from the menu beside it what came out more than a few days ago.
+const OLDER_DAYS = [1, 3, 7, 30];
+// noneLoaded: nothing unread among the loaded entries; 全部 has nothing to do then, the day limits still may.
+function MarkReadMenu({ noneLoaded }: { noneLoaded: boolean }) {
+  const [isOpen, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!isOpen) return;
+    const close = (e: MouseEvent): void => { if (!ref.current?.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [isOpen]);
+  const run = (fn: () => Promise<void>): void => { setOpen(false); void fn(); };
+  return (
+    <div class="layout-pick" ref={ref}>
+      <button class="icon-btn" title="标为已读…" aria-haspopup="menu" aria-expanded={isOpen} onClick={() => setOpen(!isOpen)}>
+        <Icon name="checks" />
+      </button>
+      {isOpen && (
+        <div class="menu" role="menu">
+          <button class="menu-item" role="menuitem" disabled={noneLoaded} onClick={() => run(markAllRead)}>
+            <span class="menu-text"><b>全部标为已读</b><small>这个列表里的未读</small></span><kbd>Shift+A</kbd>
+          </button>
+          <div class="menu-head">只标较早的（连没加载的也算，可撤销）</div>
+          {OLDER_DAYS.map((d) => (
+            <button key={d} class="menu-item" role="menuitem" onClick={() => run(() => markOlderThan(d))}>
+              <span class="menu-text"><b>{d === 1 ? '一天前' : `${d} 天前`}的</b></span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -152,6 +198,7 @@ function Row({ it }: { it: ListItem }) {
         <PageTags pages={it.pages} />
         {it.douban && <SubjectWish s={it.douban} class="row-wish" />}
         <StarToggle it={it} size={12} />
+        <ReadAbove it={it} />
       </div>
       <div class="row-body">
         <div class="row-text">
@@ -281,6 +328,7 @@ function Line({ it, oneFeed }: { it: ListItem; oneFeed: boolean }) {
       <PageTags pages={it.pages} />
       {!oneFeed && <span class="line-feed">{f?.title}</span>}
       <StarToggle it={it} size={11} />
+      <ReadAbove it={it} />
       <span class="line-time">{clock(it.published)}</span>
     </div>
   );
@@ -563,9 +611,7 @@ function Entries() {
           )}
           {recAvailable.value && <SortToggle />}
           <LayoutPicker />
-          <button class="icon-btn" title="全部标为已读 (Shift+A)" onClick={() => void markAllRead()} disabled={!list.some((i) => !i.is_read)}>
-            <Icon name="checks" />
-          </button>
+          <MarkReadMenu noneLoaded={!list.some((i) => !i.is_read)} />
         </div>
         {query.value && <SearchFilters />}
       </header>

@@ -4,12 +4,22 @@ import type { Settings } from '../config.ts';
 import { httpGet, decodeBody } from '../fetch/http.ts';
 import { sanitize } from './sanitize.ts';
 import { extras } from '../extras.ts';
+import { log } from '../log.ts';
+import { sspaiPostId, sspaiFullText } from './sspai.ts';
 
 const MIN_TEXT = 200;
 
 // Fetch the article page and extract its main content. Returns null when the
 // page has no recognisable article (login walls, captcha, SPA shells).
 export async function fetchFullText(link: string, settings: Settings): Promise<string | null> {
+  if (sspaiPostId(link)) {
+    try {
+      const body = await sspaiFullText(link, settings);
+      if (body) return body;
+    } catch (e) {
+      log.warn(`[fulltext] ${link}: ${(e as Error).message}，改读网页`);
+    }
+  }
   // The link comes from feed content, so it must not reach local services.
   const cookie = extras.pageCookie?.(new URL(link));
   const res = await httpGet(link, settings, { headers: { accept: 'text/html,application/xhtml+xml', ...(cookie ? { cookie } : {}) }, publicOnly: true });

@@ -4,7 +4,7 @@ import { effect, signal } from '@preact/signals';
 import './styles.css';
 import { TOKEN_NAMES, tokensOf, paletteOf, DEFAULT_PALETTE } from './themes.ts';
 import { app, prefs, detail, isReports, isMarks, markGroups, selectedMark, subjectTrail, marksBack, marksHome, boardOpen, selectedId, items, toast, settingsOpen, viewMode, refreshState, reloadList, connectEvents, openFromHash,
-  step, setRead, toggleStar, toggleReaction, markAllRead, markAboveRead, runAi, clipToObsidian, clipMenu, quickShare, cycleTranslation, share, notify, navOpen } from './store.ts';
+  step, setRead, toggleStar, toggleReaction, markAllRead, markAboveRead, markBelowRead, runAi, clipToObsidian, clipMenu, quickShare, cycleTranslation, share, notify, navOpen } from './store.ts';
 import { Icon } from './components/Icon.tsx';
 import { ShareDialog } from './share/ShareDialog.tsx';
 import { SharePage } from './share/SharePage.tsx';
@@ -16,6 +16,7 @@ import { SettingsModal } from './components/Settings.tsx';
 import { TasksPanel } from './components/Tasks.tsx';
 import { cx, safeLink } from './util.ts';
 import { loadWebExtras } from './extras.ts';
+import { ImageViewer, ShortcutsPanel, overlayKey, shortcutsOpen } from './components/Overlays.tsx';
 
 effect(() => {
   const t = prefs.value.theme;
@@ -54,6 +55,7 @@ function openLink(): string | null {
 // Shortcuts follow the FreshRSS bindings the user already has in muscle memory.
 function onKey(e: KeyboardEvent): void {
   const t = e.target as HTMLElement;
+  if (!e.ctrlKey && !e.metaKey && overlayKey(e)) { e.preventDefault(); return; }
   if (settingsOpen.value || share.value || e.ctrlKey || e.metaKey || e.altKey || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) || t.isContentEditable) {
     if (e.key === 'Escape' && t.tagName === 'INPUT') t.blur();
     return;
@@ -68,6 +70,7 @@ function onKey(e: KeyboardEvent): void {
     case 'q': void api.refreshAll().then(() => refreshState()); break;
     case 'A': if (e.shiftKey) void markAllRead(); break;
     case 'K': if (e.shiftKey) void markAboveRead(); break;
+    case 'J': if (e.shiftKey) void markBelowRead(); break;
     case 'v': void runAi({ fulltext: true }); break;
     case 'c': void clipToObsidian(); break;
     case 'C': if (e.shiftKey && detail.value) clipMenu.value = true; break;
@@ -78,6 +81,7 @@ function onKey(e: KeyboardEvent): void {
     case 't': cycleTranslation(); break;
     case 'h': if (!isMarks.value) return; marksHome(); break;
     case '/': document.getElementById('search')?.focus(); break;
+    case '?': shortcutsOpen.value = true; break;
     case 'Escape': case 'Backspace':
       if (e.key === 'Escape' && navOpen.value) { navOpen.value = false; break; }
       if (isMarks.value) { if (!marksBack()) return; break; }
@@ -111,6 +115,8 @@ function App() {
       <Reader />
       <SettingsModal />
       <TasksPanel />
+      <ImageViewer />
+      <ShortcutsPanel />
       {share.value && <ShareDialog data={share.value.data} initial={share.value.style} notify={notify} onClose={() => { share.value = null; }} />}
       {toast.value && (
         <div class={cx('toast', toast.value.error && 'error')} role="status">

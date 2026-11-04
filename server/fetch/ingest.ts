@@ -3,6 +3,7 @@ import { type DB, type View, tx, newEntryId } from '../db.ts';
 import { indexEntry } from '../search.ts';
 import { sanitize, plainText, decodeEntities } from '../content/sanitize.ts';
 import type { ParsedFeed, ParsedItem } from './parse.ts';
+import { mutedBy } from '../content/mute.ts';
 
 export interface FeedRow {
   id: number;
@@ -90,6 +91,8 @@ export interface IngestOptions {
   aiEnabled: boolean;
   now?: number;
   retention?: { days: number; keepMinPerFeed: number };
+  // 屏蔽词 (settings.muteWords): an entry whose title has one comes in read (content/mute.ts).
+  muteWords?: readonly string[];
 }
 
 // How old an item may be and still come in as new. Separate from how long entries are kept: with
@@ -133,7 +136,8 @@ export function ingest(db: DB, feed: FeedRow, parsed: ParsedFeed, opts: IngestOp
   // its entries just never count as unread.
   const read = feed.quiet ? 1 : 0;
   const insert = db.prepare(`INSERT INTO entry (id, feed_id, guid, title, title_hash, author, link, content, thumbnail, enclosures, published, ai_state, is_read, read_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ${read}, ${read ? now : 'NULL'})`);
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+  const muteWords = opts.muteWords ?? [];
   const insertTag = db.prepare("INSERT OR IGNORE INTO tag (entry_id, name, source) VALUES (?, ?, 'feed')");
   const wantsWork = feed.fulltext || (opts.aiEnabled && (feed.ai_summary || feed.ai_translate_title || feed.ai_classify));
   const base = feed.site_url || feed.url;
@@ -165,7 +169,8 @@ export function ingest(db: DB, feed: FeedRow, parsed: ParsedFeed, opts: IngestOp
       const id = newEntryId();
       const published = it.published && it.published <= now + 86400 ? it.published : now;
       insert.run(id, feed.id, guid, title, th, it.author.slice(0, 300), it.link, content,
-        thumbnailOf(it.thumbnail, it.link || base), it.enclosures.length ? JSON.stringify(it.enclosures) : null, published, wantsWork ? 1 : 0);
+        thumbnailOf(it.thumbnail, it.link || base), it.enclosures.length ? JSON.stringify(it.enclosures) : null, published, wantsWork ? 1 : 0,
+        ...(read || mutedBy(title, null, muteWords) ? [1, now] : [0, null]));
       for (const c of it.categories.slice(0, 10)) insertTag.run(id, c.replace(/^#/, '').slice(0, 60));
       indexEntry(db, id);
       added++;

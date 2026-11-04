@@ -5,7 +5,7 @@ import { HTTPException } from 'hono/http-exception';
 import type { DB } from '../db.ts';
 import { tx, VIEWS, LAYOUTS } from '../db.ts';
 import { mergeSettings, type Settings, type Secrets } from '../config.ts';
-import { appState, listEntries, searchEntries, getEntry, scopeWhere, parseCursor, type Scope } from './queries.ts';
+import { appState, listEntries, searchEntries, getEntry, scopeWhere, parseCursor, markReadBeyond, type ReadBound, type Scope } from './queries.ts';
 import { withDestinations, destinationsOf } from '../content/destinations.ts';
 import { withSubjects } from '../content/subjects.ts';
 import { exportOpml, importOpml } from './opml.ts';
@@ -25,7 +25,7 @@ import { runExtract, pendingCount, canExtract, isExtracting, isStalled, type Ext
 import { canSortKinds, sortKinds } from '../content/bookkinds.ts';
 import { tocExtractor, journalTocs } from '../content/tocs.ts';
 import { RANK_FILTERS, schoolShort, type RankFilter } from '../content/ranks.ts';
-import { noticeExtractor, academicNotices } from '../content/notices.ts';
+import { noticeExtractor, academicNotices, setWanted } from '../content/notices.ts';
 import { reprintExtractor, reprintIndex } from '../content/reprints.ts';
 import { markWish, detailsFor, needsDetails, editionsOf, markInterest, DoubanError, type SubjectPage } from '../content/douban.ts';
 import { fillDetails } from '../content/bookdates.ts';
@@ -52,6 +52,7 @@ import { loopHealth } from '../stall.ts';
 import { hasLibrary, zoteroLibrary, ownedState, type Owned } from '../content/library.ts';
 import { postPictures } from '../content/pictures.ts';
 import { checkUpdate, knownUpdate } from './update.ts';
+import { applyMuteWords } from '../content/mute.ts';
 
 export interface Deps {
   db: DB;
@@ -170,7 +171,7 @@ export function apiApp(d: Deps): Hono {
       }
     }
     const before = parseCursor(q.before);
-    return c.json({ items: withSubjects(db, withDestinations(db, listEntries(db, scopeFrom(q), before, limit))) });
+    return c.json({ items: withSubjects(db, withDestinations(db, listEntries(db, scopeFrom(q), before, limit, q.sort === 'oldest'))) });
   });
 
   // Why the 推荐 order placed an entry where it did; shown under the article.
@@ -276,8 +277,20 @@ export function apiApp(d: Deps): Hono {
   // recording or a write-up.
   app.get('/notices', (c) => {
     const page = academicNotices(db, { kind: (c.req.query('kind') ?? '').slice(0, 8), past: c.req.query('past') === '1',
-      online: c.req.query('online') === '1', replayable: c.req.query('replayable') === '1' });
+      online: c.req.query('online') === '1', replayable: c.req.query('replayable') === '1', wanted: c.req.query('wanted') === '1',
+      words: d.getSettings().noticeWords });
     return c.json({ ...page, ...readInBackground(noticeExtractor) });
+  });
+
+  // 想听 an event, or not: kept by its key (replayKey), with its name and date for the record.
+  app.post('/notices/want', async (c) => {
+    const b = await c.req.json<{ key?: unknown; want?: unknown; name?: unknown; date?: unknown }>().catch(() => ({} as Record<string, unknown>));
+    if (typeof b.key !== 'string' || !b.key || b.key.length > 400) return bad('活动无效');
+    if (typeof b.want !== 'boolean') return bad('want 应为 true 或 false');
+    const name = typeof b.name === 'string' ? b.name.slice(0, 300) : '';
+    const date = typeof b.date === 'string' && /^(\d{4}-\d{2}-\d{2})?$/.test(b.date) ? b.date : '';
+    setWanted(db, b.key, b.want, name, date);
+    return c.json({ ok: true, wanted: b.want });
   });
 
   // 豆瓣's cover, date, authors and publisher for a listed book its post leaves some of out,
@@ -406,6 +419,24 @@ export function apiApp(d: Deps): Hono {
       .run(Math.floor(Date.now() / 1000), ...w.args, upTo);
     changed();
     return c.json({ ok: true, count: r.changes });
+  });
+
+  // 以下已读 (past an entry) and 超过 N 天 (days); the ids come back for undo.
+  app.post('/entries/mark-beyond', async (c) => {
+    const b = await body<Record<string, string> & { side?: string; published?: number; id?: number; days?: number }>(c);
+    let bound: ReadBound;
+    if (b.days !== undefined) {
+      const days = Number(b.days);
+      if (!Number.isFinite(days) || days < 0 || days > 3650) return bad('days 应在 0–3650 之间');
+      bound = { days };
+    } else {
+      const published = Number(b.published), id = Number(b.id);
+      if ((b.side !== 'older' && b.side !== 'newer') || !Number.isSafeInteger(published) || !Number.isSafeInteger(id)) return bad('要给 side（older/newer）、published 和 id');
+      bound = { side: b.side, published, id };
+    }
+    const ids = markReadBeyond(db, scopeFrom(b), bound);
+    changed();
+    return c.json({ ok: true, ids });
   });
 
   // 热点: friends' hot list beside 豆瓣's public ones. Stale public lists refresh in the background.
@@ -799,6 +830,9 @@ export function apiApp(d: Deps): Hono {
     const password = b.apiPassword ?? d.getSecrets().apiPassword;
     if (next.webLogin && !password) return bad('先设一个密码，再打开「别的设备要登录」');
     if (b.settings) d.setSettings(next);
+    // New 屏蔽词 also take the unread entries already here.
+    const added = next.muteWords.filter((w) => !cur.muteWords.includes(w));
+    const muted = added.length ? applyMuteWords(db, added) : 0;
     if (b.aiApiKey !== undefined || b.embeddingApiKey !== undefined || b.apiPassword !== undefined || b.apiUser !== undefined) {
       const cur = d.getSecrets();
       d.setSecrets({ aiApiKey: b.aiApiKey ?? cur.aiApiKey, embeddingApiKey: b.embeddingApiKey ?? cur.embeddingApiKey,
@@ -808,7 +842,7 @@ export function apiApp(d: Deps): Hono {
     }
     if (b.settings?.embedding !== undefined || b.embeddingApiKey !== undefined) d.embedder.resume();
     changed();
-    return c.json({ ok: true });
+    return c.json({ ok: true, muted });
   });
 
   app.get('/events', (c) => streamSSE(c, async (stream) => {

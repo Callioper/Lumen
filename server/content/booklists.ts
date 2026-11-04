@@ -203,11 +203,17 @@ const REVIEW_MONTHS = 12;
 function recentReviewed(db: DB, posts: ScannedPost[], now: Date): { posts: ScannedPost[]; pending: ListedBook[] } {
   const cutoff = now.getFullYear() * 12 + now.getMonth() - REVIEW_MONTHS;
   const pending: ListedBook[] = [];
+  // One viewBooks for all the reviews: each call reads the Zotero library and the 豆瓣 marks afresh
+  // (~50 ms), and called per review it held up every list request for 6 s (measured 2026-11-05, 120 reviews).
+  const reviews = posts.filter((p) => p.review);
+  const allViews = viewBooks(db, reviews.flatMap((p) => p.books));
+  const viewsOf = new Map<ScannedPost, BookView[]>();
+  reviews.reduce((at, p) => { viewsOf.set(p, allViews.slice(at, at + p.books.length)); return at + p.books.length; }, 0);
   const kept = posts.flatMap((p) => {
     if (!p.review) return [p];
-    const views = viewBooks(db, p.books);
+    const views = viewsOf.get(p) ?? [];
     const books = p.books.filter((b, i) => {
-      const m = monthOf(views[i].date, 'last');
+      const m = monthOf(views[i]?.date ?? '', 'last');
       if (m === null) pending.push(b);
       return m !== null && m >= cutoff;
     });

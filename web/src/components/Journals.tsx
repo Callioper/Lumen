@@ -2,7 +2,7 @@
 // contents, and the conferences, calls and talks still to come (server/content/tocs.ts, notices.ts).
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { api, type Count, type Notice, type NoticesPage, type PostRef, type RankFilter, type TocArticle, type TocIssue, type TocSource } from '../api.ts';
-import { open, notify, detail, prefs } from '../store.ts';
+import { open, notify, detail, prefs, app } from '../store.ts';
 import { FeedIcon } from './Icon.tsx';
 import { NeedsAi } from './NeedsAi.tsx';
 import { daysUntil } from '../due.ts';
@@ -322,6 +322,35 @@ export function Replays({ n }: { n: Notice }) {
 // One line each: when, what kind, the name, and where and by whom in a line under it. A click opens
 // the rest in place (what it is about, how to get in, the speakers, contact, the post it came from);
 // with onPick (首页 with room for a preview beside the list) it picks the row instead.
+// The name with its 关注词 marked out.
+const escapeRe = (w: string): string => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+function HitName({ name, hits }: { name: string; hits: readonly string[] }) {
+  if (!hits.length) return <>{name}</>;
+  const parts = name.split(new RegExp(`(${hits.map(escapeRe).join('|')})`, 'gi'));
+  return <>{parts.map((p, i) => (i % 2 ? <mark key={i} class="hit">{p}</mark> : p))}</>;
+}
+
+// 想听: a button beside the row; kept on the server by the event's key.
+function WantButton({ n }: { n: Notice }) {
+  const [wanted, setWanted] = useState(!!n.wanted);
+  useEffect(() => setWanted(!!n.wanted), [n.key, n.wanted]);
+  if (!n.key || n.status === 'past') return null;
+  const flip = async (): Promise<void> => {
+    const next = !wanted;
+    setWanted(next);
+    try {
+      await api.wantNotice({ key: n.key!, name: n.name, date: n.date }, next);
+    } catch (e) {
+      setWanted(!next);
+      notify((e as Error).message, true);
+    }
+  };
+  return (
+    <button class={cx('notice-want', wanted && 'on')} aria-pressed={wanted} title={wanted ? '取消想听' : '想听：记下来，可在「想听」里单独查看'}
+      onClick={(e) => { e.stopPropagation(); void flip(); }}>{wanted ? '★ 想听' : '☆ 想听'}</button>
+  );
+}
+
 export function NoticeRow({ n, picked, onPick }: { n: Notice; picked?: boolean; onPick?: (n: Notice) => void }) {
   const [opened, setOpen] = useState(false);
   const open = opened && !onPick;
@@ -329,7 +358,8 @@ export function NoticeRow({ n, picked, onPick }: { n: Notice; picked?: boolean; 
   const brief = [dates, n.place, n.organizer].filter(Boolean);
   const remote = !!n.online && n.status === 'upcoming';
   return (
-    <li class={cx('notice', open && 'open', picked && 'picked', n.status === 'past' && 'past', remote && 'remote', n.status === 'recorded' && 'recorded')}>
+    <li class={cx('notice', open && 'open', picked && 'picked', n.status === 'past' && 'past', remote && 'remote', n.status === 'recorded' && 'recorded', (n.hits?.length ?? 0) > 0 && 'hit')}>
+      <div class="notice-top">
       <button class="notice-sum" aria-expanded={onPick ? undefined : open} aria-pressed={onPick ? !!picked : undefined}
         onClick={() => (onPick ? onPick(n) : setOpen(!open))}>
         <When n={n} />
@@ -340,12 +370,14 @@ export function NoticeRow({ n, picked, onPick }: { n: Notice; picked?: boolean; 
             {remote && <span class="notice-onair">{n.online === '线上' ? '线上' : '直播'}</span>}
             {n.replays.length > 0 && <span class="notice-kind tone-teal">有录像</span>}
             {(n.recaps?.length ?? 0) > 0 && <span class="notice-kind tone-teal">有纪要</span>}
-            <span class="notice-name">{shownName(n.name)}</span>
+            <span class="notice-name"><HitName name={shownName(n.name)} hits={n.hits ?? []} /></span>
           </span>
           {brief.length > 0 && <span class="notice-facts">{brief.map((f) => <span key={f}>{f}</span>)}</span>}
         </span>
         {!onPick && <span class="notice-chev" aria-hidden="true">{open ? '收起' : '展开'}</span>}
       </button>
+      <WantButton n={n} />
+      </div>
       {open && (
         <div class="notice-more">
           {n.summary && <p class="notice-summary">{n.summary}</p>}
@@ -387,18 +419,32 @@ export function NoticesView() {
   const [online, setOnline] = useState(false);
   // 可回看: only what is over and has a recording or a write-up, however long ago; the other two then step aside.
   const [again, setAgain] = useState(false);
+  const [wanted, setWantedOnly] = useState(false);
+  const [editing, setEditing] = useState(false);
   const [page, setPage] = useState<NoticesPage | null>(null);
   const asked = useRef(0);
   const load = async (): Promise<void> => {
     const n = ++asked.current;
     try {
-      const r = await api.notices({ kind, past: past && !again, online: online && !again, replayable: again });
+      const r = await api.notices({ kind, past: past && !again && !wanted, online: online && !again && !wanted, replayable: again && !wanted, wanted });
       if (n === asked.current) setPage(r);
     } catch (e) {
       notify((e as Error).message, true);
     }
   };
-  useEffect(() => { void load(); }, [kind, past, online, again]);
+  useEffect(() => { void load(); }, [kind, past, online, again, wanted]);
+  const words = app.value?.settings.noticeWords ?? [];
+  const saveWords = async (text: string): Promise<void> => {
+    const noticeWords = text.split(/[,，、\s]+/).map((w) => w.trim()).filter(Boolean);
+    try {
+      await api.saveSettings({ settings: { noticeWords } });
+      if (app.value) app.value = { ...app.value, settings: { ...app.value.settings, noticeWords } };
+      setEditing(false);
+      void load();
+    } catch (e) {
+      notify((e as Error).message, true);
+    }
+  };
   usePoll(!!(page?.reading || page?.stalled), () => void load());
   const reading = readingNote(page);
   return (
@@ -409,6 +455,10 @@ export function NoticesView() {
             <h2>学术动态</h2>
             {page && <span class="muted">{page.items.length} 项</span>}
             <span class="grow" />
+            <button class={cx('btn small', wanted && 'primary')} aria-pressed={wanted} onClick={() => setWantedOnly(!wanted)}
+              title="标了想听、还没过去的">想听{page && !wanted && (page.wanted ?? 0) > 0 ? ` ${page.wanted}` : ''}</button>
+            <button class={cx('btn small', editing && 'primary')} aria-pressed={editing} onClick={() => setEditing(!editing)}
+              title="名称、简介、主讲或主办里有这些词的，名称会高亮">关注词{words.length ? ` ${words.length}` : ''}</button>
             <button class={cx('btn small', online && !again && 'primary')} aria-pressed={online && !again} onClick={() => { setOnline(!online || again); setAgain(false); }}
               title="线上举办或另有直播的，还没开始的">可线上看{page && !online && page.online > 0 ? ` ${page.online}` : ''}</button>
             <button class={cx('btn small', past && !again && 'primary')} aria-pressed={past && !again} onClick={() => { setPast(!past || again); setAgain(false); }}
@@ -416,8 +466,14 @@ export function NoticesView() {
             {(again || (page?.replayable ?? 0) > 0) && <button class={cx('btn small', again && 'primary')} aria-pressed={again} onClick={() => setAgain(!again)}
               title="已经结束、在 B站找到了录像或有公众号发了纪要的，不论多久以前">可回看{page && !again && page.replayable ? ` ${page.replayable}` : ''}</button>}
           </header>
+          {editing && (
+            <form class="notice-words" onSubmit={(e) => { e.preventDefault(); void saveWords(new FormData(e.currentTarget).get('w') as string); }}>
+              <input name="w" defaultValue={words.join('，')} placeholder="用逗号或空格隔开，如：媒介，后人类，AI，基特勒" autoFocus />
+              <button class="btn small primary">保存</button>
+            </form>
+          )}
           <Chips list={page?.kinds ?? []} value={kind} onPick={setKind} label="按类别" note={reading} />
-          {page?.items.length === 0 && <p class="muted empty">{page.reading ? '正在从推文里找会议、征稿和讲座…' : again ? '还没有找到录像或纪要的。' : online ? '没有还没开始、能线上看的。' : '没有尚未到期的学术动态。'}</p>}
+          {page?.items.length === 0 && <p class="muted empty">{page.reading ? '正在从推文里找会议、征稿和讲座…' : wanted ? '还没有标想听的。点每一项右边的 ☆ 想听。' : again ? '还没有找到录像或纪要的。' : online ? '没有还没开始、能线上看的。' : '没有尚未到期的学术动态。'}</p>}
           {page?.items.length === 0 && !page.reading && <NeedsAi what="会议、征稿和讲座是 AI 从推文里读出来的，" />}
           {noticeSections(page?.items ?? []).map((sec) => (
             <section key={sec.key} class="notice-group">

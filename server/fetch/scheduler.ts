@@ -119,7 +119,7 @@ export async function fetchFeed(db: DB, feed: FeedRow, settings: Settings): Prom
       return { ok: false, added: 0, error: err };
     }
     const parsed = await parseFeed(decodeBody(res.body, res.headers.get('content-type')));
-    const added = ingest(db, feed, parsed, { aiEnabled: settings.ai.enabled, retention: BACKLOG_WINDOW });
+    const added = ingest(db, feed, parsed, { aiEnabled: settings.ai.enabled, retention: BACKLOG_WINDOW, muteWords: settings.muteWords });
     done(true, null, undefined, {
       etag: res.headers.get('etag'), lastModified: res.headers.get('last-modified'),
       siteUrl: parsed.siteUrl, image: parsed.image, title: parsed.title.trim(),

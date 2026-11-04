@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'preact/hooks';
-import { detail, selectedId, markAboveRead, setRead, toggleStar, toggleReaction, runAi, open, openShare, prefs, setPrefs, app, feedsById, select, viewMode, clipToObsidian, clipping, clipMenu, isMarks, isReports,
+import { detail, selectedId, markAboveRead, markBelowRead, setRead, toggleStar, toggleReaction, runAi, open, openShare, prefs, app, feedsById, select, viewMode, clipToObsidian, clipping, clipMenu, isMarks, isReports,
   showFull, translating, hasTranslation, cycleTranslation, translateEntry, translateOnOpen, items as listItems, sortMode, selection, tab, recAvailable, scope, type TrView } from '../store.ts';
 import { effectiveLayout } from '../layout.ts';
 import { MarkDetail, actionLine } from './Marks.tsx';
@@ -16,6 +16,9 @@ import { Icon, FeedIcon } from './Icon.tsx';
 import { ago, fullDate, proxied, proxifyHtml, readingMinutes, parseEnclosures, hostOf, cx, safeLink, isForeignText } from '../util.ts';
 import { DEMO, DemoWelcome } from '../demo/tour.tsx';
 import { Ranks } from './Ranks.tsx';
+import { FindBar } from './FindBar.tsx';
+import { openPictureFrom } from './Overlays.tsx';
+import { TypeMenu } from './ReaderType.tsx';
 
 function bilibiliEmbed(link: string | null): string | null {
   const bv = link?.match(/bilibili\.com\/video\/(BV[\w]+)/)?.[1];
@@ -329,10 +332,14 @@ function TranslationNote({ d }: { d: EntryDetail }) {
   return <p class="tr-note">机器翻译{model ? `（${model}）` : ''}{d.tr_note ? ` · ${d.tr_note}` : ''} · 按 <kbd>t</kbd> 在双语、译文、原文之间切换</p>;
 }
 
+const autoFullTried = new Set<number>();
+
 function EntryReader() {
   const d = detail.value;
   const setShowFull = (v: boolean): void => { showFull.value = v; };
-  const [fetchingFull, setFetchingFull] = useState(false);
+  // The entry whose full text is being fetched; another one opened meanwhile shows its own button.
+  const [fetchingId, setFetchingId] = useState<number | null>(null);
+  const fetchingFull = fetchingId !== null && fetchingId === d?.id;
   const scroller = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -343,6 +350,19 @@ function EntryReader() {
     setShowFull(!!d?.content_full);
   }, [d?.id, d?.loading]);
   useEffect(() => { translateOnOpen(); }, [d?.id, d?.loading]);
+  // A feed set to 抓取全文 whose entry was opened before the queue got to it: fetched now, once per entry,
+  // instead of showing the feed's excerpt until the 全文 button is pressed.
+  useEffect(() => {
+    if (!d || d.loading || d.content_full || !safeLink(d.link) || !feedsById.value.get(d.feed_id)?.fulltext) return;
+    if (autoFullTried.has(d.id)) return;
+    autoFullTried.add(d.id);
+    const id = d.id;
+    setFetchingId(id);
+    void runAi({ fulltext: true }).finally(() => {
+      setFetchingId((cur) => (cur === id ? null : cur));
+      if (detail.value?.id === id && detail.value.content_full) setShowFull(true);
+    });
+  }, [d?.id, d?.loading]);
   // A body that fits on screen is read to its end without any scrolling.
   useEffect(() => {
     if (!d || d.loading || !scroller.current) return;
@@ -357,7 +377,7 @@ function EntryReader() {
     return (
       <main class="reader blank">
         <ScopeOverview />
-        <p class="hint"><kbd>j</kbd> <kbd>k</kbd> 上下篇（到底接下一个分类）· <kbd>Shift</kbd>+<kbd>K</kbd> 以上标为已读 · <kbd>f</kbd> 收藏 · <kbd>r</kbd> 已读/未读 · <kbd>空格</kbd> 打开原文 · <kbd>/</kbd> 搜索 · <kbd>c</kbd> 存档到 Obsidian · <kbd>l</kbd> 喜欢 · <kbd>x</kbd> 少推这类 · <kbd>X</kbd> 少推这个源 · <kbd>p</kbd> 复制分享图 · <kbd>t</kbd> 翻译 / 切换译文</p>
+        <p class="hint"><kbd>j</kbd> <kbd>k</kbd> 上下篇（到底接下一个分类）· <kbd>Shift</kbd>+<kbd>K</kbd> 以上标为已读 · <kbd>f</kbd> 收藏 · <kbd>r</kbd> 已读/未读 · <kbd>空格</kbd> 打开原文 · <kbd>/</kbd> 搜索 · <kbd>Ctrl</kbd>+<kbd>F</kbd> 在本文中查找 · <kbd>?</kbd> 全部快捷键 · <kbd>c</kbd> 存档到 Obsidian · <kbd>l</kbd> 喜欢 · <kbd>x</kbd> 少推这类 · <kbd>X</kbd> 少推这个源 · <kbd>p</kbd> 复制分享图 · <kbd>t</kbd> 翻译 / 切换译文</p>
       </main>
     );
   }
@@ -377,8 +397,9 @@ function EntryReader() {
 
   const toggleFull = async (): Promise<void> => {
     if (d.content_full) { setShowFull(!showFull.value); return; }
-    setFetchingFull(true);
-    try { await runAi({ fulltext: true }); setShowFull(true); } finally { setFetchingFull(false); }
+    const id = d.id;
+    setFetchingId(id);
+    try { await runAi({ fulltext: true }); if (detail.value?.id === id) setShowFull(true); } finally { setFetchingId((cur) => (cur === id ? null : cur)); }
   };
 
   return (
@@ -406,20 +427,22 @@ function EntryReader() {
         <button class="icon-btn" title="把列表里这篇上面的都标为已读 (Shift+K)，5 秒内可撤销" onClick={() => void markAboveRead()}>
           <Icon name="readAbove" />
         </button>
+        <button class="icon-btn flip-y" title="把列表里这篇下面的都标为已读 (Shift+J)，5 秒内可撤销" onClick={() => void markBelowRead()}>
+          <Icon name="readAbove" />
+        </button>
         <button class={cx('icon-btn', showFull.value && 'on')} title={d.content_full ? '切换全文 / 摘录' : '抓取全文'} onClick={() => void toggleFull()} disabled={fetchingFull || !link}>
           {fetchingFull ? <span class="spinner sm" /> : <Icon name="doc" />}
         </button>
         <ClipButton archived={d.tags.some((t) => t.source === 'clip')} />
         {foreign && <TranslateButton d={d} view={trView} />}
         <button class="icon-btn" title="分享图（p 直接复制）" disabled={d.loading} onClick={openShare}><Icon name="share" /></button>
-        <button class={cx('icon-btn', prefs.value.serif && 'on')} title="衬线字体" onClick={() => setPrefs({ serif: !prefs.value.serif })}>
-          <Icon name="type" />
-        </button>
+        <TypeMenu />
         {link && <a class="icon-btn" href={link} target="_blank" rel="noopener noreferrer" title="打开原文 (空格)"><Icon name="external" /></a>}
       </header>
+      <FindBar scroller={scroller} contentKey={`${d.id}:${d.loading ? 1 : 0}:${showFull.value ? 1 : 0}:${translated ? trView : ''}`} />
 
       <div class="reader-scroll" ref={scroller} onScroll={(e) => noteProgress(d.id, e.currentTarget)}>
-        <article class={cx('prose', prefs.value.serif && 'serif')} style={{ '--prose-size': `${prefs.value.fontSize}px` }}>
+        <article class={cx('prose', prefs.value.serif && 'serif')} style={{ '--prose-size': `${prefs.value.fontSize}px`, '--prose-lh': String(prefs.value.lineHeight), '--prose-width': `${prefs.value.proseWidth}px` }}>
           {d.pages?.length ? <p class="reader-pages"><PageTags pages={d.pages} lead="已收进" /></p> : null}
           <h1 class="title">{link ? <a href={link} target="_blank" rel="noopener noreferrer">{title}</a> : title}</h1>
           {d.title_zh && d.title_zh !== d.title && <p class="title-orig">{d.title}</p>}
@@ -444,7 +467,7 @@ function EntryReader() {
               {translated && <TranslationNote d={d} />}
               <BookList id={d.id} />
               {!translated && d.tr_state === 3 &&<p class="tr-note bad">自动翻译没成功：{d.tr_note}。<button class="linkish" onClick={() => void translateEntry()}>重试</button></p>}
-              <div class={cx('content', translated && `tr-${trView}`)} onLoadCapture={settleImage} onErrorCapture={settleImage}
+              <div class={cx('content', translated && `tr-${trView}`)} onLoadCapture={settleImage} onErrorCapture={settleImage} onClick={openPictureFrom}
                 dangerouslySetInnerHTML={{ __html: proxifyHtml(translated ? d.content_tr! : html) }} />
             </>}
           {!d.loading && !html.trim() && <p class="muted">这篇没有正文。{link && <a href={link} target="_blank" rel="noopener noreferrer">去原文看看</a>}</p>}

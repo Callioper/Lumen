@@ -17,6 +17,7 @@ const PREFS_KEY = 'lumen.prefs';
 
 interface Prefs {
   unreadOnly: boolean; serif: boolean; theme: 'system' | 'light' | 'dark'; fontSize: number; collapsed: number[];
+  lineHeight: number; proseWidth: number;   // the reader's 行距 and 栏宽 (ReaderType.tsx)
   catsOpen: boolean;                 // the sidebar's categories open by default (settings: 分类)
   catFlip: number[];                 // the ones the reader opened or closed against that default
   layouts: Record<string, Layout>;   // for lists that are not one feed or category (所有文章, a tag, 收藏)
@@ -33,9 +34,9 @@ interface Prefs {
 }
 export type MarkKind = 'all' | 'book' | 'movie' | 'music' | 'other';
 export type SearchOrder = 'relevance' | 'latest' | 'semantic';
-export type SortMode = 'latest' | 'rec';
+export type SortMode = 'latest' | 'rec' | 'oldest';
 export type TrView = 'translation' | 'bilingual' | 'original';
-const DEFAULT_PREFS: Prefs = { unreadOnly: true, serif: false, theme: 'system', fontSize: 17, collapsed: [], catsOpen: false, catFlip: [], layouts: {}, scrollRead: {}, trView: 'bilingual', sortModes: {}, searchOrder: 'relevance', markKind: 'book', marksUnreadOnly: true, marksTr: 'bilingual', trDefault: 2 };
+const DEFAULT_PREFS: Prefs = { unreadOnly: true, serif: false, theme: 'system', fontSize: 17, lineHeight: 1.85, proseWidth: 720, collapsed: [], catsOpen: false, catFlip: [], layouts: {}, scrollRead: {}, trView: 'bilingual', sortModes: {}, searchOrder: 'relevance', markKind: 'book', marksUnreadOnly: true, marksTr: 'bilingual', trDefault: 2 };
 
 // trDefault: 2 once 对照 became the default for translations (2026-10-24); a choice kept from before is
 // moved to it once, a choice made after is kept.
@@ -212,12 +213,16 @@ export async function refreshState(): Promise<void> {
 const REC_LAYOUTS: ReadonlySet<Layout> = new Set(['list', 'cards', 'masonry']);
 const sortKey = (): string => listScopeKey().replace(/[?]q$/, '');
 export const recAvailable = computed(() => !isMarks.value && !isReports.value && !isPage.value && selection.value.kind !== 'starred' && !query.value && REC_LAYOUTS.has(layout.value));
-export const sortMode = computed<SortMode>(() => (recAvailable.value && prefs.value.sortModes[sortKey()] === 'rec' ? 'rec' : 'latest'));
+// 最旧 is offered where 推荐 is: the lists of articles one reads through, oldest first to catch up.
+export const sortMode = computed<SortMode>(() => {
+  const m = prefs.value.sortModes[sortKey()];
+  return recAvailable.value && (m === 'rec' || m === 'oldest') ? m : 'latest';
+});
 export const recMeta = signal<RecMeta | null>(null);
 
 export function setSortMode(m: SortMode): void {
   const { [sortKey()]: _, ...rest } = prefs.value.sortModes;
-  setPrefs({ sortModes: m === 'rec' ? { ...rest, [sortKey()]: 'rec' } : rest });
+  setPrefs({ sortModes: m === 'latest' ? rest : { ...rest, [sortKey()]: m } });
   void reloadList();
 }
 
@@ -229,7 +234,7 @@ const fetchPage = async (offset: number, after?: ListItem): Promise<ListItem[]> 
   }
   if (query.value && prefs.value.searchOrder === 'relevance') return (await api.searched(scope(), offset, PAGE)).items;
   if (query.value && prefs.value.searchOrder === 'semantic') return (await api.semantic(scope(), offset, PAGE)).items;
-  return (await api.entries(scope(), after ? `${after.published}:${after.id}` : undefined, PAGE)).items;
+  return (await api.entries(scope(), after ? `${after.published}:${after.id}` : undefined, PAGE, sortMode.value === 'oldest')).items;
 };
 
 export function setSearchOrder(o: SearchOrder): void {
@@ -292,6 +297,8 @@ export async function loadMore(): Promise<void> {
 // Called on server change events: count what's new above the list without reshuffling it.
 export async function checkNew(): Promise<void> {
   if (isMarks.value || isReports.value || isPage.value) return;
+  // Oldest first, what is new comes at the end of the list, not above it.
+  if (sortMode.value === 'oldest') { newCount.value = 0; return; }
   const top = maxId(items.value);
   const r = await api.entries(scope(), undefined, PAGE);
   newCount.value = r.items.filter((i) => i.id > top).length;
@@ -604,6 +611,69 @@ export async function markAboveRead(above?: number): Promise<void> {
       api.mark(ids, { read: false }).then(() => refreshState()).catch((e: Error) => notify(e.message, true));
     },
   });
+}
+
+// After a mark made on the server: the loaded entries it covered show read, and the toast takes it back.
+function markedBeyond(ids: number[], what: string): void {
+  if (!ids.length) { notify(`${what}都读过了`); return; }
+  const itemsBefore = items.value;
+  const marked = new Set(ids);
+  items.value = items.value.map((i) => (marked.has(i.id) ? { ...i, is_read: 1 } : i));
+  trimTrail(ids);
+  void refreshState();
+  notify(`已把${what} ${ids.length} 篇标为已读`, false, {
+    label: '撤销',
+    run: () => {
+      const now = new Map(items.value.map((i) => [i.id, i]));
+      items.value = itemsBefore.map((i) => (marked.has(i.id) ? { ...i, is_read: 0 } : now.get(i.id) ?? i));
+      api.mark(ids, { read: false }).then(() => refreshState()).catch((e: Error) => notify(e.message, true));
+    },
+  });
+}
+
+// Whether the list on screen runs by time, so 以下 can be told to the server as 「older (or newer) than this
+// one」 and reach the pages not loaded yet. 推荐, a ranked search and 每日简报 (grouped by feed) do not.
+const timeOrdered = (): boolean => sortMode.value !== 'rec' && layout.value !== 'digest' && !(query.value && prefs.value.searchOrder !== 'latest');
+
+// Shift+J: everything below the current entry marked read, the pages not loaded yet included when the
+// list runs by time. Five seconds to take it back.
+export async function markBelowRead(below?: number): Promise<void> {
+  if (isMarks.value || isReports.value || isPage.value) return;
+  const list = displayOrder(items.value, layout.value, selection.value.kind === 'feed');
+  const at = list.findIndex((i) => i.id === (below ?? selectedId.value));
+  if (at < 0) { notify('先选中一篇'); return; }
+  const it = list[at];
+  if (timeOrdered()) {
+    try {
+      const { ids } = await api.markBeyond(scope(), { side: sortMode.value === 'oldest' ? 'newer' : 'older', published: it.published, id: it.id });
+      markedBeyond(ids, '下面');
+    } catch (e) { notify((e as Error).message, true); }
+    return;
+  }
+  const after = list.slice(at + 1).filter((i) => !i.is_read);
+  if (!after.length) { notify(at === list.length - 1 ? '下面没有了' : '下面都读过了'); return; }
+  const ids = after.map((i) => i.id);
+  const itemsBefore = items.value;
+  if (!(await markItemsRead(after))) return;
+  void refreshState();
+  notify(`已把下面 ${ids.length} 篇标为已读（只算已加载的）`, false, {
+    label: '撤销',
+    run: () => {
+      const back = new Set(ids);
+      const now = new Map(items.value.map((i) => [i.id, i]));
+      items.value = itemsBefore.map((i) => (back.has(i.id) ? { ...i, is_read: 0 } : now.get(i.id) ?? i));
+      api.mark(ids, { read: false }).then(() => refreshState()).catch((e: Error) => notify(e.message, true));
+    },
+  });
+}
+
+// 超过 N 天: in the list on screen, what came out more than `days` ago, loaded or not.
+export async function markOlderThan(days: number): Promise<void> {
+  if (isMarks.value || isReports.value || isPage.value) return;
+  try {
+    const { ids } = await api.markBeyond(scope(), { days });
+    markedBeyond(ids, `${days} 天前的`);
+  } catch (e) { notify((e as Error).message, true); }
 }
 
 // Opening a group reads all of its marks; in the unread view the last few read cards stay as a trail.

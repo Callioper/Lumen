@@ -370,13 +370,33 @@ function ClipTab() {
   );
 }
 
+// 屏蔽词: one per line; an entry whose title has one comes in already read (server/content/mute.ts).
+function MuteSection() {
+  const [text, setText] = useState(app.value!.settings.muteWords.join('\n'));
+  const save = (): void => void act(async () => {
+    const r = await api.saveSettings({ settings: { muteWords: text.split('\n').map((w) => w.trim()).filter(Boolean) } }) as { muted?: number };
+    notify(r.muted ? `已保存，现有未读里 ${r.muted} 篇标为已读` : '已保存');
+  });
+  return (
+    <>
+      <h4>屏蔽词</h4>
+      <p class="small muted">标题里含这些词的文章一进来就标为已读，不删：「全部」和搜索里照样找得到，按 r 可改回未读。一行一个，不分大小写；新加的词也会套用到现有的未读。</p>
+      <textarea class="input mono" rows={5} placeholder={'抽奖\n限时优惠\n广告'} value={text} onInput={(e) => setText((e.currentTarget as HTMLTextAreaElement).value)} />
+      <div class="row-actions"><span class="grow" /><button class="btn primary" onClick={save}>保存屏蔽词</button></div>
+      <h4>抓取</h4>
+    </>
+  );
+}
+
 function FetchTab() {
   const s = app.value!.settings;
   const [form, setForm] = useState({ ...s, noProxy: s.noProxy.join(', ') });
   const num = (k: keyof typeof form) => (e: Event): void => setForm({ ...form, [k]: Number((e.currentTarget as HTMLInputElement).value) });
-  const save = (): void => void act(() => api.saveSettings({ settings: { ...form, noProxy: form.noProxy.split(/[,\s]+/).filter(Boolean) } }), '已保存');
+  // 屏蔽词 are saved by their own section, so a stale copy here never writes over them.
+  const save = (): void => void act(() => { const { muteWords: _m, ...rest } = form; return api.saveSettings({ settings: { ...rest, noProxy: form.noProxy.split(/[,\s]+/).filter(Boolean) } }); }, '已保存');
   return (
     <div class="tab-body narrow">
+      <MuteSection />
       <div class="form-grid">
         <label>默认抓取间隔（秒）<input class="input" type="number" value={form.defaultTtl} onInput={num('defaultTtl')} /></label>
         <label>同时抓取的源数<input class="input" type="number" value={form.fetchConcurrency} onInput={num('fetchConcurrency')} /></label>

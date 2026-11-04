@@ -12,7 +12,7 @@ export interface Settings {
   host: string; webLogin: boolean;   // webLogin: devices other than this one sign in (server/auth.ts)
   defaultTtl: number; fetchConcurrency: number; perHostConcurrency: number; fetchTimeoutMs: number;
   proxy: string; noProxy: string[]; rsshubBase: string;
-  wechat2rssBase: string; wechat2rssLan: string; zoteroDb: string; ocrPython: string; ocrEngine: string;   // '' = Zotero's default place; OCR off
+  wechat2rssBase: string; wechat2rssLan: string; muteWords: string[]; noticeWords?: string[]; zoteroDb: string; ocrPython: string; ocrEngine: string;   // '' = Zotero's default place; OCR off
   updateCheck: boolean;              // once a day, ask GitHub whether a newer Lumen is out
   retention: { days: number; keepMinPerFeed: number; maxPerFeed: number };
   ai: { enabled: boolean; baseUrl: string; model: string; concurrency: number; maxInputChars: number; summaryMinChars: number; tagPrefix: string; allowedTags: string[] };
@@ -186,9 +186,11 @@ export interface Notice {
   status: 'upcoming' | 'open' | 'recorded' | 'past'; next: { what: '截止' | '举办' | '进行中'; date: string } | null; post: PostRef; posts: number;
   own?: { id: number; image: string | null } | null;   // the post about it alone, for its pictures; null: only roundups
   access?: { meeting: string; links: { label: string; url: string }[] };   // how to get in, for what is online and still to come
+  key?: string; wanted?: boolean;   // 想听, kept by key; absent in an older demo snapshot
+  hits?: string[];                  // 关注词 found in it
 }
 export interface UpdateInfo { current: string; latest: string | null; newer: boolean; url: string; error?: string }
-export interface NoticesPage { items: Notice[]; kinds: Count[]; past: number; online: number; replayable?: number; reading: number; stalled: boolean }
+export interface NoticesPage { items: Notice[]; kinds: Count[]; past: number; online: number; replayable?: number; wanted?: number; reading: number; stalled: boolean }
 // sorting: books whose 类型 and 主题 the AI is still working out; dating: books whose date is being looked up on 豆瓣.
 
 export class ApiError extends Error {}
@@ -216,7 +218,8 @@ export interface DiscoverCandidate { url: string; title: string; items: number |
 
 export const api = {
   state: () => call<AppState>('GET', '/api/state'),
-  entries: (s: Scope, before?: string, limit = 40) => call<{ items: ListItem[] }>('GET', `/api/entries?${qs({ ...s, before, limit })}`),
+  // oldest: 最旧 first; `before` is then the entry the page goes on after.
+  entries: (s: Scope, before?: string, limit = 40, oldest = false) => call<{ items: ListItem[] }>('GET', `/api/entries?${qs({ ...s, before, limit, sort: oldest ? 'oldest' : undefined })}`),
   recommended: (s: Scope, offset: number, limit = 40) =>
     call<{ items: ListItem[]; meta: RecMeta; total: number }>('GET', `/api/entries?${qs({ ...s, sort: 'rec', offset, limit })}`),
   searched: (s: Scope, offset: number, limit = 40) =>
@@ -228,6 +231,8 @@ export const api = {
   entry: (id: number) => call<EntryDetail>('GET', `/api/entries/${id}`),
   mark: (ids: number[], patch: { read?: boolean; starred?: boolean }) => call('POST', '/api/entries/mark', { ids, ...patch }),
   markAll: (s: Scope, upTo?: number) => call<{ count: number }>('POST', '/api/entries/mark-all', { ...s, upTo }),
+  markBeyond: (s: Scope, bound: { side: 'older' | 'newer'; published: number; id: number } | { days: number }) =>
+    call<{ ids: number[] }>('POST', '/api/entries/mark-beyond', { ...s, ...bound }),
   translate: (id: number, source: 'full' | 'feed') => call<EntryDetail>('POST', `/api/entries/${id}/translate`, { source }),
   ai: (id: number, tasks: { summary?: boolean; title?: boolean; classify?: boolean; fulltext?: boolean }) => call<EntryDetail>('POST', `/api/entries/${id}/ai`, tasks),
   clip: (id: number, selectedText: string, mode: ClipMode = 'auto') => call<ClipResult>('POST', `/api/entries/${id}/clip`, { selectedText, mode }),
@@ -272,8 +277,10 @@ export const api = {
       `/api/books?offset=${q.offset}${q.limit ? `&limit=${q.limit}` : ''}&sort=${q.byDate ? 'date' : 'post'}&recent=${q.recentMonths}&notOwned=${q.notOwned ? 1 : 0}&topic=${encodeURIComponent(q.topic)}&kind=${encodeURIComponent(q.kind)}${q.reprintsAll ? '&reprints=all' : ''}${q.shelves ? '&shelves=1' : ''}`),
   tocs: (q: { offset: number; journal: string; group?: string; source?: TocSource; rank?: RankFilter; reprintsAll?: boolean }) =>
     call<{ issues: TocIssue[]; total: number; journals: Count[]; sources: Count[]; ranks?: Count[]; school?: string; reading: number; stalled: boolean }>('GET', `/api/tocs?offset=${q.offset}&journal=${encodeURIComponent(q.journal)}&group=${encodeURIComponent(q.group ?? '')}&source=${q.source ?? ''}&rank=${q.rank ?? ''}${q.reprintsAll ? '&reprints=all' : ''}`),
-  notices: (q: { kind: string; past: boolean; online: boolean; replayable?: boolean }) =>
-    call<NoticesPage>('GET', `/api/notices?kind=${encodeURIComponent(q.kind)}&past=${q.past ? 1 : 0}&online=${q.online ? 1 : 0}&replayable=${q.replayable ? 1 : 0}`),
+  notices: (q: { kind: string; past: boolean; online: boolean; replayable?: boolean; wanted?: boolean }) =>
+    call<NoticesPage>('GET', `/api/notices?kind=${encodeURIComponent(q.kind)}&past=${q.past ? 1 : 0}&online=${q.online ? 1 : 0}&replayable=${q.replayable ? 1 : 0}&wanted=${q.wanted ? 1 : 0}`),
+  wantNotice: (n: Pick<Notice, 'name' | 'date'> & { key: string }, want: boolean) =>
+    call<{ ok: boolean; wanted: boolean }>('POST', '/api/notices/want', { key: n.key, name: n.name, date: n.date, want }),
   bookDetails: (b: Pick<ListedBook, 'title' | 'isbn'>) =>
     call<Partial<Pick<ListedBook, 'cover' | 'date' | 'authors' | 'publisher' | 'subject'>> & { fetched?: boolean; error?: string }>('GET', `/api/books/details?title=${encodeURIComponent(b.title)}&isbn=${encodeURIComponent(b.isbn)}`),
   wish: (b: Pick<ListedBook, 'title' | 'isbn' | 'subject'>) => call<{ ok: boolean; subject: string; synced: boolean }>('POST', '/api/books/wish', { title: b.title, isbn: b.isbn, subject: b.subject }),

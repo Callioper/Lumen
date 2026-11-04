@@ -11,8 +11,10 @@ check('state', state.feeds.length > 0, `feeds=${state.feeds.length} unread=${sta
 const unread = await (await fetch(`${B}/api/entries?filter=unread&limit=3`)).json();
 check('list unread', unread.items.every((i) => i.is_read === 0), `n=${unread.items.length}`);
 
-const last = unread.items.at(-1);
-const page2 = await (await fetch(`${B}/api/entries?limit=3&before=${last.published}:${last.id}&filter=unread`)).json();
+// With everything read the paging is checked on the whole list instead.
+const pool = unread.items.length ? { items: unread.items, filter: 'unread' } : { items: (await (await fetch(`${B}/api/entries?filter=all&limit=3`)).json()).items, filter: 'all' };
+const last = pool.items.at(-1);
+const page2 = await (await fetch(`${B}/api/entries?limit=3&before=${last.published}:${last.id}&filter=${pool.filter}`)).json();
 check('cursor paging', page2.items.length > 0 && page2.items.every((i) => i.published < last.published || (i.published === last.published && i.id < last.id)));
 
 const q = await (await fetch(`${B}/api/entries?q=${encodeURIComponent('犬儒主义')}&limit=5`)).json();
@@ -21,7 +23,7 @@ check('fts search', q.items.length > 0, q.items.slice(0, 2).map((i) => i.title).
 const short = await (await fetch(`${B}/api/entries?q=${encodeURIComponent('哲学')}&limit=3`)).json();
 check('short query LIKE fallback', short.items.length > 0);
 
-const one = await (await fetch(`${B}/api/entries/${unread.items[0].id}`)).json();
+const one = await (await fetch(`${B}/api/entries/${pool.items[0].id}`)).json();
 check('entry detail', typeof one.content === 'string' && Array.isArray(one.tags));
 
 const csrf = await fetch(`${B}/api/refresh`, { method: 'POST' });

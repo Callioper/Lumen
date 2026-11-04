@@ -135,6 +135,9 @@ export interface NoticeView extends Notice {
   // read from is a roundup, whose pictures belong to none of the notices in it.
   own: { id: number; image: string | null } | null;
   postIds?: number[];                // every post it was read from
+  key: string;                       // replayKey: what 想听 is kept by
+  wanted: boolean;                   // marked 想听
+  hits: string[];                    // 关注词 (settings.noticeWords) found in it
 }
 export interface Count { label: string; n: number }
 
@@ -212,13 +215,31 @@ export const localDay = (now: Date): string => `${now.getFullYear()}-${String(no
 
 // The page: narrowed to a kind, or to what can be followed online, with what is over left out
 // unless asked for; or only what is over and can be watched or read again (可回看), however long ago.
-export function academicNotices(db: DB, opts: { kind: string; past: boolean; online?: boolean; replayable?: boolean; now?: Date }):
-  { items: NoticeView[]; kinds: Count[]; past: number; online: number; replayable: number } {
+// 关注词 found in what is said of an event: its name, summary, speakers and organizer, case aside.
+export function noticeHits(n: Notice, words: readonly string[]): string[] {
+  if (!words.length) return [];
+  const text = [n.name, n.summary, n.organizer, ...n.speakers].join('\n').toLowerCase();
+  return words.filter((w) => text.includes(w.toLowerCase()));
+}
+
+// 想听: kept by the event's key, so a reread or a later notice of the same event keeps the mark.
+export function setWanted(db: DB, key: string, want: boolean, name = '', date = ''): void {
+  if (want) db.prepare('INSERT INTO notice_want (key, name, date, wanted_at) VALUES (?, ?, ?, ?) ON CONFLICT(key) DO NOTHING')
+    .run(key, name, date, Math.floor(Date.now() / 1000));
+  else db.prepare('DELETE FROM notice_want WHERE key = ?').run(key);
+}
+const wantedKeys = (db: DB): Set<string> =>
+  new Set((db.prepare('SELECT key FROM notice_want').all() as { key: string }[]).map((r) => r.key));
+
+export function academicNotices(db: DB, opts: { kind: string; past: boolean; online?: boolean; replayable?: boolean; wanted?: boolean; words?: readonly string[]; now?: Date }):
+  { items: NoticeView[]; kinds: Count[]; past: number; online: number; replayable: number; wanted: number } {
   const now = opts.now ?? new Date();
   const today = localDay(now);
   const staleBefore = Math.floor(now.getTime() / 1000) - OPEN_FOR_DAYS * 86_400;
   const recordedSince = localDay(new Date(now.getTime() - RECORDED_FOR_DAYS * 86_400_000));
   const replays = storedReplays(db);
+  const wants = wantedKeys(db);
+  const words = opts.words ?? [];
   const byKey = new Map<string, NoticeView>();
   // Every post an event was read from: the way in is looked for in all of them.
   const postsOf = new Map<NoticeView, number[]>();
@@ -238,7 +259,7 @@ export function academicNotices(db: DB, opts: { kind: string; past: boolean; onl
         byKey.set(k, v);
         continue;
       }
-      const v: NoticeView = { ...n, status: 'open', next: null, replays: [], recaps: [], post, posts: 1, own: null };
+      const v: NoticeView = { ...n, status: 'open', next: null, replays: [], recaps: [], post, posts: 1, own: null, key: '', wanted: false, hits: [] };
       postsOf.set(v, [post.id]);
       byKey.set(k, v);
     }
@@ -257,7 +278,8 @@ export function academicNotices(db: DB, opts: { kind: string; past: boolean; onl
     const own = ownId === undefined ? null : { id: ownId, image: posts.get(ownId)!.image };
     // 「《文艺研究》2027年征稿」 is the journal's; a call named for the journal alone is too.
     const rank = v.kind === '征稿' ? (calledJournal(v.name) ? journalRank(calledJournal(v.name)) : journalRank(v.name, { exact: true })) : undefined;
-    const out: NoticeView = { ...v, own, next, rank, replays: found, recaps: written, postIds: ids, status: (next ? 'upcoming' : recorded ? 'recorded' : dated ? 'past' : 'open') as NoticeStatus };
+    const key = replayKey(v);
+    const out: NoticeView = { ...v, own, next, rank, replays: found, recaps: written, postIds: ids, key, wanted: wants.has(key), hits: noticeHits(v, words), status: (next ? 'upcoming' : recorded ? 'recorded' : dated ? 'past' : 'open') as NoticeStatus };
     postsOf.set(out, ids);
     return out;
   });
@@ -266,7 +288,8 @@ export function academicNotices(db: DB, opts: { kind: string; past: boolean; onl
   all.sort((a, b) => rank[a.status] - rank[b.status]
     || (a.status === 'upcoming' ? when(a).localeCompare(when(b)) : b.post.published - a.post.published));
   const again = (v: NoticeView): boolean => (v.status === 'recorded' || v.status === 'past') && (v.replays.length > 0 || v.recaps.length > 0);
-  const shown = opts.replayable ? all.filter(again) : opts.past ? all : all.filter((v) => v.status !== 'past');
+  const shown = opts.wanted ? all.filter((v) => v.wanted && v.status !== 'past')
+    : opts.replayable ? all.filter(again) : opts.past ? all : all.filter((v) => v.status !== 'past');
   const counts = new Map<string, number>();
   for (const v of shown) counts.set(v.kind, (counts.get(v.kind) ?? 0) + 1);
   const kinds = NOTICE_KINDS.filter((k) => counts.has(k)).map((k) => ({ label: k, n: counts.get(k)! }));
@@ -289,7 +312,8 @@ export function academicNotices(db: DB, opts: { kind: string; past: boolean; onl
   };
   const items = shown.filter((v) => (!opts.kind || v.kind === opts.kind) && (!opts.online || remote(v))).map(withAccess).map(withTime);
   const live = all.filter((v) => v.status !== 'past');
-  return { items, kinds, past: all.length - live.length, online: live.filter(remote).length, replayable: all.filter(again).length };
+  return { items, kinds, past: all.length - live.length, online: live.filter(remote).length, replayable: all.filter(again).length,
+    wanted: live.filter((v) => v.wanted).length };
 }
 
 // The events a post is about: read from it (role 'own'), or written up in it after the day ('recap').

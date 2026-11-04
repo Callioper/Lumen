@@ -144,6 +144,8 @@ CREATE TABLE IF NOT EXISTS extract (entry_id INTEGER NOT NULL, kind TEXT NOT NUL
 -- 学术动态's recordings on B站 (server/content/replays.ts), by event: when last looked for, and what was
 -- found as JSON (null: nothing yet).
 CREATE TABLE IF NOT EXISTS replay (key TEXT PRIMARY KEY, checked INTEGER NOT NULL, found TEXT);
+-- 学术动态 the reader marked 想听, by event (replayKey: name and date), with the name and date it had then.
+CREATE TABLE IF NOT EXISTS notice_want (key TEXT PRIMARY KEY, name TEXT NOT NULL, date TEXT NOT NULL, wanted_at INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS hot_list (key TEXT PRIMARY KEY, fetched INTEGER NOT NULL, items TEXT NOT NULL);
 -- A 豆瓣 subject by its id (书影音标记, 新书): the other editions of the work it belongs to, as JSON,
 -- asked for at most once a month, and when it was marked 想读 / 想看 from Lumen.

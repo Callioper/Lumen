@@ -107,6 +107,10 @@ function entries(q: Q): Response {
     return json({ items: page(scored, q).map((x) => shown(x.i, q)) });
   }
   const [p, id] = (q.get('before') ?? '').split(':').map(Number);
+  if (sort === 'oldest') {
+    const later = data.items.filter((i) => inScope(i, q) && (!q.get('before') || i.published > p || (i.published === p && i.id > id))).sort((a, b) => newest(b, a));
+    return json({ items: later.slice(0, num(q, 'limit') ?? 40).map((i) => shown(i, q)) });
+  }
   const list = data.items.filter((i) => inScope(i, q) && (!q.get('before') || i.published < p || (i.published === p && i.id < id))).sort(newest);
   return json({ items: list.slice(0, num(q, 'limit') ?? 40).map((i) => shown(i, q)) });
 }
@@ -226,6 +230,15 @@ async function route(method: string, url: URL, body: unknown): Promise<Response>
     const ids = data.items.filter((i) => !i.is_read && inScope(i, scope) && (!b.upTo || i.id <= Number(b.upTo))).map((i) => i.id);
     setMarked(ids, { read: true });
     return json({ count: ids.length });
+  }
+  if (path === '/entries/mark-beyond') {
+    const scope = new URLSearchParams(Object.entries(b).filter(([, v]) => v !== undefined && v !== null).map(([k, v]) => [k, String(v)]));
+    const [pub, at] = [Number(b.published), Number(b.id)];
+    const past = (i: { published: number; id: number }): boolean => b.days !== undefined ? i.published < Date.now() / 1000 - Number(b.days) * 86400
+      : b.side === 'newer' ? i.published > pub || (i.published === pub && i.id > at) : i.published < pub || (i.published === pub && i.id < at);
+    const ids = data.items.filter((i) => !i.is_read && inScope(i, scope) && past(i)).map((i) => i.id);
+    setMarked(ids, { read: true });
+    return json({ ok: true, ids });
   }
   if (path === '/marks/read') {
     const ids = data.items.filter((i) => i.is_mark && !i.is_read).map((i) => i.id);

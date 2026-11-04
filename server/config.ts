@@ -1,6 +1,7 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync, renameSync } from 'node:fs';
 import { join, resolve, isAbsolute } from 'node:path';
 import { DEFAULT_CLIP, LEGACY_BODY_TEMPLATE, EVENT_BODY_TEMPLATE, type ClipSettings } from './clip/obsidian.ts';
+import { normalizeMuteWords } from './content/mute.ts';
 
 export const ROOT = resolve(import.meta.dirname, '..');
 export const DATA_DIR = process.env.LUMEN_DATA ?? join(ROOT, 'data');
@@ -18,6 +19,8 @@ export interface Settings {
   rsshubBase: string;
   wechat2rssBase: string;        // the reader's wechat2rss server, for WeChat links; '' = none
   wechat2rssLan: string;         // the same server on the home network, tried first for its feeds; '' = none
+  muteWords: string[];           // 屏蔽词: entries whose title has one come in read (content/mute.ts)
+  noticeWords: string[];         // 关注词: 学术动态 that have one are marked out (content/notices.ts)
   zoteroDb: string;              // '' = where Zotero keeps it by default (~/Zotero/zotero.sqlite)
   ocrPython: string;             // the Python the OCR engine runs on; '' = no OCR
   ocrEngine: string;             // the folder holding that engine's `ocr` module (scripts/ocr_images.py)
@@ -110,7 +113,7 @@ export function mergeSettings(cur: Settings, patch: unknown): Settings | string 
   if (typeof embedding === 'string') return embedding;
   const translate = mergeSection(cur.translate, p.translate, 'translate');
   if (typeof translate === 'string') return translate;
-  const next: Settings = { ...top, ai, retention, clip, embedding, translate, host: cur.host, port: cur.port };
+  const next: Settings = { ...top, muteWords: normalizeMuteWords(top.muteWords), noticeWords: normalizeMuteWords(top.noticeWords), ai, retention, clip, embedding, translate, host: cur.host, port: cur.port };
   if (next.proxy && !isHttpUrl(next.proxy)) return 'proxy 应为 http(s) 地址或留空';
   if (!isHttpUrl(next.rsshubBase)) return 'rsshubBase 应为 http(s) 地址';
   if (next.wechat2rssBase && !isHttpUrl(next.wechat2rssBase)) return 'wechat2rssBase 应为 http(s) 地址或留空';
@@ -152,6 +155,8 @@ const DEFAULTS: Settings = {
   rsshubBase: 'http://127.0.0.1:1200',
   wechat2rssBase: '',
   wechat2rssLan: '',
+  muteWords: [],
+  noticeWords: [],
   zoteroDb: '',
   ocrPython: '',
   ocrEngine: '',
