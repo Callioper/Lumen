@@ -42,6 +42,22 @@ export const POSTER_TEXT = 100;
 export const WIDE_POSTER_TEXT = 400;
 
 const cache = new Map<string, string[]>();
+// Whether a picture is shown at all, by its bytes. A post is judged again on every ask while some of its
+// pictures wait to be read, and decoding them each time kept the server busy for minutes a day (2026-11-16).
+interface Verdict { shape: number | null }
+const verdicts = new Map<string, Verdict>();
+const VERDICTS = 3000;
+const nextTurn = (): Promise<void> => new Promise((r) => setImmediate(r));
+
+function judge(body: Buffer, hash: string): Verdict {
+  const hit = verdicts.get(hash);
+  if (hit) return hit;
+  const size = imageSize(body);
+  const v = { shape: !size || isDecoration(body, size) || coverShaped(size.width, size.height) ? null : size.height / size.width };
+  if (verdicts.size >= VERDICTS) verdicts.delete(verdicts.keys().next().value!);
+  verdicts.set(hash, v);
+  return v;
+}
 
 const textOf = (html: string): string => html.replace(/<[^>]+>/g, '').replace(/&nbsp;|\s/g, '');
 
@@ -133,17 +149,20 @@ export async function postPictures(id: number, html: string, settings: Settings,
   const bodies = await Promise.all(urls.map((u) => bytesOf(u, settings)));
   const files = new Set<string>();
   const found: Found[] = [];
-  urls.forEach((url, i) => {
+  for (const [i, url] of urls.entries()) {
     const body = bodies[i];
-    const size = body && imageSize(body);
-    if (!body || !size || isDecoration(body, size) || coverShaped(size.width, size.height)) return;
+    if (!body) continue;
     const hash = createHash('sha1').update(body).digest('hex');
-    if (files.has(hash)) return;
+    const known = verdicts.has(hash);
+    const { shape } = judge(body, hash);
+    // A picture judged afresh may have been decoded: let requests through before the next one.
+    if (!known) await nextTurn();
+    if (shape === null || files.has(hash)) continue;
     files.add(hash);
     // Read, and kept, under the original's address (ocr.ts), the relay's changing.
     const lines = ocrCached(unwrapRelay(url));
-    found.push({ url, shape: size.height / size.width, text: lines && charsOf(lines) });
-  });
+    found.push({ url, shape, text: lines && charsOf(lines) });
+  }
   const kept = choosePictures(found, limit);
   const unread = found.filter((f) => f.text === null).map((f) => unwrapRelay(f.url));
   const pending = unread.length > 0 && canOcr();

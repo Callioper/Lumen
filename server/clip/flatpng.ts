@@ -9,7 +9,9 @@ const MIN_CLEAR = 0.4;        // share of the canvas that is (nearly) fully tran
 const MAX_COLOURS = 100;      // distinct colours, 5 bits a channel, among the visible pixels
 const SAMPLE_STEP = 7;        // every seventh pixel is plenty to count colours
 const CLEAR_ALPHA = 16;
-const MAX_PIXELS = 40_000_000;
+// The cut-outs seen run to a few hundred thousand pixels. Anything far bigger is a picture, and decoding
+// it here, on the server's one thread, held every request up for seconds at a time (2026-11-16).
+const MAX_PIXELS = 2_000_000;
 
 const CHANNELS: Record<number, number> = { 0: 1, 2: 3, 3: 1, 4: 2, 6: 4 };
 
@@ -55,14 +57,24 @@ function unfilter(p: Png): Buffer | null {
   return out;
 }
 
-// RGBA of pixel i.
-function pixel(p: Png, raw: Buffer, i: number): [number, number, number, number] {
+// Alpha of pixel i, and its colour packed at 5 bits a channel; written out so the loop over every pixel
+// makes no array per pixel.
+function alphaOf(p: Png, raw: Buffer, i: number): number {
   switch (p.type) {
-    case 6: return [raw[i * 4], raw[i * 4 + 1], raw[i * 4 + 2], raw[i * 4 + 3]];
-    case 4: return [raw[i * 2], raw[i * 2], raw[i * 2], raw[i * 2 + 1]];
-    case 3: { const k = raw[i]; const pal = p.palette!; return [pal[k * 3], pal[k * 3 + 1], pal[k * 3 + 2], p.trns && k < p.trns.length ? p.trns[k] : 255]; }
-    case 2: return [raw[i * 3], raw[i * 3 + 1], raw[i * 3 + 2], 255];
-    default: return [raw[i], raw[i], raw[i], 255];
+    case 6: return raw[i * 4 + 3];
+    case 4: return raw[i * 2 + 1];
+    case 3: { const k = raw[i]; return p.trns && k < p.trns.length ? p.trns[k] : 255; }
+    default: return 255;
+  }
+}
+const pack = (r: number, g: number, b: number): number => ((r >> 3) << 10) | ((g >> 3) << 5) | (b >> 3);
+function colourOf(p: Png, raw: Buffer, i: number): number {
+  switch (p.type) {
+    case 6: return pack(raw[i * 4], raw[i * 4 + 1], raw[i * 4 + 2]);
+    case 4: return pack(raw[i * 2], raw[i * 2], raw[i * 2]);
+    case 3: { const k = raw[i], pal = p.palette!; return pack(pal[k * 3], pal[k * 3 + 1], pal[k * 3 + 2]); }
+    case 2: return pack(raw[i * 3], raw[i * 3 + 1], raw[i * 3 + 2]);
+    default: return pack(raw[i], raw[i], raw[i]);
   }
 }
 
@@ -76,9 +88,8 @@ export function isFlatCutout(b: Buffer): boolean {
   let clear = 0;
   const colours = new Set<number>();
   for (let i = 0; i < n; i++) {
-    const [r, g, bl, a] = pixel(p, raw, i);
-    if (a < CLEAR_ALPHA) { clear++; continue; }
-    if (i % SAMPLE_STEP === 0) colours.add(((r >> 3) << 10) | ((g >> 3) << 5) | (bl >> 3));
+    if (alphaOf(p, raw, i) < CLEAR_ALPHA) { clear++; continue; }
+    if (i % SAMPLE_STEP === 0) colours.add(colourOf(p, raw, i));
   }
   return clear / n >= MIN_CLEAR && colours.size <= MAX_COLOURS;
 }

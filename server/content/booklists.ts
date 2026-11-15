@@ -2,6 +2,7 @@
 // each marked with whether Zotero has it and whether 想读 was marked from here; and 新书, every such
 // post's books once, by post or by date.
 import type { DB } from '../db.ts';
+import { untilNewEntry } from '../memo.ts';
 import { extractBooks, dateOf, LIST_POST, REVIEW_POST, type ListedBook } from './books.ts';
 import { doulistBooks, doulistIdOf, knownBooks, keyOf, wishedSubjects, ownMarks } from './douban.ts';
 import { zoteroLibrary, inLibrary } from './library.ts';
@@ -96,7 +97,8 @@ function bookPosts(db: DB): ScannedPost[] {
 
 // The posts 新书 lists books from, 豆列 among them: retention spares them (retention.ts).
 // A 书评 only while its book is listed (an old book's review ages out as any post does).
-export const bookPostIds = (db: DB): number[] => recentReviewed(db, bookPosts(db), new Date()).posts.map((p) => p.row.id);
+// Asked on every list page (destinations.ts): kept until an entry comes in, and an hour at most, as the window moves by month.
+export const bookPostIds = untilNewEntry((db: DB): number[] => recentReviewed(db, bookPosts(db), new Date()).posts.map((p) => p.row.id), 60 * 60_000);
 
 export interface BookFrom { id: number; title: string; feed: string; feedId: number; published: number }
 // posts: how many 书单 listed it; month: its section when by date; topic: its 主题, null until classified;

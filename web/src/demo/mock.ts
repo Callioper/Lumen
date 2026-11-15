@@ -85,7 +85,9 @@ function entries(q: Q): Response {
   const sort = q.get('sort');
   if (sort === 'rec') {
     const ordered = data.rec.order.flatMap((r) => { const i = items.get(r.id); return i && inScope(i, q) ? [shown(i, q, { rec: r.rec })] : []; });
-    return json({ items: page(ordered, q), meta: data.rec.meta, total: ordered.length });
+    const at = num(q, 'offset') ?? 0;
+    const shownPage = page(ordered, q);
+    return json({ items: shownPage, meta: data.rec.meta, total: ordered.length, next: at + shownPage.length });
   }
   if (sort === 'relevance') {
     const ts = terms(q.get('q') ?? '');

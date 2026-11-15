@@ -176,3 +176,35 @@ test('an article already opened, or a copy of a story already liked, is not push
   assert.equal(order[0].id, fresh);
   assert.match(order.find((r) => r.id === copy)!.reasons[0], /已经读过/);
 });
+
+test('in an 未读 list, a later page leaves out what was read since, and says where the next one starts', () => {
+  const { db, add, index } = trained();
+  for (let i = 0; i < 14; i++) add(1 + (i % 5), i % 6, { ageH: i });
+  forgetRankings();
+  const whole = recommendPage(db, index, 'm', { filter: 'unread' }, 0, 100, NOW).items.map((i) => i.id);
+  const readSince = whole[7];
+  db.prepare('UPDATE entry SET is_read = 1 WHERE id = ?').run(readSince);
+  const second = recommendPage(db, index, 'm', { filter: 'unread' }, 5, 5, NOW);
+  assert.deepEqual(second.items.map((i) => i.id), whole.slice(5, 10).filter((id) => id !== readSince));
+  assert.equal(second.next, 10);
+});
+
+test('unread entries the ranking did not take come after the ranked ones, newest first, so none is out of reach', () => {
+  const { db, add, index } = trained();
+  // More than the fallback's 300, all older than the two-week window.
+  const ids: number[] = [];
+  for (let i = 0; i < 320; i++) ids.push(add(1 + (i % 5), i % 6, { ageH: 24 * 20 + i }));
+  forgetRankings();
+  const first = recommendPage(db, index, 'm', { filter: 'unread' }, 0, 40, NOW);
+  const all: number[] = [];
+  for (let at = 0, pages = 0; pages < 10; pages++) {
+    const p = recommendPage(db, index, 'm', { filter: 'unread' }, at, 100, NOW);
+    all.push(...p.items.map((i) => i.id));
+    if (!(p.next > at) || p.next >= p.total) break;
+    at = p.next;
+  }
+  assert.equal(first.total, 320);
+  assert.equal(new Set(all).size, 320);
+  // The oldest come last.
+  assert.deepEqual(all.slice(-5), ids.slice(-5));
+});

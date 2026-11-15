@@ -19,7 +19,9 @@ const NAMES_PER_BUILD = 4;
 
 export interface RecInfo { reasons: string[]; explore?: boolean }
 export interface RecMeta { coldStart: boolean; signals: number; needed: number }
-export interface RecPage { items: (ListItem & { rec: RecInfo })[]; meta: RecMeta; total: number }
+// next: where the following page starts in the order. A page can come back short of limit (what was read
+// since the ranking drops out of an 未读 list), so the client pages by next, never by what it holds.
+export interface RecPage { items: (ListItem & { rec: RecInfo })[]; meta: RecMeta; total: number; next: number }
 
 interface Cached { at: number; key: string; order: Ranked[]; meta: RecMeta }
 const cache = new Map<string, Cached>();
@@ -39,6 +41,16 @@ function candidates(db: DB, scope: Scope, now: number): Candidate[] {
   return recent.length >= MIN_CANDIDATES ? recent : select('', [], FALLBACK_CANDIDATES);
 }
 
+// Unread entries the ranking did not take (older than the window, past the candidate cap) follow the ranked
+// ones newest first, so a long 未读 backlog can be read through to the end (2026-11-16).
+function unreadRest(db: DB, scope: Scope, ranked: readonly Ranked[]): Ranked[] {
+  if (scope.filter !== 'unread') return [];
+  const w = scopeWhere(scope);
+  const taken = new Set(ranked.map((r) => r.id));
+  const ids = db.prepare(`SELECT e.id FROM entry e JOIN feed f ON f.id = e.feed_id ${w.sql} ORDER BY e.id DESC`).all(...w.args) as { id: number }[];
+  return ids.filter((r) => !taken.has(r.id)).map((r) => ({ id: r.id, score: 0, reasons: [] }));
+}
+
 const scopeKey = (s: Scope): string => JSON.stringify([s.view, s.layout, s.feed, s.category, s.tag, s.q, s.filter]);
 
 // offset 0 ranks afresh; later pages read the same order, so scrolling never reshuffles.
@@ -48,7 +60,8 @@ export function recommendPage(db: DB, index: VectorIndex, model: string, scope: 
   let c = cache.get(key);
   if (offset === 0 || !c || Date.now() - c.at > CACHE_TTL_MS) {
     const profile = currentProfile(db, index, model);
-    const order = rank(candidates(db, scope, now), profile, index, model, db, now);
+    const ranked = rank(candidates(db, scope, now), profile, index, model, db, now);
+    const order = [...ranked, ...unreadRest(db, scope, ranked)];
     c = { at: Date.now(), key, order, meta: { coldStart: profile.coldStart, signals: profile.strongSignals, needed: 8 } };
     cache.delete(key);
     cache.set(key, c);
@@ -56,11 +69,12 @@ export function recommendPage(db: DB, index: VectorIndex, model: string, scope: 
   }
   const slice = c.order.slice(offset, offset + limit);
   const byId = new Map(itemsByIds(db, slice.map((r) => r.id), scope.snippet === 'long').map((it) => [it.id, it]));
+  const unreadOnly = scope.filter === 'unread';
   const items = slice.flatMap((r) => {
     const it = byId.get(r.id);
-    return it ? [{ ...it, rec: { reasons: r.reasons, ...(r.explore ? { explore: true } : {}) } }] : [];
+    return it && !(unreadOnly && it.is_read) ? [{ ...it, rec: { reasons: r.reasons, ...(r.explore ? { explore: true } : {}) } }] : [];
   });
-  return { items, meta: c.meta, total: c.order.length };
+  return { items, meta: c.meta, total: c.order.length, next: offset + slice.length };
 }
 
 export function forgetRankings(): void { cache.clear(); forgetProfile(); }

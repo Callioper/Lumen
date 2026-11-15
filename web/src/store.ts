@@ -226,15 +226,22 @@ export function setSortMode(m: SortMode): void {
   void reloadList();
 }
 
-const fetchPage = async (offset: number, after?: ListItem): Promise<ListItem[]> => {
+// One page and where the next starts. Ranked lists page by position in the server's order: read rows are
+// trimmed from the list as you go (keepReadTrail), so counting what the list holds would fall behind and
+// fetch the same rows again until the list stopped short of the unread below (2026-11-16).
+interface Page { items: ListItem[]; more: boolean; next: number }
+const fetchPage = async (offset: number, after?: ListItem): Promise<Page> => {
   if (sortMode.value === 'rec') {
     const r = await api.recommended(scope(), offset, PAGE);
     recMeta.value = r.meta;
-    return r.items;
+    const next = r.next ?? offset + PAGE;
+    return { items: r.items, more: next < r.total, next };
   }
-  if (query.value && prefs.value.searchOrder === 'relevance') return (await api.searched(scope(), offset, PAGE)).items;
-  if (query.value && prefs.value.searchOrder === 'semantic') return (await api.semantic(scope(), offset, PAGE)).items;
-  return (await api.entries(scope(), after ? `${after.published}:${after.id}` : undefined, PAGE, sortMode.value === 'oldest')).items;
+  const byPlace = (items: ListItem[]): Page => ({ items, more: items.length === PAGE, next: offset + PAGE });
+  if (query.value && prefs.value.searchOrder === 'relevance') return byPlace((await api.searched(scope(), offset, PAGE)).items);
+  if (query.value && prefs.value.searchOrder === 'semantic') return byPlace((await api.semantic(scope(), offset, PAGE)).items);
+  const items = (await api.entries(scope(), after ? `${after.published}:${after.id}` : undefined, PAGE, sortMode.value === 'oldest')).items;
+  return { items, more: items.length === PAGE, next: offset + items.length };
 };
 
 export function setSearchOrder(o: SearchOrder): void {
@@ -246,6 +253,8 @@ let listToken = 0;
 // What was read in this list since it loaded, oldest first (util.ts keepReadTrail).
 let readOrder: number[] = [];
 let markReadOrder: string[] = [];
+// Where the next page starts, for the lists that page by position (fetchPage).
+let nextOffset = 0;
 
 function trimTrail(ids: readonly number[]): void {
   readOrder = noteRead(readOrder, ids);
@@ -271,7 +280,8 @@ export async function reloadList(): Promise<void> {
     }
     const page = await fetchPage(0);
     if (token !== listToken) return;
-    batch(() => { items.value = page; hasMore.value = page.length === PAGE; newCount.value = 0; });
+    nextOffset = page.next;
+    batch(() => { items.value = page.items; hasMore.value = page.more; newCount.value = 0; });
   } catch (e) {
     notify((e as Error).message, true);
   } finally {
@@ -284,11 +294,12 @@ export async function loadMore(): Promise<void> {
   const token = listToken;
   loading.value = true;
   try {
-    const page = await fetchPage(items.value.length, items.value.at(-1));
+    const page = await fetchPage(nextOffset, items.value.at(-1));
     if (token !== listToken) return;
+    nextOffset = page.next;
     // The 推荐 order is fixed while scrolling, but an entry can drop out of an 未读 list in between.
     const seen = new Set(items.value.map((i) => i.id));
-    batch(() => { items.value = [...items.value, ...page.filter((i) => !seen.has(i.id))]; hasMore.value = page.length === PAGE; });
+    batch(() => { items.value = [...items.value, ...page.items.filter((i) => !seen.has(i.id))]; hasMore.value = page.more; });
   } finally {
     loading.value = false;
   }

@@ -30,3 +30,17 @@ test('想读 marked on one page shows on the others: by subject, wherever it was
   const items = withSubjects(db, [{ link: 'https://book.douban.com/subject/222/' }, { link: 'https://book.douban.com/subject/333/' }, { link: null }]);
   assert.deepEqual(items.map((i) => i.douban?.wished ?? null), [true, false, null]);
 });
+
+test('a mark that comes in from one\'s own 豆瓣 feed shows on the next list, though the marks were just read', () => {
+  const db = openDb(':memory:');
+  db.prepare("INSERT INTO feed (id, url, title) VALUES (1, 'https://www.douban.com/feed/people/me/interests', '我的豆瓣')").run();
+  const add = (id: number, title: string, subject: string): void => {
+    db.prepare('INSERT INTO entry (id, feed_id, guid, title, link, published) VALUES (?, 1, ?, ?, ?, ?)').run(id, `g${id}`, title, `https://book.douban.com/subject/${subject}/`, id);
+  };
+  add(1, '想读《甲》', '444');
+  const first = withSubjects(db, [{ link: 'https://book.douban.com/subject/555/' }]);
+  assert.equal(first[0].douban?.mine, null);
+  add(2, '读过《乙》', '555');
+  const second = withSubjects(db, [{ link: 'https://book.douban.com/subject/555/' }]);
+  assert.equal(second[0].douban?.mine, '读过');
+});

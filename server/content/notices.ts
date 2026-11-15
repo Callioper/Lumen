@@ -145,8 +145,9 @@ export interface Count { label: string; n: number }
 // 第64讲）」 the same talk; a journal's call is the journal's, whatever year it asks for.
 const NOTICE_WORDS = /[（(][^）)]*[）)]|(?:[一二三四五六七八九十\d]+[号轮])?(?:通知|邀请函|会议议程|征稿启事|征稿)$/g;
 const JOURNAL = /《([^》]+)》/;
-export const noticeKey = (n: Notice): string =>
-  ((n.kind === '征稿' && JOURNAL.exec(n.name)?.[1]) || n.name).replace(NOTICE_WORDS, '').replace(/[\s\p{P}\p{S}]/gu, '').toLowerCase();
+export const noticeKey = (n: Notice): string => keyOf(n.kind, n.name);
+const keyOf = (kind: NoticeKind, name: string): string =>
+  ((kind === '征稿' && JOURNAL.exec(name)?.[1]) || name).replace(NOTICE_WORDS, '').replace(/[\s\p{P}\p{S}]/gu, '').toLowerCase();
 // 「第三十三届中外传记文学研究年会」 and the same with its theme after a colon: one name holds the other.
 const MIN_HELD = 10;
 const sameName = (a: string, b: string): boolean => !!a && !!b && (a === b || (Math.min(a.length, b.length) >= MIN_HELD && (a.includes(b) || b.includes(a))));
@@ -166,10 +167,11 @@ const sameSpeakers = (a: Notice, b: Notice): boolean => a.speakers.filter((s) =>
 // A forwarded post names it its own way (「《社会》组织的社会理论工作坊」, 「《社会》社会理论工作坊」): one
 // organiser holding one kind of event in one city on one day holds one.
 const sameHost = (a: Notice, b: Notice): boolean => !!a.organizer && a.organizer === b.organizer && !!a.place && a.place === b.place;
-const sameEvent = (a: Notice, b: Notice): boolean => {
+// ka, kb: their noticeKey, worked out once per event by the caller: folding compares each event with every
+// one before it, and working the keys out for each pair was most of what 学术动态 took to open (2026-11-16).
+const sameEvent = (a: Notice, b: Notice, ka: string, kb: string): boolean => {
   if (a.kind === b.kind && !!a.date && a.date === b.date && (sameSpeakers(a, b) || sameHost(a, b))) return true;
   if (a.kind !== b.kind && !(MEETING.has(a.kind) && MEETING.has(b.kind) && (a.date || b.date))) return false;
-  const [ka, kb] = [noticeKey(a), noticeKey(b)];
   const named = sameName(ka, kb) || (!!a.date && a.date === b.date && sharedStart(ka, kb) >= SHARED_START);
   return named && (a.date || b.date ? !differ(a.date, b.date) : !differ(a.deadline, b.deadline));
 };
@@ -241,6 +243,7 @@ export function academicNotices(db: DB, opts: { kind: string; past: boolean; onl
   const wants = wantedKeys(db);
   const words = opts.words ?? [];
   const byKey = new Map<string, NoticeView>();
+  const keyOfView = new Map<string, string>();
   // Every post an event was read from: the way in is looked for in all of them.
   const postsOf = new Map<NoticeView, number[]>();
   const posts = new Map<number, { image: string | null; notices: number }>();
@@ -248,7 +251,8 @@ export function academicNotices(db: DB, opts: { kind: string; past: boolean; onl
     posts.set(post.id, { image: post.image ?? null, notices: data.length });
     for (const read of data) {
       const n: Notice = { ...read, online: read.online ?? '', live: read.live ?? '' };     // read by version 1
-      const k = [...byKey.keys()].find((key) => sameEvent(byKey.get(key)!, n)) ?? `${post.id}:${byKey.size}`;
+      const nk = noticeKey(n);
+      const k = [...byKey.keys()].find((key) => sameEvent(byKey.get(key)!, n, keyOfView.get(key)!, nk)) ?? `${post.id}:${byKey.size}`;
       const had = byKey.get(k);
       // Newest post first: a later notice of the same conference fills in what the first left out.
       if (had) {
@@ -257,11 +261,13 @@ export function academicNotices(db: DB, opts: { kind: string; past: boolean; onl
         postsOf.delete(had);
         postsOf.set(v, ids.includes(post.id) ? ids : [...ids, post.id]);
         byKey.set(k, v);
+        keyOfView.set(k, noticeKey(v));
         continue;
       }
       const v: NoticeView = { ...n, status: 'open', next: null, replays: [], recaps: [], post, posts: 1, own: null, key: '', wanted: false, hits: [] };
       postsOf.set(v, [post.id]);
       byKey.set(k, v);
+      keyOfView.set(k, nk);
     }
   }
   // A write-up comes after the event, so looked for a while further back than a notice is kept.

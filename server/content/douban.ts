@@ -3,6 +3,7 @@
 // as a visitor. 想读 is kept here; an extra that can write to the reader's own 豆瓣 account also marks
 // it there (server/extras.ts).
 import type { DB } from '../db.ts';
+import { untilNewEntry } from '../memo.ts';
 import { extras } from '../extras.ts';
 import { log } from '../log.ts';
 import { normTitle } from '../report/ngram.ts';
@@ -356,7 +357,9 @@ function keepWish(db: DB, subject: string, now: number): void {
 }
 
 // The reader's own 想读 / 读过 … on 豆瓣, from their interests feed (its titles read 「想读夺回时间」), by subject.
-export function ownMarks(db: DB): Map<string, string> {
+// Asked on every list page (subjects.ts); marks only change as the interests feed brings entries.
+export const ownMarks = untilNewEntry(readOwnMarks);
+function readOwnMarks(db: DB): Map<string, string> {
   const rows = db.prepare(`SELECT e.title, e.link FROM entry e JOIN feed f ON f.id = e.feed_id
     WHERE f.url LIKE 'https://www.douban.com/feed/people/%/interests' ORDER BY e.published`).all() as { title: string; link: string | null }[];
   const out = new Map<string, string>();

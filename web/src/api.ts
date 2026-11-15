@@ -221,7 +221,7 @@ export const api = {
   // oldest: 最旧 first; `before` is then the entry the page goes on after.
   entries: (s: Scope, before?: string, limit = 40, oldest = false) => call<{ items: ListItem[] }>('GET', `/api/entries?${qs({ ...s, before, limit, sort: oldest ? 'oldest' : undefined })}`),
   recommended: (s: Scope, offset: number, limit = 40) =>
-    call<{ items: ListItem[]; meta: RecMeta; total: number }>('GET', `/api/entries?${qs({ ...s, sort: 'rec', offset, limit })}`),
+    call<{ items: ListItem[]; meta: RecMeta; total: number; next?: number }>('GET', `/api/entries?${qs({ ...s, sort: 'rec', offset, limit })}`),
   searched: (s: Scope, offset: number, limit = 40) =>
     call<{ items: ListItem[] }>('GET', `/api/entries?${qs({ ...s, sort: 'relevance', offset, limit })}`),
   semantic: (s: Scope, offset: number, limit = 40) =>

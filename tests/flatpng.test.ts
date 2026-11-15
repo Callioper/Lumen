@@ -35,3 +35,11 @@ test('a flat cut-out on a transparent ground is page furniture; screenshots and 
   // Not a PNG, or not one it reads: kept.
   assert.equal(isFlatCutout(Buffer.from('GIF89a')), false);
 });
+
+test('a picture bigger than any ornament is kept without decoding it, which would hold up the server for seconds', () => {
+  // 1600 × 1600: flat and half clear like a cut-out, but no ornament is that big.
+  const big = png(1600, 1600, (x) => (x < 800 ? [120, 190, 240, 255] : [0, 0, 0, 0]));
+  const at = performance.now();
+  assert.equal(isFlatCutout(big), false);
+  assert.ok(performance.now() - at < 50);
+});

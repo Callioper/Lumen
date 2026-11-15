@@ -568,13 +568,24 @@ function Entries() {
   const sentinel = useRef<HTMLDivElement>(null);
   const scroller = useRef<HTMLDivElement>(null);
 
+  const watcher = useRef<IntersectionObserver | null>(null);
   useEffect(() => {
     const el = sentinel.current;
     if (!el) return;
     const io = new IntersectionObserver((es) => { if (es[0].isIntersecting) void loadMore(); }, { root: scroller.current, rootMargin: '600px' });
     io.observe(el);
-    return () => io.disconnect();
+    watcher.current = io;
+    return () => { io.disconnect(); watcher.current = null; };
   }, []);
+  // The observer reports changes only: a page that added little (its rows were read meanwhile) leaves the
+  // sentinel in view, and nothing would load the rest. Observing again reports where it is now.
+  const isLoading = loading.value;
+  useEffect(() => {
+    const el = sentinel.current;
+    if (isLoading || !el || !watcher.current) return;
+    watcher.current.unobserve(el);
+    watcher.current.observe(el);
+  }, [isLoading]);
 
   // Keep the keyboard-selected row in view.
   useEffect(() => {
