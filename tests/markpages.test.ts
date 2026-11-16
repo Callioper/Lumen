@@ -2,8 +2,9 @@ import { test, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { openDb } from '../server/db.ts';
 import { cardsToFetch, prefetchMarkPages } from '../server/content/markpages.ts';
-import { resetDoubanPace, doubanRefused, BASE_GAP_MS } from '../server/fetch/doubanpace.ts';
-import { PAGE_VERSION } from '../server/content/douban.ts';
+import { resetDoubanPace, doubanRefused, doubanWaitMs, BASE_GAP_MS } from '../server/fetch/doubanpace.ts';
+import { PAGE_VERSION, DoubanNeedsLogin } from '../server/content/douban.ts';
+import { needsLogin } from '../server/content/doubanmovie.ts';
 
 function seed() {
   const db = openDb(':memory:');
@@ -31,6 +32,30 @@ test('标记\'s cards whose 豆瓣 page is not kept are fetched ahead, newest fi
   assert.deepEqual(asked, ['222', '111']);
   // the film's three requests and the book's one each took a turn: three gaps waited between the four
   assert.ok(waited >= 3 * BASE_GAP_MS, String(waited));
+});
+
+test('a film 豆瓣 shows only to members is not taken for a refusal: the others go on, and it is not asked again', async () => {
+  resetDoubanPace();
+  const db = seed();
+  const asked: string[] = [];
+  const fetchPage = async (c: { subject: string }): Promise<void> => {
+    asked.push(c.subject);
+    if (c.subject === '222') throw new DoubanNeedsLogin('豆瓣这个条目要登录才能看');
+  };
+  mock.timers.enable({ apis: ['Date'], now: Date.now() });
+  try {
+    assert.equal(await prefetchMarkPages(db, async (ms) => { mock.timers.tick(ms); }, fetchPage), 1);
+    assert.equal(doubanWaitMs(), 0);
+    assert.deepEqual(cardsToFetch(db).map((c) => c.subject), ['111']);
+  } finally { mock.timers.reset(); }
+  assert.deepEqual(asked, ['222', '111']);
+  resetDoubanPace();
+});
+
+test('a 403 from rexxar is a refusal unless it says the subject needs a member', () => {
+  assert.equal(needsLogin('{"request": "GET \\/v2\\/movie\\/36604401", "msg": "need_permission", "code": 1000}'), true);
+  assert.equal(needsLogin('<html>403 Forbidden</html>'), false);
+  assert.equal(needsLogin(''), false);
 });
 
 test('nothing is fetched ahead while 豆瓣 is refusing', async () => {

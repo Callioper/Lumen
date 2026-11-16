@@ -5,7 +5,7 @@
 // of the feeds, and a refusal stops them until 豆瓣 is back. A page kept and fresh is not asked again.
 import type { DB } from '../db.ts';
 import { listMarks, type MarkGroup } from '../api/marks.ts';
-import { bookPageFresh, editionsOf } from './douban.ts';
+import { bookPageFresh, editionsOf, DoubanNeedsLogin } from './douban.ts';
 import { moviePageFresh, moviePage, MOVIE_REQUESTS } from './doubanmovie.ts';
 import { backgroundDoubanTurn, doubanWaitMs } from '../fetch/doubanpace.ts';
 import { log } from '../log.ts';
@@ -28,6 +28,8 @@ let running = false;
 // A subject 豆瓣 answers 404 for (taken down) is not asked again for a week; it was asked every round.
 const GONE_S = 7 * 86400;
 const gone = new Map<string, number>();
+// One shown to members only stays so; a month, then it is tried once more.
+const MEMBERS_ONLY_S = 30 * 86400;
 
 // One batch, unless one is running or 豆瓣 is off. Returns how many pages were fetched.
 export async function prefetchMarkPages(db: DB, wait: (ms: number) => Promise<void> = sleep,
@@ -49,6 +51,7 @@ export async function prefetchMarkPages(db: DB, wait: (ms: number) => Promise<vo
       } catch (e) {
         log.warn(`[marks] 预取条目页没成：${card.title}：${(e as Error).message}`);
         if (/HTTP 404/.test((e as Error).message)) gone.set(card.subject, Math.floor(Date.now() / 1000) + GONE_S);
+        if (e instanceof DoubanNeedsLogin) gone.set(card.subject, Math.floor(Date.now() / 1000) + MEMBERS_ONLY_S);
         if (doubanWaitMs()) break;
       }
     }

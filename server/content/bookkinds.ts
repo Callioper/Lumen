@@ -10,7 +10,7 @@
 import type { DB } from '../db.ts';
 import type { Settings, Secrets } from '../config.ts';
 import type { ListedBook } from './books.ts';
-import { chat } from '../ai/llm.ts';
+import { chat, LlmError } from '../ai/llm.ts';
 import { modelBody } from '../ai/translate.ts';
 import { log } from '../log.ts';
 
@@ -88,12 +88,32 @@ export function sortKinds(db: DB, books: readonly { key: string; b: ListedBook }
   running = (async () => {
     const put = db.prepare('INSERT OR REPLACE INTO book_kind (key, kind, topic, at) VALUES (?, ?, ?, ?)');
     let done = 0;
-    for (let i = 0; i < todo.length; i += BATCH) {
-      const batch = todo.slice(i, i + BATCH);
-      const sorted = readSorted(await ask(prompt(batch.map((x, j) => line(x.b, j)).join('\n'))), batch.length);
+    const keep = (batch: typeof todo, sorted: (Sorted | null)[]): void => {
       const now = Math.floor(Date.now() / 1000);
       // A book the answer skipped is asked again next pass rather than filed under 其他.
       batch.forEach((x, j) => { const s = sorted[j]; if (s) { put.run(x.key, s.kind, s.topic, now); done++; } });
+    };
+    const askBatch = async (batch: typeof todo): Promise<(Sorted | null)[]> =>
+      readSorted(await ask(prompt(batch.map((x, j) => line(x.b, j)).join('\n'))), batch.length);
+    for (let i = 0; i < todo.length; i += BATCH) {
+      const batch = todo.slice(i, i + BATCH);
+      try {
+        keep(batch, await askBatch(batch));
+      } catch (e) {
+        // One book the AI service will not read used to fail its whole batch every pass, so every
+        // book after it went unsorted (275 tries, 11-09 to 11-12). Ask each alone; the refused one
+        // is filed 其他 for good, as it would be refused again.
+        if (!(e instanceof LlmError && e.perPost)) throw e;
+        for (const x of batch) {
+          try {
+            keep([x], await askBatch([x]));
+          } catch (e1) {
+            if (!(e1 instanceof LlmError && e1.perPost)) throw e1;
+            keep([x], [{ kind: '其他', topic: OTHER_TOPIC }]);
+            log.warn(`[books] 《${x.b.title}》被 AI 服务的审查拒绝，归入其他`);
+          }
+        }
+      }
     }
     log.info(`[books] 按类型与主题归类：${done} 本`);
     return done;

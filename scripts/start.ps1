@@ -10,6 +10,12 @@ function Start-NodeService([string]$name, [int]$port, [string]$workDir, [string]
     Write-Output "$name already running on port $port"
     return
   }
+  # Start-Process truncates the redirect targets; keep the last run's output, which holds the
+  # reason it died (a crash's stderr was lost this way, 11-16).
+  foreach ($kind in 'out', 'err') {
+    $f = Join-Path $logs "$name.$kind.log"
+    if ((Test-Path $f) -and (Get-Item $f).Length -gt 0) { Move-Item -Force $f (Join-Path $logs "$name.$kind.prev.log") }
+  }
   Start-Process -FilePath $node -ArgumentList $script -WorkingDirectory $workDir -WindowStyle Hidden `
     -RedirectStandardOutput (Join-Path $logs "$name.out.log") -RedirectStandardError (Join-Path $logs "$name.err.log")
   for ($i = 0; $i -lt 30; $i++) {

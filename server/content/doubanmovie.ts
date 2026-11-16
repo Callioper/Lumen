@@ -3,7 +3,7 @@
 // answers a visitor: the subject, its hot short comments and what is liked alongside. Three
 // requests, a little apart, kept a month in douban_subject.page like a book's page.
 import type { DB } from '../db.ts';
-import { DoubanError, type ShortComment, type Similar } from './douban.ts';
+import { DoubanError, DoubanNeedsLogin, type ShortComment, type Similar } from './douban.ts';
 import { readerDoubanTurn, doubanRefused, doubanAnswered, offMessage, doubanWaitMs } from '../fetch/doubanpace.ts';
 
 const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1';
@@ -50,12 +50,21 @@ export function readMovie(subject: Json, interests: Json, recs: unknown): MovieP
   };
 }
 
+// rexxar's 403 for a subject shown to members only (限制级 films and the like). Taken for a refusal,
+// three such films caused 167 of the 177 pauses of 豆瓣 from 11-01 to 11-16: each pause ended,
+// the prefetch asked the same film first, and 豆瓣 was paused again (checked 11-16, 36604401).
+export const needsLogin = (body: string): boolean => /"msg"\s*:\s*"need_permission"/.test(body);
+
 async function rexxar(path: string, subject: string): Promise<unknown> {
   const off = await readerDoubanTurn();
   if (off) throw new DoubanError(offMessage(off));
   const r = await fetch(`https://m.douban.com/rexxar/api/v2/movie/${subject}${path}`, {
     headers: { 'User-Agent': UA, Referer: `https://m.douban.com/movie/subject/${subject}/` }, signal: AbortSignal.timeout(TIMEOUT_MS),
   }).catch((err: Error) => { throw new DoubanError(`豆瓣没连上（${err.name === 'TimeoutError' ? '超时' : err.message}），稍后再试`); });
+  if (r.status === 403 && needsLogin(await r.text().catch(() => ''))) {
+    doubanAnswered();
+    throw new DoubanNeedsLogin('豆瓣这个条目要登录才能看');
+  }
   if (r.status === 403 || r.status === 429) { doubanRefused(); throw new DoubanError(offMessage(doubanWaitMs())); }
   if (!r.ok) throw new DoubanError(`豆瓣条目打不开（HTTP ${r.status}）`);
   doubanAnswered();

@@ -20,6 +20,9 @@ const PAGE_GAP_MS = 1500;
 const MISS_RETRY_S = 30 * 86400;      // a book not yet on 豆瓣 is looked up again after a month
 
 export class DoubanError extends Error {}
+// 豆瓣 shows this subject to members only (rexxar 403 need_permission): an answer about the subject,
+// not a refusal of the machine, so it does not pause 豆瓣 for everything else.
+export class DoubanNeedsLogin extends DoubanError {}
 
 // A visitor's bid, as douban gives one to any browser; asked for again after a week.
 const VISITOR_FOR_MS = 7 * 86400_000;
